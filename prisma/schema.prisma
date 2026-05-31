@@ -1,0 +1,163 @@
+// Datenmodell Gartenbegehungs-App — siehe Spec/CLAUDE.md.
+// KISS: ein gemeinsamer Login (kein User-Modell), Dateien im Dateisystem, SQLite.
+// Hinweis: SQLite kennt keine nativen Enums -> Auswahl-Felder sind String mit
+// dokumentierten erlaubten Werten. EINZIGE Quelle der Wahrheit für erlaubte Werte:
+// src/lib/constants.ts (beim App-Bau anlegen) — Schema-Kommentare spiegeln sie nur.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Anlage {
+  id        Int      @id @default(autoincrement())
+  kuerzel   String   @unique // "K", "S"
+  name      String // "Kühwasen", "Silberwald"
+  planBild  String? // Pfad zum Plan-Bild (statisch)
+  parzellen Parzelle[]
+  runden    Begehungsrunde[]
+}
+
+model Parzelle {
+  id         Int    @id @default(autoincrement())
+  parzelleId String @unique // "K1", "S59a" (Kürzel+Nummer+Index)
+  anlage     Anlage @relation(fields: [anlageId], references: [id])
+  anlageId   Int
+  nummer     Int // numerisch -> stabile Sortierung für Vor/Zurück-Navigation
+  index      String @default("") // "", "a", ...
+  // Pächter-Stammdaten (liegen auf der Parzelle — kein separates CRM)
+  nachname   String @default("")
+  vorname    String @default("")
+  email      String @default("")
+  telefon    String @default("")
+  strasse    String @default("")
+  plz        String @default("")
+  ort        String @default("")
+  eintritt   String @default("") // ISO-Datum als Text (Import-tolerant)
+  groesseM2  Int? // Parzellenfläche
+  // erlaubt: verpachtet | neupaechter | gekuendigt | nicht_verpachtet
+  status     String @default("verpachtet")
+
+  befunde   Befund[]
+  dokumente Dokument[]
+
+  @@index([anlageId])
+}
+
+model Begehungsrunde {
+  id           Int      @id @default(autoincrement())
+  anlage       Anlage   @relation(fields: [anlageId], references: [id])
+  anlageId     Int
+  datum        DateTime
+  bezeichnung  String // "Begehung 17.05.2026 – Silberwald"
+  teilnehmende String   @default("")
+  // erlaubt: offen | abgeschlossen — abgeschlossen => Befunde eingefroren
+  status       String   @default("offen")
+  erstelltAm   DateTime @default(now())
+
+  befunde Befund[]
+
+  @@index([anlageId, datum])
+}
+
+model Befund {
+  id         Int            @id @default(autoincrement())
+  runde      Begehungsrunde @relation(fields: [rundeId], references: [id], onDelete: Cascade)
+  rundeId    Int
+  parzelle   Parzelle       @relation(fields: [parzelleId], references: [id]) // kein Cascade: Parzelle mit Historie nicht löschbar
+  parzelleId Int
+  // Eskalation (GO §13.2 / UPV §4) — gilt pro Parzelle/Runde (= ein Schreiben je Parzelle)
+  // erlaubt: neutral | ok | hinweis | abmahnung_1 | abmahnung_2 | kuendigung
+  stufe      String         @default("neutral")
+  notiz      String         @default("") // allgemeine Bemerkung / Zustand
+  zeitpunkt  DateTime       @default(now())
+
+  // Snapshot zum Begehungszeitpunkt — eingefroren für rechtssichere Doku über Jahre
+  snapParzelleId String
+  snapPaechter   String @default("")
+  snapAdresse    String @default("")
+
+  // "Gut gemacht"-Plakette (KISS: Felder am Befund statt eigenem Modell)
+  gutGemacht     Boolean @default(false)
+  plakettenNotiz String  @default("")
+
+  beete   Beet[]
+  maengel Mangel[]
+  fotos   Foto[]
+
+  @@unique([rundeId, parzelleId])
+  @@index([parzelleId])
+}
+
+// Gemüsebeete (bis zu 5 — Grenze in der UI) — IST-Fläche, Summe vs. SOLL (1/6 der Parzelle)
+model Beet {
+  id          Int    @id @default(autoincrement())
+  befund      Befund @relation(fields: [befundId], references: [id], onDelete: Cascade)
+  befundId    Int
+  bezeichnung String @default("")
+  flaecheM2   Float  @default(0)
+}
+
+model Mangel {
+  id        Int      @id @default(autoincrement())
+  befund    Befund   @relation(fields: [befundId], references: [id], onDelete: Cascade)
+  befundId  Int
+  katalog   Katalog? @relation(fields: [katalogId], references: [id]) // SetNull: Katalogpunkt entfällt -> Freitext bleibt
+  katalogId Int?
+  bereich   String // Snapshot des Katalog-Bereichs (eingefroren)
+  punkt     String // Snapshot des Katalog-Punkts (oder Freitext)
+  notiz     String   @default("")
+  // erlaubt: offen | behoben
+  status    String   @default("offen")
+  frist     DateTime?
+  behobenAm DateTime? // beim Umschalten auf "behoben" gesetzt — Ursprungsstand bleibt erhalten
+  fotos     Foto[]
+
+  @@index([befundId])
+  @@index([status])
+}
+
+model Foto {
+  id           Int      @id @default(autoincrement())
+  befund       Befund   @relation(fields: [befundId], references: [id], onDelete: Cascade)
+  befundId     Int
+  mangel       Mangel?  @relation(fields: [mangelId], references: [id], onDelete: Cascade)
+  mangelId     Int?
+  // erlaubt: mangel | zustand | beet
+  kontext      String   @default("mangel")
+  dateipfad    String // relativ zu STORAGE_DIR; beim Upload: resize ~1600px + EXIF/Geo-Strip
+  beschreibung String   @default("")
+  erstelltAm   DateTime @default(now())
+
+  @@index([befundId])
+}
+
+// Akte je Parzelle: Schreiben, E-Mails, Wertermittlungen (PDF) + Fotos
+model Dokument {
+  id         Int      @id @default(autoincrement())
+  parzelle   Parzelle @relation(fields: [parzelleId], references: [id], onDelete: Cascade)
+  parzelleId Int
+  // erlaubt: schreiben | email | wertermittlung | sonstiges
+  typ        String   @default("sonstiges")
+  dateipfad  String // relativ zu STORAGE_DIR
+  datum      DateTime @default(now())
+  notiz      String   @default("")
+
+  @@index([parzelleId])
+}
+
+// Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular
+model Katalog {
+  id         Int      @id @default(autoincrement())
+  bereich    String // "Garten", "Baulichkeiten und Nebenanlagen", "Sonstiges"
+  punkt      String
+  hinweis    String   @default("") // optionale Sub-Checkboxen / Maße als Hilfetext
+  referenz   String   @default("") // "UPV §4 / GO 1.3"
+  sortierung Int      @default(0)
+  aktiv      Boolean  @default(true)
+  maengel    Mangel[]
+}

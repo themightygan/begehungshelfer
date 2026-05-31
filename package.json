@@ -1,0 +1,20 @@
+{
+  "name": "begehungshelfer",
+  "version": "0.1.0",
+  "private": true,
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
+  },
+  "scripts": {
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "iron-session": "^8.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}
