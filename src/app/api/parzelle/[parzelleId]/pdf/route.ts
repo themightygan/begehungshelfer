@@ -84,6 +84,8 @@ export async function GET(
     })),
     beetIst: (befund?.beete ?? []).reduce((s, b) => s + b.flaecheM2, 0),
     beetSoll: parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null,
+    gutGemacht: befund?.gutGemacht ?? false,
+    plakettenNotiz: befund?.plakettenNotiz ?? "",
   });
 
   return new Response(new Uint8Array(pdf), {

@@ -36,6 +36,8 @@ export type BerichtDaten = {
   beete: { bezeichnung: string; flaecheM2: number }[];
   beetIst: number;
   beetSoll: number | null;
+  gutGemacht: boolean;
+  plakettenNotiz: string;
 };
 
 const m2 = (n: number) =>
@@ -120,6 +122,16 @@ function Bericht({ d }: { d: BerichtDaten }) {
             <Text style={s.wert}>{STUFE_LABEL[d.stufe] ?? d.stufe}</Text>
           </View>
         </View>
+
+        {d.gutGemacht && (
+          <View style={s.abschnitt}>
+            <Text style={s.h2}>„Gut gemacht"</Text>
+            <Text style={s.text}>
+              Vorbildlich gepflegte Parzelle.
+              {d.plakettenNotiz ? ` ${d.plakettenNotiz}` : ""}
+            </Text>
+          </View>
+        )}
 
         {d.notiz.trim() !== "" && (
           <View style={s.abschnitt}>

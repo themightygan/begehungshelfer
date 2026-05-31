@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: hält den PERMANENTEN Cloudflare-Tunnel am Laufen.
+     Setzt einen benannten Tunnel "begehungshelfer" voraus (cloudflared tunnel
+     create + ~/.cloudflared/config.yml). Erst nach Domain-Umzug + Tunnel-Setup
+     aktivieren — NICHT für den trycloudflare-Schnelltunnel. Siehe deploy/README.md. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.gartenfreunde.begehungshelfer-tunnel</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/cloudflared</string>
+    <string>tunnel</string>
+    <string>run</string>
+    <string>begehungshelfer</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-tunnel.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-tunnel.log</string>
+</dict>
+</plist>

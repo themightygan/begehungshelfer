@@ -11,14 +11,20 @@ export function BefundForm({
   weiterAction,
   stufe,
   notiz,
+  gutGemacht,
+  plakettenNotiz,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   weiterAction?: (formData: FormData) => void | Promise<void>;
   stufe: string;
   notiz: string;
+  gutGemacht: boolean;
+  plakettenNotiz: string;
 }) {
   const [stufeWert, setStufeWert] = useState(stufe);
   const [notizWert, setNotizWert] = useState(notiz);
+  const [lob, setLob] = useState(gutGemacht);
+  const [lobNotiz, setLobNotiz] = useState(plakettenNotiz);
 
   return (
     <form
@@ -51,6 +57,32 @@ export function BefundForm({
           className="mt-1 block w-full rounded border border-stone-300 px-3 py-2 text-base"
         />
       </label>
+
+      {/* "Gut gemacht"-Plakette (Lob für gepflegte Gärten) */}
+      <div className="rounded border border-emerald-200 bg-emerald-50/60 p-3">
+        <label className="flex items-center gap-2 text-base font-medium text-emerald-800">
+          <input
+            type="checkbox"
+            name="gutGemacht"
+            value="1"
+            checked={lob}
+            onChange={(e) => setLob(e.target.checked)}
+            className="h-5 w-5"
+          />
+          👍 „Gut gemacht"-Plakette
+        </label>
+        {lob && (
+          <input
+            type="text"
+            name="plakettenNotiz"
+            value={lobNotiz}
+            onChange={(e) => setLobNotiz(e.target.value)}
+            placeholder="Lob / Begründung (optional)"
+            className="mt-2 block w-full rounded border border-emerald-300 px-3 py-2 text-base"
+          />
+        )}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <button className="rounded border border-emerald-700 px-4 py-2.5 text-base font-medium text-emerald-700 hover:bg-emerald-50">
           Speichern

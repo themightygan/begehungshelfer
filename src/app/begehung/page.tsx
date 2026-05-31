@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { STUFE_LABEL } from "@/lib/constants";
 import { getAktiveRundeId } from "@/lib/runde";
 import { begehungAbschliessen, begehungVerlassen } from "./actions";
+import { ConfirmButton } from "./ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -125,9 +126,12 @@ export default async function BegehungSeite() {
             Berichte werden erzeugt. Danach keine Änderungen mehr möglich.
           </p>
           <form action={begehungAbschliessen} className="mt-2">
-            <button className="rounded bg-amber-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-800">
+            <ConfirmButton
+              message="Begehung jetzt abschließen? Die Runde wird eingefroren und kann nicht mehr geändert werden."
+              className="rounded bg-amber-700 px-4 py-2.5 text-base font-medium text-white hover:bg-amber-800"
+            >
               Jetzt abschließen & Berichte erzeugen
-            </button>
+            </ConfirmButton>
           </form>
         </details>
         <form action={begehungVerlassen}>

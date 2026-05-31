@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: hält die App am Laufen. Installation siehe deploy/README.md.
+     NICHT aktivieren, solange wir in Dev iterieren (npm run dev). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.gartenfreunde.begehungshelfer-app</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Users/macmini/Code/begehungshelfer/deploy/start-app.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/macmini/Code/begehungshelfer</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-app.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-app.log</string>
+</dict>
+</plist>

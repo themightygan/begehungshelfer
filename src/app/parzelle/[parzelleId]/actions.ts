@@ -74,11 +74,14 @@ async function fotosAusFormData(
 
 export async function speichereBefund(parzelleId: string, formData: FormData) {
   const befundId = await ensureBefund(parzelleId);
+  const gutGemacht = formData.get("gutGemacht") === "1";
   await prisma.befund.update({
     where: { id: befundId },
     data: {
       stufe: (formData.get("stufe") as string) || "neutral",
       notiz: (formData.get("notiz") as string) || "",
+      gutGemacht,
+      plakettenNotiz: gutGemacht ? String(formData.get("plakettenNotiz") ?? "") : "",
     },
   });
   revalidatePath(`/parzelle/${parzelleId}`);
