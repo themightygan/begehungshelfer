@@ -13,13 +13,16 @@ export async function begehungStarten(formData: FormData) {
     .getAll("teilnehmer")
     .map(String)
     .filter(Boolean);
+  const art = formData.get("art") === "nachbegehung" ? "nachbegehung" : "begehung";
+  const titel = art === "nachbegehung" ? "Nachbegehung" : "Begehung";
 
   const datum = new Date();
   const runde = await prisma.begehungsrunde.create({
     data: {
       anlageId,
       datum,
-      bezeichnung: `Begehung ${datum.toLocaleDateString("de-DE")} – ${anlage.name}`,
+      art,
+      bezeichnung: `${titel} ${datum.toLocaleDateString("de-DE")} – ${anlage.name}`,
       teilnehmende: teilnehmer.join(", "),
       status: "offen",
     },

@@ -41,6 +41,25 @@ export default async function BegehungSeite() {
     (b) => b.stufe !== "neutral" || b._count.maengel > 0 || b.notiz.trim() !== ""
   ).length;
 
+  // Nachbegehung: offene Mängel je Parzelle (aus allen Befunden) -> Raster-Ampel.
+  const istNach = runde.art === "nachbegehung";
+  const offenMap = new Map<number, { offen: number; ueberfaellig: number }>();
+  if (istNach) {
+    const heute = new Date();
+    heute.setHours(0, 0, 0, 0);
+    const offene = await prisma.mangel.findMany({
+      where: { status: "offen", befund: { parzelle: { anlageId: runde.anlageId } } },
+      select: { frist: true, befund: { select: { parzelleId: true } } },
+    });
+    for (const m of offene) {
+      const pid = m.befund.parzelleId;
+      const e = offenMap.get(pid) ?? { offen: 0, ueberfaellig: 0 };
+      e.offen++;
+      if (m.frist && new Date(m.frist) < heute) e.ueberfaellig++;
+      offenMap.set(pid, e);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-2">
@@ -82,33 +101,46 @@ export default async function BegehungSeite() {
       {/* Parzellen-Raster */}
       <section>
         <h2 className="mb-2 text-sm font-medium text-stone-600">Parzellen</h2>
+        {istNach && (
+          <p className="mb-2 text-sm text-stone-500">
+            Nachbegehung: <span className="font-medium text-red-600">rot</span> = überfällige Mängel,{" "}
+            <span className="font-medium text-amber-600">gelb</span> = offene Mängel.
+          </p>
+        )}
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
           {parzellen.map((p) => {
             const s = stand.get(p.id);
-            const aktiv = s && (s.stufe !== "neutral" || s.maengel > 0);
+            const o = offenMap.get(p.id);
+            let farbe: string;
+            if (istNach) {
+              farbe = o?.ueberfaellig
+                ? "border-red-400 bg-red-50"
+                : o?.offen
+                  ? "border-amber-400 bg-amber-50"
+                  : s
+                    ? "border-emerald-400 bg-emerald-50"
+                    : "border-stone-200 bg-white";
+            } else {
+              const aktiv = s && (s.stufe !== "neutral" || s.maengel > 0);
+              farbe = aktiv
+                ? "border-emerald-400 bg-emerald-50"
+                : s
+                  ? "border-stone-300 bg-stone-50"
+                  : "border-stone-200 bg-white";
+            }
             return (
               <Link
                 key={p.id}
                 href={`/parzelle/${p.parzelleId}`}
-                className={`rounded border px-2 py-3 text-center text-base font-medium ${
-                  aktiv
-                    ? "border-emerald-400 bg-emerald-50"
-                    : s
-                      ? "border-stone-300 bg-stone-50"
-                      : "border-stone-200 bg-white"
-                } hover:border-emerald-400`}
-                title={
-                  s
-                    ? `${STUFE_LABEL[s.stufe] ?? s.stufe}${
-                        s.maengel ? `, ${s.maengel} Mangel` : ""
-                      }`
-                    : "noch nicht erfasst"
-                }
+                className={`rounded border px-2 py-3 text-center text-base font-medium ${farbe} hover:border-emerald-400`}
+                title={istNach && o ? `${o.offen} offen, ${o.ueberfaellig} überfällig` : undefined}
               >
                 {p.parzelleId}
-                {s && s.maengel > 0 && (
+                {istNach && o?.offen ? (
+                  <span className={`ml-1 text-xs ${o.ueberfaellig ? "text-red-600" : "text-amber-600"}`}>{o.offen}</span>
+                ) : s && s.maengel > 0 ? (
                   <span className="ml-1 text-xs text-red-600">{s.maengel}</span>
-                )}
+                ) : null}
               </Link>
             );
           })}

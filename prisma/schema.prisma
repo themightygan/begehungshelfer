@@ -55,6 +55,8 @@ model Begehungsrunde {
   anlageId     Int
   datum        DateTime
   bezeichnung  String // "Begehung 17.05.2026 – Silberwald"
+  // erlaubt: begehung | nachbegehung (Nachverfolgung offener Mängel)
+  art          String   @default("begehung")
   teilnehmende String   @default("")
   // erlaubt: offen | abgeschlossen — abgeschlossen => Befunde eingefroren
   status       String   @default("offen")

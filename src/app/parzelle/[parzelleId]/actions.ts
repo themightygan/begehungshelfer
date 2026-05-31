@@ -180,6 +180,19 @@ export async function loescheFoto(parzelleId: string, fotoId: number) {
   revalidatePath(`/parzelle/${parzelleId}`);
 }
 
+// "behoben" für einen früheren Mangel umschalten (Nachverfolgung auf der Parzellenseite).
+export async function mangelBehobenToggle(parzelleId: string, mangelId: number) {
+  const m = await prisma.mangel.findUniqueOrThrow({ where: { id: mangelId } });
+  const istBehoben = m.status === "behoben";
+  await prisma.mangel.update({
+    where: { id: mangelId },
+    data: istBehoben
+      ? { status: "offen", behobenAm: null }
+      : { status: "behoben", behobenAm: new Date() },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
 // --- Gemüsebeete (IST vs. SOLL 1/6, UPV §12) ---
 const BEET_MAX = 5;
 

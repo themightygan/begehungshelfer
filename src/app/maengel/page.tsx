@@ -8,128 +8,148 @@ export const dynamic = "force-dynamic";
 export default async function MaengelSeite({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ parzelle?: string; status?: string }>;
 }) {
-  const { status } = await searchParams;
-  // Default: nur offene; "alle" zeigt auch behobene.
+  const { parzelle: parzelleId, status } = await searchParams;
   const nurOffen = status !== "alle";
-
-  const maengel = await prisma.mangel.findMany({
-    where: nurOffen ? { status: "offen" } : {},
-    include: {
-      katalog: true,
-      befund: { include: { parzelle: { include: { anlage: true } } } },
-    },
-  });
-
   const heute = new Date();
   heute.setHours(0, 0, 0, 0);
+  const istUeberfaellig = (m: { status: string; frist: Date | null }) =>
+    m.status === "offen" && m.frist !== null && new Date(m.frist) < heute;
 
-  // Sortierung: überfällig zuerst, dann nach Frist, dann ohne Frist.
-  const angereichert = maengel
-    .map((m) => ({
-      m,
-      ueberfaellig:
-        m.status === "offen" && m.frist !== null && new Date(m.frist) < heute,
-    }))
-    .sort((a, b) => {
-      if (a.ueberfaellig !== b.ueberfaellig) return a.ueberfaellig ? -1 : 1;
-      const af = a.m.frist ? new Date(a.m.frist).getTime() : Infinity;
-      const bf = b.m.frist ? new Date(b.m.frist).getTime() : Infinity;
-      return af - bf;
+  // --- Detailansicht einer Parzelle ---
+  if (parzelleId) {
+    const parzelle = await prisma.parzelle.findUnique({
+      where: { parzelleId },
+      include: { anlage: true },
     });
+    const maengel = parzelle
+      ? await prisma.mangel.findMany({
+          where: {
+            befund: { parzelleId: parzelle.id },
+            ...(nurOffen ? { status: "offen" } : {}),
+          },
+          include: { befund: { include: { runde: { select: { datum: true } } } } },
+          orderBy: { id: "desc" },
+        })
+      : [];
 
-  const offenCount = maengel.filter((m) => m.status === "offen").length;
-  const ueberfaelligCount = angereichert.filter((x) => x.ueberfaellig).length;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold">
+              Mängel · Parzelle {parzelleId}
+            </h1>
+            {parzelle && (
+              <p className="text-base text-stone-500">
+                {parzelle.anlage.name} · {parzelle.nachname} {parzelle.vorname}
+              </p>
+            )}
+          </div>
+          <Link href="/maengel" className="shrink-0 text-base text-emerald-700 hover:underline">
+            ← Parzellen
+          </Link>
+        </div>
+
+        <div className="flex gap-2 text-sm">
+          <Link href={`/maengel?parzelle=${parzelleId}`} className={`rounded-full px-3 py-1 ${nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"}`}>Nur offene</Link>
+          <Link href={`/maengel?parzelle=${parzelleId}&status=alle`} className={`rounded-full px-3 py-1 ${!nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"}`}>Alle</Link>
+        </div>
+
+        {maengel.length === 0 ? (
+          <p className="text-base text-stone-400">Keine Mängel.</p>
+        ) : (
+          <ul className="space-y-2">
+            {maengel.map((m) => {
+              const ueb = istUeberfaellig(m);
+              return (
+                <li key={m.id} className="flex items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3">
+                  <div className="min-w-0">
+                    <span className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</span>
+                    <p className="text-base font-medium">{m.punkt || "(ohne Bezeichnung)"}</p>
+                    {m.notiz && <p className="text-sm text-stone-500">{m.notiz}</p>}
+                    <p className="text-sm text-stone-400">
+                      Begehung {new Date(m.befund.runde.datum).toLocaleDateString("de-DE")}
+                      {m.frist ? ` · Frist ${new Date(m.frist).toLocaleDateString("de-DE")}` : ""}
+                      {ueb ? " · überfällig" : ""}
+                      {m.status === "behoben" && m.behobenAm ? ` · behoben ${new Date(m.behobenAm).toLocaleDateString("de-DE")}` : ""}
+                    </p>
+                  </div>
+                  <form action={toggleBehoben.bind(null, m.id)} className="shrink-0">
+                    <button className={`rounded px-3 py-1.5 text-sm font-medium ${m.status === "behoben" ? "border border-stone-300 text-stone-600 hover:bg-stone-50" : "bg-emerald-700 text-white hover:bg-emerald-800"}`}>
+                      {m.status === "behoben" ? "↩ offen" : "✓ behoben"}
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  // --- Auswahlliste: Parzellen mit Mängeln ---
+  const offeneMaengel = await prisma.mangel.findMany({
+    where: { status: "offen" },
+    select: { frist: true, status: true, befund: { select: { parzelle: { select: { parzelleId: true, nachname: true, vorname: true, anlage: { select: { name: true } } } } } } },
+  });
+  type Eintrag = { parzelleId: string; name: string; anlage: string; offen: number; ueberfaellig: number };
+  const proParzelle = new Map<string, Eintrag>();
+  for (const m of offeneMaengel) {
+    const pid = m.befund.parzelle.parzelleId;
+    let e = proParzelle.get(pid);
+    if (!e) {
+      e = {
+        parzelleId: pid,
+        name: `${m.befund.parzelle.nachname} ${m.befund.parzelle.vorname}`.trim(),
+        anlage: m.befund.parzelle.anlage.name,
+        offen: 0,
+        ueberfaellig: 0,
+      };
+      proParzelle.set(pid, e);
+    }
+    e.offen++;
+    if (istUeberfaellig(m)) e.ueberfaellig++;
+  }
+  const liste = [...proParzelle.values()].sort(
+    (a, b) => b.ueberfaellig - a.ueberfaellig || a.parzelleId.localeCompare(b.parzelleId)
+  );
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">Mängel-Nachverfolgung</h1>
-          <p className="text-sm text-stone-500">
-            {offenCount} offen · {ueberfaelligCount} überfällig
+          <h1 className="text-2xl font-semibold">Mängel-Nachverfolgung</h1>
+          <p className="text-base text-stone-500">
+            {liste.length} Parzellen mit offenen Mängeln · Parzelle wählen:
           </p>
         </div>
-        <Link href="/" className="text-sm text-emerald-700 hover:underline">
-          Liste
-        </Link>
+        <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">Start</Link>
       </div>
 
-      <div className="flex gap-2 text-sm">
-        <Link
-          href="/maengel"
-          className={`rounded-full px-3 py-1 ${
-            nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"
-          }`}
-        >
-          Nur offene
-        </Link>
-        <Link
-          href="/maengel?status=alle"
-          className={`rounded-full px-3 py-1 ${
-            !nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"
-          }`}
-        >
-          Alle
-        </Link>
-      </div>
-
-      {angereichert.length === 0 ? (
-        <p className="text-sm text-stone-400">Keine Mängel.</p>
+      {liste.length === 0 ? (
+        <p className="text-base text-stone-400">Keine offenen Mängel.</p>
       ) : (
         <ul className="space-y-2">
-          {angereichert.map(({ m, ueberfaellig }) => (
-            <li
-              key={m.id}
-              className="flex items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/parzelle/${m.befund.parzelle.parzelleId}`}
-                    className="font-medium text-emerald-700 hover:underline"
-                  >
-                    {m.befund.parzelle.parzelleId}
-                  </Link>
-                  <span className="text-[10px] uppercase tracking-wide text-stone-400">
-                    {m.bereich}
-                  </span>
-                  {m.befund.stufe !== "neutral" && (
-                    <span className="rounded bg-stone-100 px-1.5 text-xs text-stone-600">
-                      {STUFE_LABEL[m.befund.stufe] ?? m.befund.stufe}
-                    </span>
-                  )}
-                  {m.status === "behoben" && (
-                    <span className="rounded bg-emerald-50 px-1.5 text-xs text-emerald-700">
-                      behoben
-                    </span>
-                  )}
+          {liste.map((e) => (
+            <li key={e.parzelleId}>
+              <Link
+                href={`/maengel?parzelle=${e.parzelleId}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3 hover:border-emerald-400"
+              >
+                <div className="min-w-0">
+                  <span className="text-lg font-medium">{e.parzelleId}</span>
+                  <span className="ml-2 text-sm text-stone-500">{e.anlage} · {e.name}</span>
                 </div>
-                <p className="truncate text-sm">{m.punkt || "(ohne Bezeichnung)"}</p>
-                {m.notiz && <p className="truncate text-xs text-stone-500">{m.notiz}</p>}
-                {m.frist && (
-                  <p
-                    className={`text-xs ${
-                      ueberfaellig ? "font-medium text-red-600" : "text-stone-400"
-                    }`}
-                  >
-                    Frist: {new Date(m.frist).toLocaleDateString("de-DE")}
-                    {ueberfaellig ? " — überfällig" : ""}
-                  </p>
-                )}
-              </div>
-              <form action={toggleBehoben.bind(null, m.id)} className="shrink-0">
-                <button
-                  className={`rounded px-2.5 py-1 text-sm font-medium ${
-                    m.status === "behoben"
-                      ? "border border-stone-300 text-stone-600 hover:bg-stone-50"
-                      : "bg-emerald-700 text-white hover:bg-emerald-800"
-                  }`}
-                >
-                  {m.status === "behoben" ? "↩ offen" : "✓ behoben"}
-                </button>
-              </form>
+                <div className="flex shrink-0 items-center gap-2 text-sm">
+                  {e.ueberfaellig > 0 && (
+                    <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-600">{e.ueberfaellig} überfällig</span>
+                  )}
+                  <span className="rounded bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{e.offen} offen</span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

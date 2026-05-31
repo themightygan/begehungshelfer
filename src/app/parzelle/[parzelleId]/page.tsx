@@ -16,6 +16,7 @@ import {
   uploadMangelFotos,
   uploadBeetFotos,
   loescheFoto,
+  mangelBehobenToggle,
   addBeet,
   updateBeet,
   removeBeet,
@@ -182,6 +183,18 @@ export default async function ParzelleSeite({
     ? new Date(vorBefund.runde.datum).toLocaleDateString("de-DE")
     : null;
 
+  // Offene Mängel aus FRÜHEREN Begehungen (für Nachverfolgung / Abhaken).
+  const heuteDat = new Date();
+  heuteDat.setHours(0, 0, 0, 0);
+  const offeneFruehere = await prisma.mangel.findMany({
+    where: {
+      status: "offen",
+      befund: { parzelleId: parzelle.id, rundeId: { not: rundeId } },
+    },
+    include: { befund: { include: { runde: { select: { datum: true } } } } },
+    orderBy: { id: "desc" },
+  });
+
   const gewaehlt = new Set(befund.maengel.map((m) => m.katalogId).filter(Boolean));
 
   const bereiche: { name: string; punkte: typeof katalog }[] = [];
@@ -240,6 +253,41 @@ export default async function ParzelleSeite({
           <span className="px-4 py-2.5 text-stone-300">→</span>
         )}
       </div>
+
+      {/* Offene Mängel aus früheren Begehungen — abhaken (Nachverfolgung) */}
+      {offeneFruehere.length > 0 && (
+        <section className="rounded-lg border border-amber-300 bg-amber-50/60 p-4">
+          <h2 className="text-base font-medium text-amber-900">
+            Offene Mängel aus früheren Begehungen ({offeneFruehere.length})
+          </h2>
+          <ul className="mt-2 space-y-2">
+            {offeneFruehere.map((m) => {
+              const ueb = m.frist && new Date(m.frist) < heuteDat;
+              return (
+                <li
+                  key={m.id}
+                  className="flex items-start justify-between gap-3 rounded border border-amber-200 bg-white p-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-base font-medium">{m.punkt || "(ohne Bezeichnung)"}</p>
+                    {m.notiz && <p className="text-sm text-stone-500">{m.notiz}</p>}
+                    <p className={`text-sm ${ueb ? "font-medium text-red-600" : "text-stone-400"}`}>
+                      Begehung {new Date(m.befund.runde.datum).toLocaleDateString("de-DE")}
+                      {m.frist ? ` · Frist ${new Date(m.frist).toLocaleDateString("de-DE")}` : ""}
+                      {ueb ? " · überfällig" : ""}
+                    </p>
+                  </div>
+                  <form action={mangelBehobenToggle.bind(null, parzelleId, m.id)} className="shrink-0">
+                    <button className="rounded bg-emerald-700 px-3 py-2 text-base font-medium text-white hover:bg-emerald-800">
+                      ✓ behoben
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Obere Reihe: Gesamtansicht | Gemüsebeete */}
       <div className="grid gap-5 lg:grid-cols-2">

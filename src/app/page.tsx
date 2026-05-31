@@ -25,6 +25,12 @@ export default async function Home() {
         >
           📋 Mängel-Nachverfolgung
         </Link>
+        <Link
+          href="/auswertung"
+          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+        >
+          📊 Auswertung
+        </Link>
         <a
           href="/api/export/csv"
           className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
@@ -51,6 +57,20 @@ export default async function Home() {
         className="space-y-4 rounded-lg border border-stone-200 bg-white p-4"
       >
         <h1 className="text-lg font-semibold">Begehung starten</h1>
+
+        <div>
+          <p className="mb-1 text-sm font-medium text-stone-600">Art</p>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="radio" name="art" value="begehung" defaultChecked />
+              Begehung
+            </label>
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="radio" name="art" value="nachbegehung" />
+              Nachbegehung (offene Mängel prüfen)
+            </label>
+          </div>
+        </div>
 
         <div>
           <p className="mb-1 text-sm font-medium text-stone-600">Anlage</p>
