@@ -143,6 +143,18 @@ export default async function ParzelleSeite({
     where: { parzelleId: parzelle.id },
     orderBy: { datum: "desc" },
   });
+  // Archivfotos früherer Begehungen, gruppiert nach Datum (neueste zuerst).
+  const archivFotos = await prisma.archivFoto.findMany({
+    where: { parzelleId: parzelle.id },
+    orderBy: { datum: "desc" },
+  });
+  const archivGruppen: { datum: string; quelle: string; fotos: typeof archivFotos }[] = [];
+  for (const f of archivFotos) {
+    const datum = new Date(f.datum).toLocaleDateString("de-DE");
+    let g = archivGruppen.find((x) => x.datum === datum);
+    if (!g) archivGruppen.push((g = { datum, quelle: f.quelle, fotos: [] }));
+    g.fotos.push(f);
+  }
   const katalog = await prisma.katalog.findMany({
     where: { aktiv: true },
     orderBy: { sortierung: "asc" },
@@ -527,6 +539,39 @@ export default async function ParzelleSeite({
             ))}
           </ul>
         )}
+        {archivGruppen.length > 0 && (
+          <div className="mt-3 space-y-1 border-t border-stone-100 pt-3">
+            <p className="text-sm font-medium text-stone-500">
+              Fotos früherer Begehungen
+            </p>
+            {archivGruppen.map((g) => (
+              <details key={g.datum} className="text-base">
+                <summary className="cursor-pointer text-emerald-700">
+                  📷 Fotos {g.datum} ({g.fotos.length})
+                  {g.quelle ? ` — ${g.quelle}` : ""}
+                </summary>
+                <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {g.fotos.map((f) => (
+                    <a
+                      key={f.id}
+                      href={`/api/datei/${f.dateipfad}`}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/datei/${f.dateipfad}`}
+                        alt={`Foto ${g.datum}`}
+                        className="aspect-square w-full rounded object-cover"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+
         <form
           action={uploadDokument.bind(null, parzelleId)}
           className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3"

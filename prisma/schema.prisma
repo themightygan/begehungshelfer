@@ -42,8 +42,9 @@ model Parzelle {
   // erlaubt: verpachtet | neupaechter | gekuendigt | nicht_verpachtet
   status     String @default("verpachtet")
 
-  befunde   Befund[]
-  dokumente Dokument[]
+  befunde     Befund[]
+  dokumente   Dokument[]
+  archivFotos ArchivFoto[]
 
   @@index([anlageId])
 }
@@ -151,6 +152,20 @@ model Dokument {
   notiz      String   @default("")
 
   @@index([parzelleId])
+}
+
+// Archiv-Fotos früherer Begehungen (nicht an eine Runde/Befund gebunden).
+// Gruppiert je Parzelle nach Begehungsdatum in der Akte.
+model ArchivFoto {
+  id         Int      @id @default(autoincrement())
+  parzelle   Parzelle @relation(fields: [parzelleId], references: [id], onDelete: Cascade)
+  parzelleId Int
+  datum      DateTime // Begehungsdatum (für Gruppierung "Fotos 17.03.2022")
+  quelle     String   @default("") // Herkunft/Ordnername, z. B. "Begehung 29.06.2023"
+  dateipfad  String // relativ zu STORAGE_DIR (verarbeitetes JPEG)
+  erstelltAm DateTime @default(now())
+
+  @@index([parzelleId, datum])
 }
 
 // Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular
