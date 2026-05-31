@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     where: rundeId ? { rundeId } : {},
     include: {
       parzelle: { include: { anlage: true } },
+      runde: { select: { datum: true, teilnehmende: true } },
       maengel: { include: { _count: { select: { fotos: true } } } },
       beete: true,
       _count: { select: { fotos: true } },
@@ -24,9 +25,9 @@ export async function GET(req: NextRequest) {
   });
 
   const kopf = [
-    "Parzelle", "Anlage", "Paechter", "Adresse", "Flaeche_m2", "Stufe",
-    "Bemerkung", "Bereich", "Mangel", "Mangel_Notiz", "Frist", "Status",
-    "BehobenAm", "Fotos", "Gemuese_IST_m2", "Gemuese_SOLL_m2",
+    "Parzelle", "Anlage", "Begehung_Datum", "Teilnehmer", "Paechter", "Adresse",
+    "Flaeche_m2", "Stufe", "Bemerkung", "Bereich", "Mangel", "Mangel_Notiz",
+    "Frist", "Status", "BehobenAm", "Fotos", "Gemuese_IST_m2", "Gemuese_SOLL_m2",
   ];
   const zeilen: string[] = [kopf.join(";")];
 
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest) {
     const ist = b.beete.reduce((s, x) => s + x.flaecheM2, 0);
     const soll = p.groesseM2 ? p.groesseM2 / 6 : null;
     const basis = [
-      p.parzelleId, p.anlage.name, `${p.nachname} ${p.vorname}`.trim(), adresse,
+      p.parzelleId, p.anlage.name, iso(b.runde.datum), b.runde.teilnehmende,
+      `${p.nachname} ${p.vorname}`.trim(), adresse,
       p.groesseM2 ?? "", STUFE_LABEL[b.stufe] ?? b.stufe, b.notiz,
     ];
     const gemuese = [

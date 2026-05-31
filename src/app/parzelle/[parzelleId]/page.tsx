@@ -195,6 +195,20 @@ export default async function ParzelleSeite({
     orderBy: { id: "desc" },
   });
 
+  // Beet-Mess-Historie: frühere Befunde mit Beeten (für "zuletzt gemessen" + Historie).
+  const messHistorie = await prisma.befund.findMany({
+    where: { parzelleId: parzelle.id, rundeId: { not: rundeId }, beete: { some: {} } },
+    include: { runde: { select: { datum: true } }, beete: { orderBy: { id: "asc" } } },
+    orderBy: { runde: { datum: "desc" } },
+  });
+  const messSumme = (be: { flaecheM2: number }[]) => be.reduce((s, b) => s + b.flaecheM2, 0);
+  const zuletztGemessen = messHistorie[0]
+    ? {
+        datum: new Date(messHistorie[0].runde.datum).toLocaleDateString("de-DE"),
+        summe: messSumme(messHistorie[0].beete),
+      }
+    : null;
+
   const gewaehlt = new Set(befund.maengel.map((m) => m.katalogId).filter(Boolean));
 
   const bereiche: { name: string; punkte: typeof katalog }[] = [];
@@ -253,6 +267,16 @@ export default async function ParzelleSeite({
           <span className="px-4 py-2.5 text-stone-300">→</span>
         )}
       </div>
+
+      {/* Notiz/Transkript der letzten Begehung */}
+      {vorBefund && vorBefund.notiz.trim() !== "" && (
+        <details className="rounded-lg border border-stone-200 bg-white p-3 text-base">
+          <summary className="cursor-pointer font-medium text-stone-600">
+            📋 Letzte Begehung{vorDatum ? ` (${vorDatum})` : ""} — Notiz
+          </summary>
+          <p className="mt-2 whitespace-pre-line text-stone-700">{vorBefund.notiz}</p>
+        </details>
+      )}
 
       {/* Offene Mängel aus früheren Begehungen — abhaken (Nachverfolgung) */}
       {offeneFruehere.length > 0 && (
@@ -322,6 +346,51 @@ export default async function ParzelleSeite({
               : "Keine Parzellenfläche hinterlegt — SOLL nicht berechenbar."}{" "}
             Max. 5 Beete.
           </p>
+
+          {zuletztGemessen && (
+            <p className="mt-1 text-sm font-medium text-stone-600">
+              Zuletzt gemessen: {zuletztGemessen.summe.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m² ({zuletztGemessen.datum})
+            </p>
+          )}
+          {messHistorie.length > 0 && (
+            <details className="mt-1 text-sm">
+              <summary className="cursor-pointer text-emerald-700">
+                Historie der Messungen ({messHistorie.length})
+              </summary>
+              <ul className="mt-2 space-y-2">
+                {messHistorie.map((h) => {
+                  const d = new Date(h.runde.datum).toLocaleDateString("de-DE");
+                  const fotos = archivGruppen.find((g) => g.datum === d)?.fotos ?? [];
+                  return (
+                    <li key={h.id} className="border-t border-stone-100 pt-2">
+                      <p className="font-medium">
+                        {d}: {messSumme(h.beete).toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
+                      </p>
+                      <p className="text-stone-500">
+                        {h.beete
+                          .map((b) => `${b.bezeichnung || "Beet"}: ${b.flaecheM2} m²`)
+                          .join(" · ")}
+                      </p>
+                      {fotos.length > 0 && (
+                        <div className="mt-1 grid grid-cols-4 gap-1 sm:grid-cols-6">
+                          {fotos.map((f) => (
+                            <a key={f.id} href={`/api/datei/${f.dateipfad}`} target="_blank" rel="noopener">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/datei/${f.dateipfad}`}
+                                alt={`Foto ${d}`}
+                                className="aspect-square w-full rounded object-cover"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          )}
 
           <div className="mt-3 space-y-3">
             {befund.beete.map((b) => (

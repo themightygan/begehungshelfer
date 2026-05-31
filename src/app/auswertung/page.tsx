@@ -85,6 +85,9 @@ export default async function AuswertungSeite({
           <div>
             <h1 className="text-2xl font-semibold">Auswertung</h1>
             <p className="text-base text-stone-500">{runde.bezeichnung}</p>
+            {runde.teilnehmende && (
+              <p className="text-sm text-stone-400">Teilnehmer: {runde.teilnehmende}</p>
+            )}
             <Zusammenfassung s={s} />
           </div>
           <Link href="/auswertung" className="shrink-0 text-base text-emerald-700 hover:underline">
@@ -157,10 +160,15 @@ export default async function AuswertungSeite({
               {rs.map((r) => {
                 const rs2 = summary(r.befunde);
                 return (
-                  <li key={r.id} className="flex items-center justify-between gap-3 border-t border-stone-100 pt-2 text-sm">
-                    <Link href={`/auswertung?rundeId=${r.id}`} className="font-medium text-emerald-700 hover:underline">
-                      {r.bezeichnung}
-                    </Link>
+                  <li key={r.id} className="flex items-start justify-between gap-3 border-t border-stone-100 pt-2 text-sm">
+                    <div className="min-w-0">
+                      <Link href={`/auswertung?rundeId=${r.id}`} className="font-medium text-emerald-700 hover:underline">
+                        {r.bezeichnung}
+                      </Link>
+                      {r.teilnehmende && (
+                        <p className="text-stone-400">Teilnehmer: {r.teilnehmende}</p>
+                      )}
+                    </div>
                     <span className="shrink-0 text-stone-500">
                       {rs2.begutachtet} begutachtet · {rs2.mitMaengel} m. Mängeln · {rs2.plaketten} Plakette(n)
                     </span>
