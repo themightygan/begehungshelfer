@@ -38,6 +38,7 @@ export async function GET(
       : { parzelleId: parzelle.id },
     orderBy: { zeitpunkt: "desc" },
     include: {
+      runde: { select: { datum: true } },
       maengel: {
         orderBy: { id: "asc" },
         include: { katalog: true, fotos: { orderBy: { id: "asc" } } },
@@ -78,7 +79,10 @@ export async function GET(
     groesseM2: parzelle.groesseM2,
     stufe: befund?.stufe ?? "neutral",
     notiz: befund?.notiz ?? "",
-    datum: new Date().toLocaleDateString("de-DE"),
+    datum: (befund?.runde?.datum
+      ? new Date(befund.runde.datum)
+      : new Date()
+    ).toLocaleDateString("de-DE"),
     uebersicht,
     maengel,
     beete: await Promise.all(

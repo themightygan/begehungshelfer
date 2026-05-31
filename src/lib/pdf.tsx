@@ -11,7 +11,6 @@ import {
 } from "@react-pdf/renderer";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { STUFE_LABEL } from "./constants";
 
 // Vereinslogo (falls vorhanden) einmalig laden für den PDF-Kopf.
 const LOGO_PFAD = join(process.cwd(), "public/img/logo.png");
@@ -111,7 +110,7 @@ function Bericht({ d }: { d: BerichtDaten }) {
             <Text style={s.verein}>Gartenfreunde Stuttgart Sillenbuch e.V.</Text>
             <Text style={s.titel}>Begehungsbericht — Parzelle {d.parzelleId}</Text>
             <Text style={s.meta}>
-              {d.anlage} · Stand {d.datum}
+              {d.anlage} · Datum der Begehung: {d.datum}
             </Text>
           </View>
         </View>
@@ -129,10 +128,6 @@ function Bericht({ d }: { d: BerichtDaten }) {
           <View style={s.zeile}>
             <Text style={s.label}>Fläche</Text>
             <Text style={s.wert}>{d.groesseM2 ? `${d.groesseM2} m²` : "—"}</Text>
-          </View>
-          <View style={s.zeile}>
-            <Text style={s.label}>Eskalationsstufe</Text>
-            <Text style={s.wert}>{STUFE_LABEL[d.stufe] ?? d.stufe}</Text>
           </View>
         </View>
 

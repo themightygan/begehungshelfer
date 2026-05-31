@@ -54,13 +54,18 @@ if (modus === "kuehwasen") {
     }
   }
 } else if (modus === "silberwald") {
-  if (!fixDatum) { console.error("Silberwald braucht ISO-Datum als 3. Argument"); process.exit(1); }
-  const datum = new Date(fixDatum);
+  // Datum = Dateidatum (mtime) der Fotos; je Parzellen-Ordner aus erstem Foto.
   for (const pOrdner of await readdir(basis)) {
     if (!/^\d+[a-z]?$/i.test(pOrdner)) continue; // nur numerische Parzellen-Ordner
     const pm = pOrdner.match(/^0*(\d+)([a-z]?)/i);
     const pid = `S${normNum(pm[1])}${(pm[2] || "").toLowerCase()}`;
-    tasks.push({ parzelleId: pid, datum, quelle: `Begehung ${fixDatum}`, dir: join(basis, pOrdner) });
+    const dir = join(basis, pOrdner);
+    let files;
+    try { files = (await readdir(dir)).filter((f) => BILD.test(f)); } catch { continue; }
+    if (!files.length) continue;
+    const datum = new Date((await stat(join(dir, files[0]))).mtime);
+    datum.setHours(0, 0, 0, 0);
+    tasks.push({ parzelleId: pid, datum, quelle: "Begehung (Foto-Datum)", dir });
   }
 } else {
   console.error("Modus: kuehwasen | silberwald"); process.exit(1);

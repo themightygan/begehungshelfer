@@ -98,22 +98,11 @@ export async function speichereBefund(parzelleId: string, formData: FormData) {
   revalidatePath(`/parzelle/${parzelleId}`);
 }
 
-// Befund speichern und zur nächsten Parzelle der Anlage springen
-// (oder zurück zur Begehungsübersicht, wenn es die letzte war).
+// Befund speichern und zurück zum Plan (Parzellenraster) — von dort wählt man
+// die nächste Parzelle (auf-/absteigend, manuell).
 export async function speichernUndWeiter(parzelleId: string, formData: FormData) {
   await speichereBefund(parzelleId, formData);
-  const parzelle = await prisma.parzelle.findUniqueOrThrow({ where: { parzelleId } });
-  const next = await prisma.parzelle.findFirst({
-    where: {
-      anlageId: parzelle.anlageId,
-      OR: [
-        { nummer: { gt: parzelle.nummer } },
-        { nummer: parzelle.nummer, index: { gt: parzelle.index } },
-      ],
-    },
-    orderBy: [{ nummer: "asc" }, { index: "asc" }],
-  });
-  redirect(next ? `/parzelle/${next.parzelleId}` : "/begehung");
+  redirect("/begehung");
 }
 
 // Gesamtansicht-Fotos (kein konkreter Mangel) — im PDF zur Orientierung zuerst.
