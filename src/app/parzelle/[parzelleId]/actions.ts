@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { fotoVerarbeitenUndSpeichern } from "@/lib/storage";
+import { fotoVerarbeitenUndSpeichern, dokumentSpeichern } from "@/lib/storage";
 import { FOTO_MAX_PRO_BEFUND, type FotoKontext } from "@/lib/constants";
 
 // Sorgt für Prototyp-Runde + Befund je Parzelle und gibt die befundId zurück.
@@ -165,5 +165,72 @@ export async function uploadMangelFotos(
 
 export async function loescheFoto(parzelleId: string, fotoId: number) {
   await prisma.foto.delete({ where: { id: fotoId } });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+// --- Gemüsebeete (IST vs. SOLL 1/6, UPV §12) ---
+const BEET_MAX = 5;
+
+function parseFlaeche(roh: FormDataEntryValue | null): number {
+  const n = parseFloat(String(roh ?? "0").replace(",", ".")); // "12,5" -> 12.5
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+export async function addBeet(parzelleId: string, formData: FormData) {
+  const befundId = await ensureBefund(parzelleId);
+  const count = await prisma.beet.count({ where: { befundId } });
+  if (count < BEET_MAX) {
+    await prisma.beet.create({
+      data: {
+        befundId,
+        bezeichnung: String(formData.get("bezeichnung") ?? ""),
+        flaecheM2: parseFlaeche(formData.get("flaeche")),
+      },
+    });
+  }
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function updateBeet(
+  parzelleId: string,
+  beetId: number,
+  formData: FormData
+) {
+  await prisma.beet.update({
+    where: { id: beetId },
+    data: {
+      bezeichnung: String(formData.get("bezeichnung") ?? ""),
+      flaecheM2: parseFlaeche(formData.get("flaeche")),
+    },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function removeBeet(parzelleId: string, beetId: number) {
+  await prisma.beet.delete({ where: { id: beetId } });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+// --- Akte: Dokument-Anhänge je Parzelle (Schreiben, E-Mails, Wertermittlungen) ---
+export async function uploadDokument(parzelleId: string, formData: FormData) {
+  const parzelle = await prisma.parzelle.findUniqueOrThrow({ where: { parzelleId } });
+  const datei = formData.get("datei");
+  if (datei instanceof File && datei.size > 0) {
+    const buf = Buffer.from(await datei.arrayBuffer());
+    const pfad = await dokumentSpeichern(parzelleId, buf, datei.name);
+    await prisma.dokument.create({
+      data: {
+        parzelleId: parzelle.id,
+        typ: String(formData.get("typ") ?? "sonstiges"),
+        dateipfad: pfad,
+        notiz: String(formData.get("notiz") ?? ""),
+      },
+    });
+  }
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function removeDokument(parzelleId: string, dokumentId: number) {
+  await prisma.dokument.delete({ where: { id: dokumentId } });
   revalidatePath(`/parzelle/${parzelleId}`);
 }

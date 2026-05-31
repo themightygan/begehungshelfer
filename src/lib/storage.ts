@@ -51,6 +51,44 @@ export async function fotoVerarbeitenUndSpeichern(
   return join(relDir, dateiname); // z. B. "fotos/12/uuid.jpg"
 }
 
+// Akte-Dokument (PDF/Bild/…) unverändert ablegen unter dokumente/<parzelleId>/.
+// Keine Bildverarbeitung — Schreiben/Wertermittlungen bleiben original.
+export async function dokumentSpeichern(
+  parzelleId: string,
+  daten: Buffer,
+  originalName: string
+): Promise<string> {
+  const ext = (originalName.split(".").pop() || "bin")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 8);
+  const relDir = join("dokumente", parzelleId.replace(/[^A-Za-z0-9]/g, ""));
+  await mkdir(join(STORAGE_DIR, relDir), { recursive: true });
+  const name = `${randomUUID()}.${ext}`;
+  await writeFile(join(STORAGE_DIR, relDir, name), daten);
+  return join(relDir, name);
+}
+
+// MIME-Typ nach Endung (für die Auslieferung).
+export function mimeFuer(relPfad: string): string {
+  const ext = relPfad.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "pdf":
+      return "application/pdf";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 // Absoluter Pfad aus einem (untrusted) DB-Pfad — verhindert Path-Traversal.
 export function sichererPfad(relPfad: string): string | null {
   const abs = resolve(STORAGE_DIR, normalize(relPfad));

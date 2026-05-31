@@ -33,7 +33,13 @@ export type BerichtDaten = {
   datum: string; // bereits formatiert
   uebersicht: BerichtFoto[];
   maengel: BerichtMangel[];
+  beete: { bezeichnung: string; flaecheM2: number }[];
+  beetIst: number;
+  beetSoll: number | null;
 };
+
+const m2 = (n: number) =>
+  n.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " m²";
 
 const s = StyleSheet.create({
   page: { padding: 36, fontSize: 10, color: "#1c1917", fontFamily: "Helvetica" },
@@ -126,6 +132,26 @@ function Bericht({ d }: { d: BerichtDaten }) {
           <View style={s.abschnitt}>
             <Text style={s.h2}>Gesamtansicht</Text>
             <FotoReihe fotos={d.uebersicht} />
+          </View>
+        )}
+
+        {(d.beete.length > 0 || d.beetSoll !== null) && (
+          <View style={s.abschnitt}>
+            <Text style={s.h2}>Gemüseanbaufläche</Text>
+            {d.beete.map((b, i) => (
+              <View key={i} style={s.zeile}>
+                <Text style={s.label}>{b.bezeichnung || `Beet ${i + 1}`}</Text>
+                <Text style={s.wert}>{m2(b.flaecheM2)}</Text>
+              </View>
+            ))}
+            <Text style={s.text}>
+              IST: {m2(d.beetIst)}
+              {d.beetSoll !== null
+                ? ` · SOLL (1/6): ${m2(d.beetSoll)} · ${
+                    d.beetIst >= d.beetSoll ? "erfüllt" : "nicht erfüllt"
+                  }`
+                : ""}
+            </Text>
           </View>
         )}
 

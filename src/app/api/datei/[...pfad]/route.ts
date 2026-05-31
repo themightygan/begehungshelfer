@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { dateiLesen } from "@/lib/storage";
+import { dateiLesen, mimeFuer } from "@/lib/storage";
 
 // Liefert verarbeitete Fotos aus STORAGE_DIR aus (liegt außerhalb von /public).
 // Path-Traversal wird in sichererPfad() abgefangen.
@@ -14,7 +14,7 @@ export async function GET(
 
   return new Response(new Uint8Array(buf), {
     headers: {
-      "Content-Type": "image/jpeg",
+      "Content-Type": mimeFuer(relPfad),
       "Cache-Control": "private, max-age=3600",
     },
   });

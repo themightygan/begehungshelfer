@@ -40,6 +40,7 @@ export async function GET(
         include: { katalog: true, fotos: { orderBy: { id: "asc" } } },
       },
       fotos: { where: { mangelId: null }, orderBy: { id: "asc" } },
+      beete: { orderBy: { id: "asc" } },
     },
   });
 
@@ -74,6 +75,12 @@ export async function GET(
     datum: new Date().toLocaleDateString("de-DE"),
     uebersicht,
     maengel,
+    beete: (befund?.beete ?? []).map((b) => ({
+      bezeichnung: b.bezeichnung,
+      flaecheM2: b.flaecheM2,
+    })),
+    beetIst: (befund?.beete ?? []).reduce((s, b) => s + b.flaecheM2, 0),
+    beetSoll: parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null,
   });
 
   return new Response(new Uint8Array(pdf), {

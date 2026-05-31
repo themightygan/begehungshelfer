@@ -13,7 +13,7 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 - **Daten vorverarbeitet:** `data/parzellen.csv` (153 Parzellen: K=72, S=81; MK ignoriert) via `scripts/preprocess_parzellen.py`.
 - **DB-Basis poliert:** SQLite-Schema + Seed stehen (`prisma/schema.prisma`, `prisma/seed.mjs`). Audit-Politur eingearbeitet (s. u.). Migration/Seed noch NICHT ausgeführt (passiert auf Mac Mini).
 - **Transfer:** `SETUP_MACMINI.md` = Schritt-für-Schritt-Anleitung. Dropbox-Verschmutzung (node_modules/.next/lock) entfernt.
-- **NÄCHSTER SCHRITT:** Phase 3 Rest (Gemüsebeete IST/SOLL, Plan-Bild, echte Runden-Verwaltung) ODER Phase 4 (Nachverfolgung). Phase 1 (De-Risk) + 2 (Login) ✅; Phase 3 Erfassungs-Kern (Mängel-Menü + Foto-Zuordnung + PDF) 🟢 fertig & verifiziert.
+- **NÄCHSTER SCHRITT:** Phase 6 (Produktiv): Cloudflare-Tunnel auf begehungshelfer.de + Access, always-on (launchd/pm2), Backup. Phasen 1–5 ✅ gebaut & verifiziert. Offen aus Spec: echte Runden-Verwaltung + Vorjahr-Vergleich + Plan-Bild (alle hängen an Runden-Verwaltung).
 
 ### Audit-Entscheidungen (gesetzt)
 - **Offline = Formular-Puffer:** online-first, aber offener Befund (Eingaben + Fotos) lokal im Browser puffern, Auto-Retry. Voll-PWA = Phase 2.
@@ -54,9 +54,9 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 0. **Fundament — ✅ FERTIG:** SQLite migriert + geseedet (153 Parzellen, 2 Anlagen, 28 Katalogpunkte).
 1. **De-Risk-Prototyp — ✅ FERTIG:** Next.js 15 (App Router, TS, Tailwind v4) gescaffoldet + Foto/PDF-Durchstich verifiziert. `sharp`-Pipeline (HEIC/iPhone→JPEG via `heic-convert`, resize ~1600px, JPEG q75, EXIF/Geo-Strip nachgewiesen), Befund-Erfassung (Stufe/Notiz/Fotos), Bericht-PDF via `@react-pdf/renderer`. `src/lib/constants.ts`, `db.ts`, `storage.ts`, `pdf.tsx`.
 2. **Login — ✅ FERTIG:** gemeinsames Passwort via `crypto.timingSafeEqual` + iron-session (`begehung_session`-Cookie); `src/middleware.ts` schützt alle Routen außer `/login` + Assets; Abmelden im Header.
-3. **Erfassung — 🟢 KERN FERTIG:** Mängel-Menü (28 Katalogpunkte als Chips, nach Bereich gruppiert) → Mangel hinzufügen, pro Mangel Karte mit Maßnahmentext + Frist + mehrere Fotos; Gesamtansicht-Fotos (Orientierung, im PDF vorne); Befund-Stufe + Bemerkung; Vor/Zurück zwischen Parzellen; Freitext-Mangel. PDF gruppiert Fotos je Mangel. **Offen in Phase 3:** Gemüsebeete (bis 5, IST vs. SOLL 1/6), Plan-Bild einblendbar, echte Runden-Verwaltung (statt Auto-„Prototyp-Runde"). _Ursprüngliche Spec:_ Runde anlegen → Parzellen durchgehen (Plan-Bild einblendbar, Vor/Zurück + manuell) → OK/Mängel aus Katalog + Pflicht-Foto + Frist + Eskalationsstufe + Gemüsebeete (bis 5, IST vs. SOLL 1/6).
-4. **Nachverfolgung & Vorjahr:** offene/überfällige Mängel, Filter nach Stufe, „behoben" via `behobenAm`; Vorjahreswerte beim Erfassen daneben.
-5. **Dokumente & Export:** PDF/Bild-Anhänge je Parzelle; PDF pro Parzelle; CSV-Gesamtexport.
+3. **Erfassung — ✅ FERTIG:** Mängel-Menü (28 Katalogpunkte als Chips, nach Bereich gruppiert) → Mangel hinzufügen, pro Mangel Karte mit Maßnahmentext + Frist + mehrere Fotos; Gesamtansicht-Fotos (Orientierung, im PDF vorne); Befund-Stufe + Bemerkung; Vor/Zurück; Freitext-Mangel; **Gemüsebeete (bis 5, IST vs. SOLL 1/6, UPV §12)**. PDF gruppiert Fotos je Mangel + Gemüse-Soll/Ist. **Offen (an Runden-Verwaltung hängend):** Plan-Bild einblendbar, echte Runden statt Auto-„Prototyp-Runde".
+4. **Nachverfolgung — ✅ FERTIG (ohne Vorjahr):** `/maengel` listet offene/überfällige Mängel (überfällig zuerst), Filter offen/alle, „behoben"-Toggle via `behobenAm`. **Offen:** Vorjahres-Vergleich beim Erfassen (braucht Runden-Verwaltung).
+5. **Dokumente & Export — ✅ FERTIG:** Akte je Parzelle (Dokument-Upload: Schreiben/E-Mail/Wertermittlung/sonstiges, beliebige Dateitypen); PDF pro Parzelle; CSV-Gesamtexport (`/api/export/csv`, UTF-8-BOM + Semikolon für Excel/DE).
 6. **Produktiv:** Mac Mini always-on (launchd/pm2), Cloudflare Tunnel + Access (begehungshelfer.de), Backup (DB + storage).
 🟡 **Phase 2+:** Sprachnotiz→whisper.cpp→Ollama-Glättung; KI-Briefe; interaktiver Plan; persönliche Konten; formale Nachbegehung.
 

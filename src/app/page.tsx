@@ -15,9 +15,20 @@ export default async function Home() {
     <div className="space-y-8">
       <div>
         <h1 className="text-xl font-semibold">Parzellen</h1>
-        <p className="text-sm text-stone-500">
-          De-Risk-Prototyp (Phase 1): Befund mit Fotos erfassen → PDF erzeugen.
-        </p>
+        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+          <Link
+            href="/maengel"
+            className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          >
+            📋 Mängel-Nachverfolgung
+          </Link>
+          <a
+            href="/api/export/csv"
+            className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          >
+            ⬇ CSV-Export
+          </a>
+        </div>
       </div>
 
       {anlagen.map((anlage) => (

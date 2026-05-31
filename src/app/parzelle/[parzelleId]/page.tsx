@@ -13,7 +13,13 @@ import {
   removeMangel,
   uploadMangelFotos,
   loescheFoto,
+  addBeet,
+  updateBeet,
+  removeBeet,
+  uploadDokument,
+  removeDokument,
 } from "./actions";
+import { DOKUMENT_TYP } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -73,11 +79,21 @@ export default async function ParzelleSeite({
         orderBy: { id: "asc" },
         include: { katalog: true, fotos: { orderBy: { id: "asc" } } },
       },
+      beete: { orderBy: { id: "asc" } },
     },
   });
+
+  // Gemüse: IST = Summe der Beete; SOLL = 1/6 der Parzellenfläche (UPV §12).
+  const beetIst = befund.beete.reduce((s, b) => s + b.flaecheM2, 0);
+  const beetSoll = parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null;
+  const beetErfuellt = beetSoll === null || beetIst >= beetSoll;
   const uebersichtFotos = await prisma.foto.findMany({
     where: { befundId, mangelId: null },
     orderBy: { id: "asc" },
+  });
+  const dokumente = await prisma.dokument.findMany({
+    where: { parzelleId: parzelle.id },
+    orderBy: { datum: "desc" },
   });
   const katalog = await prisma.katalog.findMany({
     where: { aktiv: true },
@@ -160,6 +176,94 @@ export default async function ParzelleSeite({
           label="📷 Übersichtsfoto hinzufügen"
         />
         <FotoGitter fotos={uebersichtFotos} parzelleId={parzelleId} />
+      </section>
+
+      {/* Gemüsebeete: IST vs. SOLL 1/6 (UPV §12) */}
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-stone-600">Gemüsebeete</h2>
+          <span
+            className={`text-sm font-medium ${
+              beetErfuellt ? "text-emerald-700" : "text-red-600"
+            }`}
+          >
+            IST {beetIst.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
+            {beetSoll !== null && (
+              <>
+                {" "}
+                / SOLL{" "}
+                {beetSoll.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
+              </>
+            )}
+          </span>
+        </div>
+        <p className="text-xs text-stone-400">
+          {beetSoll !== null
+            ? `SOLL = 1/6 der Parzellenfläche (${parzelle.groesseM2} m²). ${
+                beetErfuellt ? "Erfüllt." : "Nicht erfüllt."
+              }`
+            : "Keine Parzellenfläche hinterlegt — SOLL nicht berechenbar."}{" "}
+          Max. {5} Beete.
+        </p>
+
+        <div className="mt-3 space-y-2">
+          {befund.beete.map((b) => (
+            <form
+              key={b.id}
+              action={updateBeet.bind(null, parzelleId, b.id)}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <input
+                type="text"
+                name="bezeichnung"
+                defaultValue={b.bezeichnung}
+                placeholder="Bezeichnung (z. B. Beet 1)"
+                className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1 text-sm"
+              />
+              <input
+                type="text"
+                inputMode="decimal"
+                name="flaeche"
+                defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""}
+                placeholder="m²"
+                className="w-20 rounded border border-stone-300 px-2 py-1 text-sm"
+              />
+              <button className="rounded bg-stone-700 px-2 py-1 text-sm text-white hover:bg-stone-800">
+                ✓
+              </button>
+              <button
+                formAction={removeBeet.bind(null, parzelleId, b.id)}
+                className="rounded px-2 py-1 text-sm text-red-600 hover:underline"
+              >
+                ✕
+              </button>
+            </form>
+          ))}
+        </div>
+
+        {befund.beete.length < 5 && (
+          <form
+            action={addBeet.bind(null, parzelleId)}
+            className="mt-2 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-2"
+          >
+            <input
+              type="text"
+              name="bezeichnung"
+              placeholder="Neues Beet"
+              className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1 text-sm"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              name="flaeche"
+              placeholder="m²"
+              className="w-20 rounded border border-stone-300 px-2 py-1 text-sm"
+            />
+            <button className="rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
+              + Beet
+            </button>
+          </form>
+        )}
       </section>
 
       {/* Mängel-Menü */}
@@ -299,6 +403,63 @@ export default async function ParzelleSeite({
           📄 Bericht-PDF erzeugen
         </a>
       </div>
+
+      {/* Akte: Dokument-Anhänge (Schreiben, E-Mails, Wertermittlungen) */}
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="text-sm font-medium text-stone-600">Akte / Dokumente</h2>
+        {dokumente.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {dokumente.map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-2 text-sm"
+              >
+                <a
+                  href={`/api/datei/${d.dateipfad}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="min-w-0 truncate text-emerald-700 hover:underline"
+                >
+                  {DOKUMENT_TYP.find((t) => t.wert === d.typ)?.label ?? d.typ}
+                  {d.notiz ? ` — ${d.notiz}` : ""} (
+                  {new Date(d.datum).toLocaleDateString("de-DE")})
+                </a>
+                <form action={removeDokument.bind(null, parzelleId, d.id)}>
+                  <button className="shrink-0 text-xs text-red-600 hover:underline">
+                    löschen
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+          action={uploadDokument.bind(null, parzelleId)}
+          className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3"
+        >
+          <select
+            name="typ"
+            defaultValue="schreiben"
+            className="rounded border border-stone-300 px-2 py-1 text-sm"
+          >
+            {DOKUMENT_TYP.map((t) => (
+              <option key={t.wert} value={t.wert}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            name="notiz"
+            placeholder="Notiz (optional)"
+            className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1 text-sm"
+          />
+          <input type="file" name="datei" className="text-sm" />
+          <button className="rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
+            Hochladen
+          </button>
+        </form>
+      </section>
     </div>
   );
 }
