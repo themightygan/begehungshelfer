@@ -9,7 +9,13 @@ import {
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { STUFE_LABEL } from "./constants";
+
+// Vereinslogo (falls vorhanden) einmalig laden für den PDF-Kopf.
+const LOGO_PFAD = join(process.cwd(), "public/img/logo.png");
+const LOGO: Buffer | null = existsSync(LOGO_PFAD) ? readFileSync(LOGO_PFAD) : null;
 
 export type BerichtFoto = { data: Buffer };
 
@@ -45,6 +51,8 @@ const m2 = (n: number) =>
 
 const s = StyleSheet.create({
   page: { padding: 36, fontSize: 10, color: "#1c1917", fontFamily: "Helvetica" },
+  kopf: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logo: { width: 44, height: 44 },
   verein: { fontSize: 9, color: "#57534e" },
   titel: { fontSize: 18, marginTop: 4, fontFamily: "Helvetica-Bold" },
   meta: { marginTop: 2, color: "#57534e" },
@@ -97,11 +105,16 @@ function Bericht({ d }: { d: BerichtDaten }) {
   return (
     <Document title={`Begehungsbericht ${d.parzelleId}`}>
       <Page size="A4" style={s.page}>
-        <Text style={s.verein}>Gartenfreunde Stuttgart Sillenbuch e.V.</Text>
-        <Text style={s.titel}>Begehungsbericht — Parzelle {d.parzelleId}</Text>
-        <Text style={s.meta}>
-          {d.anlage} · Stand {d.datum}
-        </Text>
+        <View style={s.kopf}>
+          {LOGO && <Image style={s.logo} src={{ data: LOGO, format: "png" }} />}
+          <View>
+            <Text style={s.verein}>Gartenfreunde Stuttgart Sillenbuch e.V.</Text>
+            <Text style={s.titel}>Begehungsbericht — Parzelle {d.parzelleId}</Text>
+            <Text style={s.meta}>
+              {d.anlage} · Stand {d.datum}
+            </Text>
+          </View>
+        </View>
 
         <View style={s.abschnitt}>
           <Text style={s.h2}>Parzelle / Pächter</Text>

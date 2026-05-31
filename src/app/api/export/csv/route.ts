@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL } from "@/lib/constants";
 
@@ -9,12 +10,15 @@ function feld(v: string | number | null | undefined): string {
 }
 const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const rundeId = Number(req.nextUrl.searchParams.get("rundeId")) || null;
   const befunde = await prisma.befund.findMany({
+    where: rundeId ? { rundeId } : {},
     include: {
       parzelle: { include: { anlage: true } },
       maengel: { include: { _count: { select: { fotos: true } } } },
       beete: true,
+      _count: { select: { fotos: true } },
     },
     orderBy: { parzelle: { parzelleId: "asc" } },
   });
@@ -27,6 +31,15 @@ export async function GET() {
   const zeilen: string[] = [kopf.join(";")];
 
   for (const b of befunde) {
+    // Nur tatsächlich begutachtete Parzellen (leere "nur geöffnet"-Befunde überspringen).
+    const hatDaten =
+      b.stufe !== "neutral" ||
+      b.maengel.length > 0 ||
+      b.beete.length > 0 ||
+      b._count.fotos > 0 ||
+      b.gutGemacht ||
+      b.notiz.trim() !== "";
+    if (!hatDaten) continue;
     const p = b.parzelle;
     const adresse = [p.strasse, [p.plz, p.ort].filter(Boolean).join(" ")]
       .filter(Boolean)
@@ -60,7 +73,7 @@ export async function GET() {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="begehung_export.csv"`,
+      "Content-Disposition": `attachment; filename="begehung_export${rundeId ? `_runde${rundeId}` : ""}.csv"`,
     },
   });
 }
