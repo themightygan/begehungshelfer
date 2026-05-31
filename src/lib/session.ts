@@ -4,6 +4,9 @@ import type { SessionOptions } from "iron-session";
 
 export interface SessionData {
   loggedIn: boolean;
+  // ID der aktuell laufenden Begehungsrunde (Erfassungs-Kontext). Undefiniert =
+  // keine aktive Begehung -> Parzellenerfassung gesperrt, zuerst "Begehung starten".
+  rundeId?: number;
 }
 
 export const sessionOptions: SessionOptions = {

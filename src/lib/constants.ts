@@ -44,6 +44,19 @@ export const DOKUMENT_TYP = [
   { wert: "sonstiges", label: "Sonstiges" },
 ] as const;
 
+// Teilnehmende einer Begehung (Vorstand, Reihenfolge = Vereinsnummerierung 1–9).
+export const TEILNEHMER = [
+  "Sabine Metzger",
+  "Dr. Sascha Theißen",
+  "Sonja Theißen",
+  "Nicole Boine",
+  "Erika Strack",
+  "Adrian Jörissen",
+  "Sadullah Ödes",
+  "Günter Lorenz",
+  "Dr. Ralf Riekers",
+] as const;
+
 // Foto-Pipeline (Audit-Pflicht beim Upload)
 export const FOTO_MAX_KANTE = 1600; // px (längste Kante)
 export const FOTO_JPEG_QUALITAET = 75;

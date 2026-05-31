@@ -8,10 +8,12 @@ import { STUFEN } from "@/lib/constants";
 // kurz auf den ersten Eintrag zurückspringen).
 export function BefundForm({
   action,
+  weiterAction,
   stufe,
   notiz,
 }: {
   action: (formData: FormData) => void | Promise<void>;
+  weiterAction?: (formData: FormData) => void | Promise<void>;
   stufe: string;
   notiz: string;
 }) {
@@ -49,9 +51,19 @@ export function BefundForm({
           className="mt-1 block w-full rounded border border-stone-300 px-2 py-1.5"
         />
       </label>
-      <button className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800">
-        Befund speichern
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button className="rounded border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50">
+          Speichern
+        </button>
+        {weiterAction && (
+          <button
+            formAction={weiterAction}
+            className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
+          >
+            💾 Speichern & weiter →
+          </button>
+        )}
+      </div>
     </form>
   );
 }

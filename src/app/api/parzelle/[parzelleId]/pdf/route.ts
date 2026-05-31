@@ -19,10 +19,11 @@ async function ladeFotos(
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ parzelleId: string }> }
 ) {
   const { parzelleId } = await params;
+  const rundeId = Number(req.nextUrl.searchParams.get("rundeId")) || null;
 
   const parzelle = await prisma.parzelle.findUnique({
     where: { parzelleId },
@@ -30,9 +31,11 @@ export async function GET(
   });
   if (!parzelle) return new Response("Parzelle nicht gefunden", { status: 404 });
 
-  // Jüngsten Befund dieser Parzelle nehmen (Prototyp: i. d. R. genau einer).
+  // Befund der angegebenen Runde, sonst jüngster Befund dieser Parzelle.
   const befund = await prisma.befund.findFirst({
-    where: { parzelleId: parzelle.id },
+    where: rundeId
+      ? { parzelleId: parzelle.id, rundeId }
+      : { parzelleId: parzelle.id },
     orderBy: { zeitpunkt: "desc" },
     include: {
       maengel: {

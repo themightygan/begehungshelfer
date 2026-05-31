@@ -1,32 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/runde";
 import { fotoVerarbeitenUndSpeichern, dokumentSpeichern } from "@/lib/storage";
 import { FOTO_MAX_PRO_BEFUND, type FotoKontext } from "@/lib/constants";
 
-// Sorgt für Prototyp-Runde + Befund je Parzelle und gibt die befundId zurück.
-// (Phase 4 baut hier echte Runden-Verwaltung darauf auf.)
+// Befund je (aktive Runde + Parzelle) sicherstellen, befundId zurückgeben.
+// Erfordert eine aktive Begehung (session.rundeId) — die Seite garantiert das.
 export async function ensureBefund(parzelleId: string) {
+  const session = await getSession();
+  if (!session.rundeId) throw new Error("Keine aktive Begehung.");
+
   const parzelle = await prisma.parzelle.findUniqueOrThrow({
     where: { parzelleId },
-    include: { anlage: true },
   });
-
-  const bezeichnung = `Prototyp-Runde – ${parzelle.anlage.name}`;
-  let runde = await prisma.begehungsrunde.findFirst({
-    where: { anlageId: parzelle.anlageId, bezeichnung },
-  });
-  if (!runde) {
-    runde = await prisma.begehungsrunde.create({
-      data: {
-        anlageId: parzelle.anlageId,
-        datum: new Date(),
-        bezeichnung,
-        status: "offen",
-      },
-    });
-  }
 
   const adresse = [
     parzelle.strasse,
@@ -39,10 +28,12 @@ export async function ensureBefund(parzelleId: string) {
     .join(" ");
 
   const befund = await prisma.befund.upsert({
-    where: { rundeId_parzelleId: { rundeId: runde.id, parzelleId: parzelle.id } },
+    where: {
+      rundeId_parzelleId: { rundeId: session.rundeId, parzelleId: parzelle.id },
+    },
     update: {},
     create: {
-      rundeId: runde.id,
+      rundeId: session.rundeId,
       parzelleId: parzelle.id,
       snapParzelleId: parzelle.parzelleId,
       snapPaechter: paechter,
@@ -91,6 +82,24 @@ export async function speichereBefund(parzelleId: string, formData: FormData) {
     },
   });
   revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+// Befund speichern und zur nächsten Parzelle der Anlage springen
+// (oder zurück zur Begehungsübersicht, wenn es die letzte war).
+export async function speichernUndWeiter(parzelleId: string, formData: FormData) {
+  await speichereBefund(parzelleId, formData);
+  const parzelle = await prisma.parzelle.findUniqueOrThrow({ where: { parzelleId } });
+  const next = await prisma.parzelle.findFirst({
+    where: {
+      anlageId: parzelle.anlageId,
+      OR: [
+        { nummer: { gt: parzelle.nummer } },
+        { nummer: parzelle.nummer, index: { gt: parzelle.index } },
+      ],
+    },
+    orderBy: [{ nummer: "asc" }, { index: "asc" }],
+  });
+  redirect(next ? `/parzelle/${next.parzelleId}` : "/begehung");
 }
 
 // Gesamtansicht-Fotos (kein konkreter Mangel) — im PDF zur Orientierung zuerst.

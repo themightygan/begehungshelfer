@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getAktiveRundeId } from "@/lib/runde";
 import { FotoUpload } from "./FotoUpload";
 import { BefundForm } from "./BefundForm";
 import {
   ensureBefund,
   speichereBefund,
+  speichernUndWeiter,
   uploadUebersichtFotos,
   addMangel,
   addFreierMangel,
@@ -65,6 +67,10 @@ export default async function ParzelleSeite({
 }) {
   const { parzelleId } = await params;
 
+  // Erfassung nur innerhalb einer aktiven Begehung.
+  const rundeId = await getAktiveRundeId();
+  if (!rundeId) redirect("/");
+
   const parzelle = await prisma.parzelle.findUnique({
     where: { parzelleId },
     include: { anlage: true },
@@ -111,9 +117,10 @@ export default async function ParzelleSeite({
     g.punkte.push(k);
   }
 
-  // Vor/Zurück über alle Parzellen (anlagenübergreifend, stabile Sortierung).
+  // Vor/Zurück innerhalb der Anlage (stabile Sortierung).
   const alle = await prisma.parzelle.findMany({
-    orderBy: [{ anlageId: "asc" }, { nummer: "asc" }, { index: "asc" }],
+    where: { anlageId: parzelle.anlageId },
+    orderBy: [{ nummer: "asc" }, { index: "asc" }],
     select: { parzelleId: true },
   });
   const idx = alle.findIndex((p) => p.parzelleId === parzelleId);
@@ -134,8 +141,11 @@ export default async function ParzelleSeite({
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}
           </p>
         </div>
-        <Link href="/" className="shrink-0 text-sm text-emerald-700 hover:underline">
-          Liste
+        <Link
+          href="/begehung"
+          className="shrink-0 text-sm text-emerald-700 hover:underline"
+        >
+          ↑ Anlage
         </Link>
       </div>
       <div className="flex items-center justify-between text-sm">
@@ -157,13 +167,6 @@ export default async function ParzelleSeite({
           <span className="text-stone-300">→</span>
         )}
       </div>
-
-      {/* Befund: Stufe + allgemeine Bemerkung */}
-      <BefundForm
-        action={speichereBefund.bind(null, parzelleId)}
-        stufe={befund.stufe}
-        notiz={befund.notiz}
-      />
 
       {/* Gesamtansicht-Fotos (Orientierung) */}
       <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -393,16 +396,13 @@ export default async function ParzelleSeite({
         </section>
       )}
 
-      <div>
-        <a
-          href={`/api/parzelle/${parzelle.parzelleId}/pdf`}
-          target="_blank"
-          rel="noopener"
-          className="inline-block rounded border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
-        >
-          📄 Bericht-PDF erzeugen
-        </a>
-      </div>
+      {/* Befund (Stufe + Bemerkung) + Speichern & weiter — am Ende des Ablaufs */}
+      <BefundForm
+        action={speichereBefund.bind(null, parzelleId)}
+        weiterAction={speichernUndWeiter.bind(null, parzelleId)}
+        stufe={befund.stufe}
+        notiz={befund.notiz}
+      />
 
       {/* Akte: Dokument-Anhänge (Schreiben, E-Mails, Wertermittlungen) */}
       <section className="rounded-lg border border-stone-200 bg-white p-4">
