@@ -1,0 +1,35 @@
+# --- Personenbezogene Daten / Importe (DSGVO — NIEMALS committen) ---
+data/
+_quelldaten/
+uploads/
+storage/
+*.local.csv
+
+# --- Secrets / Env ---
+.env
+.env.*
+!.env.example
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# --- Datenbank / Backups ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+prisma/dev.db*
+*.dump
+*.sql.gz
+backups/
+
+# --- OS / Editor ---
+.DS_Store
+.vscode/
+.idea/
+*.log

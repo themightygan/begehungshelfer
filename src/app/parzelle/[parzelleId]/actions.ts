@@ -1,0 +1,169 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
+import { fotoVerarbeitenUndSpeichern } from "@/lib/storage";
+import { FOTO_MAX_PRO_BEFUND, type FotoKontext } from "@/lib/constants";
+
+// Sorgt für Prototyp-Runde + Befund je Parzelle und gibt die befundId zurück.
+// (Phase 4 baut hier echte Runden-Verwaltung darauf auf.)
+export async function ensureBefund(parzelleId: string) {
+  const parzelle = await prisma.parzelle.findUniqueOrThrow({
+    where: { parzelleId },
+    include: { anlage: true },
+  });
+
+  const bezeichnung = `Prototyp-Runde – ${parzelle.anlage.name}`;
+  let runde = await prisma.begehungsrunde.findFirst({
+    where: { anlageId: parzelle.anlageId, bezeichnung },
+  });
+  if (!runde) {
+    runde = await prisma.begehungsrunde.create({
+      data: {
+        anlageId: parzelle.anlageId,
+        datum: new Date(),
+        bezeichnung,
+        status: "offen",
+      },
+    });
+  }
+
+  const adresse = [
+    parzelle.strasse,
+    [parzelle.plz, parzelle.ort].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const paechter = [parzelle.nachname, parzelle.vorname]
+    .filter(Boolean)
+    .join(" ");
+
+  const befund = await prisma.befund.upsert({
+    where: { rundeId_parzelleId: { rundeId: runde.id, parzelleId: parzelle.id } },
+    update: {},
+    create: {
+      rundeId: runde.id,
+      parzelleId: parzelle.id,
+      snapParzelleId: parzelle.parzelleId,
+      snapPaechter: paechter,
+      snapAdresse: adresse,
+    },
+  });
+
+  return befund.id;
+}
+
+// Gemeinsame Foto-Pipeline: verarbeitet Dateien aus FormData und legt sie an.
+async function fotosAusFormData(
+  befundId: number,
+  formData: FormData,
+  opts: { mangelId: number | null; kontext: FotoKontext }
+) {
+  const vorhanden = await prisma.foto.count({ where: { befundId } });
+  const dateien = formData
+    .getAll("fotos")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+
+  let frei = Math.max(0, FOTO_MAX_PRO_BEFUND - vorhanden);
+  for (const datei of dateien) {
+    if (frei <= 0) break;
+    const buf = Buffer.from(await datei.arrayBuffer());
+    const pfad = await fotoVerarbeitenUndSpeichern(befundId, buf);
+    await prisma.foto.create({
+      data: {
+        befundId,
+        mangelId: opts.mangelId,
+        kontext: opts.kontext,
+        dateipfad: pfad,
+      },
+    });
+    frei--;
+  }
+}
+
+export async function speichereBefund(parzelleId: string, formData: FormData) {
+  const befundId = await ensureBefund(parzelleId);
+  await prisma.befund.update({
+    where: { id: befundId },
+    data: {
+      stufe: (formData.get("stufe") as string) || "neutral",
+      notiz: (formData.get("notiz") as string) || "",
+    },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+// Gesamtansicht-Fotos (kein konkreter Mangel) — im PDF zur Orientierung zuerst.
+export async function uploadUebersichtFotos(parzelleId: string, formData: FormData) {
+  const befundId = await ensureBefund(parzelleId);
+  await fotosAusFormData(befundId, formData, { mangelId: null, kontext: "zustand" });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+// Mangel aus dem Katalog hinzufügen ("Menü"-Klick). Bereich/Punkt werden gesnapshottet.
+// katalogId kommt per .bind() (Button-name/value ist bei Server-Actions nicht zuverlässig).
+export async function addMangel(parzelleId: string, katalogId: number) {
+  const befundId = await ensureBefund(parzelleId);
+  const katalog = await prisma.katalog.findUniqueOrThrow({ where: { id: katalogId } });
+
+  // Duplikate vermeiden: gleicher Katalogpunkt nur einmal je Befund.
+  const exists = await prisma.mangel.findFirst({ where: { befundId, katalogId } });
+  if (!exists) {
+    await prisma.mangel.create({
+      data: {
+        befundId,
+        katalogId,
+        bereich: katalog.bereich,
+        punkt: katalog.punkt,
+      },
+    });
+  }
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function addFreierMangel(parzelleId: string) {
+  const befundId = await ensureBefund(parzelleId);
+  await prisma.mangel.create({
+    data: { befundId, katalogId: null, bereich: "Sonstiges", punkt: "" },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function updateMangel(
+  parzelleId: string,
+  mangelId: number,
+  formData: FormData
+) {
+  const fristRaw = String(formData.get("frist") ?? "").trim();
+  const punktRaw = formData.get("punkt"); // nur bei Freitext-Mangel im Formular
+  await prisma.mangel.update({
+    where: { id: mangelId },
+    data: {
+      notiz: String(formData.get("notiz") ?? ""),
+      frist: fristRaw ? new Date(fristRaw) : null,
+      ...(punktRaw !== null ? { punkt: String(punktRaw) } : {}),
+    },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function removeMangel(parzelleId: string, mangelId: number) {
+  // Fotos hängen per Cascade am Mangel; DB-Zeilen weg, Dateien bleiben (Prototyp).
+  await prisma.mangel.delete({ where: { id: mangelId } });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function uploadMangelFotos(
+  parzelleId: string,
+  mangelId: number,
+  formData: FormData
+) {
+  const befundId = await ensureBefund(parzelleId);
+  await fotosAusFormData(befundId, formData, { mangelId, kontext: "mangel" });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function loescheFoto(parzelleId: string, fotoId: number) {
+  await prisma.foto.delete({ where: { id: fotoId } });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
