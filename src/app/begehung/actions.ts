@@ -48,6 +48,23 @@ export async function begehungVerlassen() {
   redirect("/");
 }
 
+// Laufende Begehung abbrechen: Runde + alle erfassten Daten löschen
+// (Befunde/Mängel/Beete/Fotos via Cascade). Nur offene Runden. Archiv/Dokumente
+// (parzellengebunden) bleiben unberührt. Bestätigung erfolgt im UI.
+export async function begehungAbbrechen(rundeId: number) {
+  const runde = await prisma.begehungsrunde.findUnique({ where: { id: rundeId } });
+  if (runde && runde.status === "offen") {
+    await prisma.begehungsrunde.delete({ where: { id: rundeId } });
+  }
+  const session = await getSession();
+  if (session.rundeId === rundeId) {
+    session.rundeId = undefined;
+    await session.save();
+  }
+  revalidatePath("/");
+  redirect("/");
+}
+
 // Abschluss: Runde einfrieren (unveränderlich), aktive Begehung beenden,
 // zur Berichte-Übersicht (PDFs auf Abruf) springen.
 export async function begehungAbschliessen() {

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL } from "@/lib/constants";
 import { getAktiveRundeId } from "@/lib/runde";
-import { begehungAbschliessen, begehungVerlassen } from "./actions";
+import { begehungAbschliessen, begehungVerlassen, begehungAbbrechen } from "./actions";
 import { ConfirmButton } from "./ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +170,14 @@ export default async function BegehungSeite() {
           <button className="text-xs text-stone-500 hover:underline">
             Begehung pausieren (zurück zum Start, ohne Abschluss)
           </button>
+        </form>
+        <form action={begehungAbbrechen.bind(null, rundeId)}>
+          <ConfirmButton
+            message="Begehung wirklich ABBRECHEN? Alle in dieser Begehung erfassten Daten (Befunde, Mängel, Fotos, Beete) werden gelöscht. Archiv und frühere Begehungen bleiben erhalten."
+            className="text-xs text-red-600 hover:underline"
+          >
+            Begehung abbrechen (Daten verwerfen)
+          </ConfirmButton>
         </form>
       </div>
     </div>

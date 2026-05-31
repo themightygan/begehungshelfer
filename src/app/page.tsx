@@ -2,7 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { TEILNEHMER } from "@/lib/constants";
 import { getAktiveRundeId } from "@/lib/runde";
-import { begehungStarten, begehungFortsetzen } from "./begehung/actions";
+import { begehungStarten, begehungFortsetzen, begehungAbbrechen } from "./begehung/actions";
+import { ConfirmButton } from "./begehung/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -134,11 +135,21 @@ export default async function Home() {
                     Berichte
                   </Link>
                 ) : (
-                  <form action={begehungFortsetzen.bind(null, r.id)}>
-                    <button className="shrink-0 rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
-                      fortsetzen
-                    </button>
-                  </form>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <form action={begehungFortsetzen.bind(null, r.id)}>
+                      <button className="rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
+                        fortsetzen
+                      </button>
+                    </form>
+                    <form action={begehungAbbrechen.bind(null, r.id)}>
+                      <ConfirmButton
+                        message="Begehung wirklich ABBRECHEN? Alle erfassten Daten dieser Begehung werden gelöscht."
+                        className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        abbrechen
+                      </ConfirmButton>
+                    </form>
+                  </div>
                 )}
               </li>
             ))}
