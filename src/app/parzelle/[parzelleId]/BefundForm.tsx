@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { STUFEN } from "@/lib/constants";
+import { DiktatTextarea } from "./DiktatTextarea";
 
 // Kontrolliertes Befund-Formular -> die gewählte Stufe/Bemerkung bleibt nach dem
 // Speichern sichtbar (unkontrollierte Felder würden durch den React-19-Form-Reset
@@ -22,7 +23,6 @@ export function BefundForm({
   plakettenNotiz: string;
 }) {
   const [stufeWert, setStufeWert] = useState(stufe);
-  const [notizWert, setNotizWert] = useState(notiz);
   const [lob, setLob] = useState(gutGemacht);
   const [lobNotiz, setLobNotiz] = useState(plakettenNotiz);
 
@@ -47,16 +47,15 @@ export function BefundForm({
           ))}
         </select>
       </label>
-      <label className="block text-base">
+      <div className="block text-base">
         <span className="text-stone-600">Allgemeine Bemerkung</span>
-        <textarea
+        <DiktatTextarea
           name="notiz"
-          value={notizWert}
-          onChange={(e) => setNotizWert(e.target.value)}
+          defaultValue={notiz}
           rows={2}
           className="mt-1 block w-full rounded border border-stone-300 px-3 py-2 text-base"
         />
-      </label>
+      </div>
 
       {/* "Gut gemacht"-Plakette (Lob für gepflegte Gärten) */}
       <div className="rounded border border-emerald-200 bg-emerald-50/60 p-3">

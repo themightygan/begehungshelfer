@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getAktiveRundeId } from "@/lib/runde";
 import { FotoUpload } from "./FotoUpload";
 import { BefundForm } from "./BefundForm";
+import { DiktatTextarea } from "./DiktatTextarea";
 import {
   ensureBefund,
   speichereBefund,
@@ -573,7 +574,7 @@ export default async function ParzelleSeite({
                           className={`block w-full ${INP}`}
                         />
                       )}
-                      <textarea
+                      <DiktatTextarea
                         name="notiz"
                         defaultValue={m.notiz}
                         rows={2}
