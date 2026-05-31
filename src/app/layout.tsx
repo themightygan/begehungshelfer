@@ -22,20 +22,20 @@ export default async function RootLayout({
     <html lang="de">
       <body className="min-h-screen">
         <header className="border-b border-stone-200 bg-white">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-            <Link href="/" className="font-semibold text-emerald-800">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+            <Link href="/" className="text-lg font-semibold text-emerald-800">
               🌱 Begehungshelfer
             </Link>
             {session.loggedIn && (
               <form action={logout}>
-                <button className="text-sm text-stone-500 hover:text-stone-800">
+                <button className="rounded px-3 py-1.5 text-base text-stone-500 hover:bg-stone-100 hover:text-stone-800">
                   Abmelden
                 </button>
               </form>
             )}
           </div>
         </header>
-        <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
       </body>
     </html>
   );

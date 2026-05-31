@@ -67,7 +67,7 @@ export default async function BegehungSeite() {
           </summary>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/datei/${runde.anlage.planBild}`}
+            src={runde.anlage.planBild}
             alt={`Plan ${runde.anlage.name}`}
             className="mt-2 w-full rounded border border-stone-200"
           />
@@ -81,7 +81,7 @@ export default async function BegehungSeite() {
       {/* Parzellen-Raster */}
       <section>
         <h2 className="mb-2 text-sm font-medium text-stone-600">Parzellen</h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
           {parzellen.map((p) => {
             const s = stand.get(p.id);
             const aktiv = s && (s.stufe !== "neutral" || s.maengel > 0);
@@ -89,7 +89,7 @@ export default async function BegehungSeite() {
               <Link
                 key={p.id}
                 href={`/parzelle/${p.parzelleId}`}
-                className={`rounded border px-2 py-1.5 text-center text-sm ${
+                className={`rounded border px-2 py-3 text-center text-base font-medium ${
                   aktiv
                     ? "border-emerald-400 bg-emerald-50"
                     : s

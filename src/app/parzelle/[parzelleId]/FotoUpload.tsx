@@ -17,7 +17,7 @@ export function FotoUpload({
   return (
     <form ref={formRef} action={action} className="mt-2">
       <label
-        className={`inline-flex cursor-pointer items-center gap-1 rounded px-3 py-1.5 text-sm font-medium text-white ${
+        className={`inline-flex cursor-pointer items-center gap-1 rounded px-4 py-2.5 text-base font-medium text-white ${
           busy ? "bg-stone-400" : "bg-emerald-700 hover:bg-emerald-800"
         }`}
       >

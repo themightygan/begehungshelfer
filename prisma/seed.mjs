@@ -31,6 +31,8 @@ function parseCsv(text) {
 }
 
 const ANLAGEN = { K: "Kühwasen", S: "Silberwald" };
+// Statische Orientierungspläne (liegen committed unter public/plaene/).
+const PLAN = { K: "/plaene/kuehwasen.jpg", S: "/plaene/silberwald.jpg" };
 
 // --- Mängelkatalog aus Formular_Gartenbegehung_neutral.pdf ---
 const KATALOG = [
@@ -72,7 +74,9 @@ async function main() {
   const anlageId = {};
   for (const [kuerzel, name] of Object.entries(ANLAGEN)) {
     const a = await prisma.anlage.upsert({
-      where: { kuerzel }, update: { name }, create: { kuerzel, name },
+      where: { kuerzel },
+      update: { name, planBild: PLAN[kuerzel] },
+      create: { kuerzel, name, planBild: PLAN[kuerzel] },
     });
     anlageId[kuerzel] = a.id;
   }
