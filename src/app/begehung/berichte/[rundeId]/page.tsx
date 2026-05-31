@@ -80,7 +80,12 @@ export default async function BerichteSeite({
               className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3"
             >
               <div className="min-w-0">
-                <span className="text-lg font-medium">{b.parzelle.parzelleId}</span>
+                <Link
+                  href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
+                  className="text-lg font-medium text-emerald-700 hover:underline"
+                >
+                  {b.parzelle.parzelleId}
+                </Link>
                 <span className="ml-2 text-sm text-stone-500">
                   {STUFE_LABEL[b.stufe] ?? b.stufe}
                   {b.gutGemacht ? " · 👍" : ""}

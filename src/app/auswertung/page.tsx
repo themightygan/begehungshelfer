@@ -112,7 +112,14 @@ export default async function AuswertungSeite({
                 const soll = b.parzelle.groesseM2 ? b.parzelle.groesseM2 / 6 : null;
                 return (
                   <tr key={b.parzelle.parzelleId} className="border-b border-stone-100">
-                    <td className="py-2 pr-3 font-medium">{b.parzelle.parzelleId}</td>
+                    <td className="py-2 pr-3 font-medium">
+                      <Link
+                        href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
+                        className="text-emerald-700 hover:underline"
+                      >
+                        {b.parzelle.parzelleId}
+                      </Link>
+                    </td>
                     <td className="py-2 pr-3">{`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}</td>
                     <td className="py-2 pr-3">{soll !== null ? `${m2(soll)} / ${m2(ist)}` : `— / ${m2(ist)}`}</td>
                     <td className="py-2 pr-3">{b.gutGemacht ? "ja" : "nein"}</td>
