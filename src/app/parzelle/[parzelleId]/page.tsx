@@ -14,6 +14,7 @@ import {
   updateMangel,
   removeMangel,
   uploadMangelFotos,
+  uploadBeetFotos,
   loescheFoto,
   addBeet,
   updateBeet,
@@ -105,7 +106,10 @@ export default async function ParzelleSeite({
         orderBy: { id: "asc" },
         include: { katalog: true, fotos: { orderBy: { id: "asc" } } },
       },
-      beete: { orderBy: { id: "asc" } },
+      beete: {
+        orderBy: { id: "asc" },
+        include: { fotos: { orderBy: { id: "asc" } } },
+      },
     },
   });
 
@@ -132,7 +136,7 @@ export default async function ParzelleSeite({
           : "zu wenig";
 
   const uebersichtFotos = await prisma.foto.findMany({
-    where: { befundId, mangelId: null },
+    where: { befundId, mangelId: null, beetId: null },
     orderBy: { id: "asc" },
   });
   const dokumente = await prisma.dokument.findMany({
@@ -233,10 +237,7 @@ export default async function ParzelleSeite({
           <p className="text-sm text-stone-400">
             Garten-Übersicht ohne konkreten Mangel — steht im PDF vorne zur Orientierung.
           </p>
-          <FotoUpload
-            action={uploadUebersichtFotos.bind(null, parzelleId)}
-            label="📷 Übersichtsfoto hinzufügen"
-          />
+          <FotoUpload action={uploadUebersichtFotos.bind(null, parzelleId)} />
           <FotoGitter fotos={uebersichtFotos} parzelleId={parzelleId} />
         </section>
 
@@ -262,38 +263,41 @@ export default async function ParzelleSeite({
             Max. 5 Beete.
           </p>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-3">
             {befund.beete.map((b) => (
-              <form
-                key={b.id}
-                action={updateBeet.bind(null, parzelleId, b.id)}
-                className="flex flex-wrap items-center gap-2"
-              >
-                <input
-                  type="text"
-                  name="bezeichnung"
-                  defaultValue={b.bezeichnung}
-                  placeholder="Bezeichnung (z. B. Beet 1)"
-                  className={`min-w-0 flex-1 ${INP}`}
-                />
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  name="flaeche"
-                  defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""}
-                  placeholder="m²"
-                  className={`w-24 ${INP}`}
-                />
-                <button className="rounded bg-stone-700 px-3.5 py-2.5 text-base text-white hover:bg-stone-800">
-                  ✓
-                </button>
-                <button
-                  formAction={removeBeet.bind(null, parzelleId, b.id)}
-                  className="rounded px-3 py-2.5 text-base text-red-600 hover:bg-red-50"
+              <div key={b.id} className="rounded border border-stone-100 p-2">
+                <form
+                  action={updateBeet.bind(null, parzelleId, b.id)}
+                  className="flex flex-wrap items-center gap-2"
                 >
-                  ✕
-                </button>
-              </form>
+                  <input
+                    type="text"
+                    name="bezeichnung"
+                    defaultValue={b.bezeichnung}
+                    placeholder="Bezeichnung (z. B. Beet 1)"
+                    className={`min-w-0 flex-1 ${INP}`}
+                  />
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    name="flaeche"
+                    defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""}
+                    placeholder="m²"
+                    className={`w-24 ${INP}`}
+                  />
+                  <button className="rounded bg-stone-700 px-3.5 py-2.5 text-base text-white hover:bg-stone-800">
+                    ✓
+                  </button>
+                  <button
+                    formAction={removeBeet.bind(null, parzelleId, b.id)}
+                    className="rounded px-3 py-2.5 text-base text-red-600 hover:bg-red-50"
+                  >
+                    ✕
+                  </button>
+                </form>
+                <FotoUpload action={uploadBeetFotos.bind(null, parzelleId, b.id)} />
+                <FotoGitter fotos={b.fotos} parzelleId={parzelleId} />
+              </div>
             ))}
           </div>
 
@@ -460,10 +464,7 @@ export default async function ParzelleSeite({
                         <button className={BTN_SEC}>Text/Frist speichern</button>
                       </div>
                     </form>
-                    <FotoUpload
-                      action={uploadMangelFotos.bind(null, parzelleId, m.id)}
-                      label="📷 Foto zum Mangel"
-                    />
+                    <FotoUpload action={uploadMangelFotos.bind(null, parzelleId, m.id)} />
                     <FotoGitter fotos={m.fotos} parzelleId={parzelleId} />
                   </div>
 

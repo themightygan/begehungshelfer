@@ -33,7 +33,7 @@ export type BerichtDaten = {
   datum: string; // bereits formatiert
   uebersicht: BerichtFoto[];
   maengel: BerichtMangel[];
-  beete: { bezeichnung: string; flaecheM2: number }[];
+  beete: { bezeichnung: string; flaecheM2: number; fotos: BerichtFoto[] }[];
   beetIst: number;
   beetSoll: number | null;
   gutGemacht: boolean;
@@ -151,9 +151,12 @@ function Bericht({ d }: { d: BerichtDaten }) {
           <View style={s.abschnitt}>
             <Text style={s.h2}>Gemüseanbaufläche</Text>
             {d.beete.map((b, i) => (
-              <View key={i} style={s.zeile}>
-                <Text style={s.label}>{b.bezeichnung || `Beet ${i + 1}`}</Text>
-                <Text style={s.wert}>{m2(b.flaecheM2)}</Text>
+              <View key={i} wrap={false}>
+                <View style={s.zeile}>
+                  <Text style={s.label}>{b.bezeichnung || `Beet ${i + 1}`}</Text>
+                  <Text style={s.wert}>{m2(b.flaecheM2)}</Text>
+                </View>
+                <FotoReihe fotos={b.fotos} />
               </View>
             ))}
             <Text style={s.text}>

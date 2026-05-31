@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { getIronSession } from "iron-session";
 import { sessionOptions, type SessionData } from "@/lib/session";
 import { logout } from "./login/actions";
 import "./globals.css";
+
+// Vereinslogo zeigen, sobald public/img/logo.png vorhanden ist (sonst Emoji).
+const HAT_LOGO = existsSync(join(process.cwd(), "public/img/logo.png"));
 
 export const metadata: Metadata = {
   title: "Begehungshelfer",
@@ -23,8 +28,14 @@ export default async function RootLayout({
       <body className="min-h-screen">
         <header className="border-b border-stone-200 bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <Link href="/" className="text-lg font-semibold text-emerald-800">
-              🌱 Begehungshelfer
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-emerald-800">
+              {HAT_LOGO ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src="/img/logo.png" alt="Vereinslogo" className="h-9 w-auto" />
+              ) : (
+                "🌱"
+              )}
+              Begehungshelfer
             </Link>
             {session.loggedIn && (
               <form action={logout}>

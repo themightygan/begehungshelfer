@@ -100,6 +100,7 @@ model Beet {
   befundId    Int
   bezeichnung String @default("")
   flaecheM2   Float  @default(0)
+  fotos       Foto[]
 }
 
 model Mangel {
@@ -127,6 +128,8 @@ model Foto {
   befundId     Int
   mangel       Mangel?  @relation(fields: [mangelId], references: [id], onDelete: Cascade)
   mangelId     Int?
+  beet         Beet?    @relation(fields: [beetId], references: [id], onDelete: Cascade)
+  beetId       Int?
   // erlaubt: mangel | zustand | beet
   kontext      String   @default("mangel")
   dateipfad    String // relativ zu STORAGE_DIR; beim Upload: resize ~1600px + EXIF/Geo-Strip

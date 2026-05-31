@@ -42,8 +42,11 @@ export async function GET(
         orderBy: { id: "asc" },
         include: { katalog: true, fotos: { orderBy: { id: "asc" } } },
       },
-      fotos: { where: { mangelId: null }, orderBy: { id: "asc" } },
-      beete: { orderBy: { id: "asc" } },
+      fotos: { where: { mangelId: null, beetId: null }, orderBy: { id: "asc" } },
+      beete: {
+        orderBy: { id: "asc" },
+        include: { fotos: { orderBy: { id: "asc" } } },
+      },
     },
   });
 
@@ -78,10 +81,13 @@ export async function GET(
     datum: new Date().toLocaleDateString("de-DE"),
     uebersicht,
     maengel,
-    beete: (befund?.beete ?? []).map((b) => ({
-      bezeichnung: b.bezeichnung,
-      flaecheM2: b.flaecheM2,
-    })),
+    beete: await Promise.all(
+      (befund?.beete ?? []).map(async (b) => ({
+        bezeichnung: b.bezeichnung,
+        flaecheM2: b.flaecheM2,
+        fotos: await ladeFotos(b.fotos),
+      }))
+    ),
     beetIst: (befund?.beete ?? []).reduce((s, b) => s + b.flaecheM2, 0),
     beetSoll: parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null,
     gutGemacht: befund?.gutGemacht ?? false,

@@ -48,7 +48,7 @@ export async function ensureBefund(parzelleId: string) {
 async function fotosAusFormData(
   befundId: number,
   formData: FormData,
-  opts: { mangelId: number | null; kontext: FotoKontext }
+  opts: { mangelId?: number | null; beetId?: number | null; kontext: FotoKontext }
 ) {
   const vorhanden = await prisma.foto.count({ where: { befundId } });
   const dateien = formData
@@ -63,13 +63,24 @@ async function fotosAusFormData(
     await prisma.foto.create({
       data: {
         befundId,
-        mangelId: opts.mangelId,
+        mangelId: opts.mangelId ?? null,
+        beetId: opts.beetId ?? null,
         kontext: opts.kontext,
         dateipfad: pfad,
       },
     });
     frei--;
   }
+}
+
+export async function uploadBeetFotos(
+  parzelleId: string,
+  beetId: number,
+  formData: FormData
+) {
+  const befundId = await ensureBefund(parzelleId);
+  await fotosAusFormData(befundId, formData, { beetId, kontext: "beet" });
+  revalidatePath(`/parzelle/${parzelleId}`);
 }
 
 export async function speichereBefund(parzelleId: string, formData: FormData) {
