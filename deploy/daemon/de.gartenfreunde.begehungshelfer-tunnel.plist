@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchDaemon (System): Cloudflare-Tunnel, läuft ohne Login, übersteht Reboots.
+     Läuft als Benutzer macmini; Config explizit angegeben. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.gartenfreunde.begehungshelfer-tunnel</string>
+  <key>UserName</key>
+  <string>macmini</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/cloudflared</string>
+    <string>tunnel</string>
+    <string>--config</string>
+    <string>/Users/macmini/.cloudflared/config.yml</string>
+    <string>run</string>
+    <string>begehungshelfer</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/macmini</string>
+    <key>TUNNEL_ORIGIN_CERT</key>
+    <string>/Users/macmini/.cloudflared/cert.pem</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-tunnel.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-tunnel.log</string>
+</dict>
+</plist>

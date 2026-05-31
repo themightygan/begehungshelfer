@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchDaemon (System, /Library/LaunchDaemons/): App läuft ohne Login,
+     übersteht Reboots. Läuft als Benutzer macmini. Installation: deploy/README.md. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.gartenfreunde.begehungshelfer-app</string>
+  <key>UserName</key>
+  <string>macmini</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Users/macmini/Code/begehungshelfer/deploy/start-app.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/macmini/Code/begehungshelfer</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/macmini</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-app.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/macmini/Library/Logs/begehungshelfer-app.log</string>
+</dict>
+</plist>

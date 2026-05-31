@@ -32,11 +32,16 @@ launchctl load ~/Library/LaunchAgents/de.gartenfreunde.begehungshelfer-tunnel.pl
 Stoppen: `launchctl unload ~/Library/LaunchAgents/<plist>`.
 Logs: `~/Library/Logs/begehungshelfer-app.log` bzw. `-tunnel.log`.
 
-## Hinweis: LaunchAgent vs. LaunchDaemon
-LaunchAgents starten beim **Login**. Für echten headless-Dauerbetrieb (ohne
-angemeldeten Nutzer) die Plists stattdessen als **LaunchDaemon** nach
-`/Library/LaunchDaemons/` (root) legen + `sudo launchctl load`. Dann zusätzlich
-„Automatisch anmelden" oder einen dedizierten Service-User erwägen.
+## System-Daemon (empfohlen für Dauerbetrieb)
+LaunchAgents starten nur beim **Login**. Für echten headless-Betrieb (ohne
+angemeldeten Nutzer, übersteht Reboots) auf **LaunchDaemons** wechseln —
+ein Skript erledigt den Umstieg:
+```bash
+sudo zsh /Users/macmini/Code/begehungshelfer/deploy/install-daemon.sh
+```
+Das stoppt die LaunchAgents und installiert `deploy/daemon/*.plist` nach
+`/Library/LaunchDaemons/` (laufen als Benutzer `macmini`). Danach laufen App +
+Tunnel unabhängig vom Login. Logs unverändert unter `~/Library/Logs/`.
 
 ## Backup (noch offen)
 DB (`prisma/dev.db`) + `storage/` regelmäßig sichern (Dropbox/Time Machine) —
