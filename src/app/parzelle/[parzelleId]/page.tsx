@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAktiveRunde } from "@/lib/runde";
-import { FotoUpload } from "./FotoUpload";
+import { FotoBereich } from "./FotoBereich";
 import { BefundForm } from "./BefundForm";
 import { DiktatTextarea } from "./DiktatTextarea";
 import { Thumb } from "@/components/Thumb";
@@ -38,28 +38,6 @@ const BTN_SEC =
   "rounded border border-stone-300 px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-50";
 
 type FotoZeile = { id: number; dateipfad: string; kontext?: string };
-
-// Fotokacheln mit (immer sichtbarer, touch-tauglicher) Lösch-Möglichkeit.
-function FotoGitter({ fotos, parzelleId }: { fotos: FotoZeile[]; parzelleId: string }) {
-  if (fotos.length === 0) return null;
-  return (
-    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {fotos.map((f) => (
-        <div key={f.id} className="relative">
-          <Thumb src={`/api/datei/${f.dateipfad}`} />
-          <form action={loescheFoto.bind(null, parzelleId, f.id)}>
-            <button
-              className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
-              title="Foto löschen"
-            >
-              ✕
-            </button>
-          </form>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // Read-only Fotokacheln (Vorjahr).
 function FotoGitterRO({ fotos }: { fotos: FotoZeile[] }) {
@@ -338,8 +316,12 @@ export default async function ParzelleSeite({
         {/* Gesamtansicht-Fotos */}
         <section className={CARD}>
           <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
-          <FotoUpload action={uploadUebersichtFotos.bind(null, parzelleId)} />
-          <FotoGitter fotos={uebersichtFotos} parzelleId={parzelleId} />
+          <FotoBereich
+            parzelleId={parzelleId}
+            fotos={uebersichtFotos}
+            uploadAction={uploadUebersichtFotos.bind(null, parzelleId)}
+            deleteAction={loescheFoto}
+          />
         </section>
 
         {/* Gemüsebeete: IST vs. SOLL 1/6 mit Ampel */}
@@ -427,8 +409,12 @@ export default async function ParzelleSeite({
                     ✕
                   </button>
                 </form>
-                <FotoUpload action={uploadBeetFotos.bind(null, parzelleId, b.id)} />
-                <FotoGitter fotos={b.fotos} parzelleId={parzelleId} />
+                <FotoBereich
+                  parzelleId={parzelleId}
+                  fotos={b.fotos}
+                  uploadAction={uploadBeetFotos.bind(null, parzelleId, b.id)}
+                  deleteAction={loescheFoto}
+                />
               </div>
             ))}
           </div>
@@ -596,8 +582,12 @@ export default async function ParzelleSeite({
                         <button className={BTN_SEC}>Text/Frist speichern</button>
                       </div>
                     </form>
-                    <FotoUpload action={uploadMangelFotos.bind(null, parzelleId, m.id)} />
-                    <FotoGitter fotos={m.fotos} parzelleId={parzelleId} />
+                    <FotoBereich
+                      parzelleId={parzelleId}
+                      fotos={m.fotos}
+                      uploadAction={uploadMangelFotos.bind(null, parzelleId, m.id)}
+                      deleteAction={loescheFoto}
+                    />
                   </div>
 
                   {/* Zuletzt (Vorjahr) */}

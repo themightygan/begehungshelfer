@@ -2,8 +2,10 @@
 
 import { useRef, useState } from "react";
 
-// Textarea mit Diktat-Knopf: nimmt Audio auf, schickt es an /api/transkript
-// (Whisper + Ollama-Glättung) und hängt den geglätteten Text an.
+// Textarea mit Diktat: nimmt Audio auf, schickt es an /api/transkript
+// (Whisper + Ollama-Glättung) und hängt den Text an. Nicht blockierend: nach
+// dem Stoppen läuft die Transkription im Hintergrund, die nächste Aufnahme kann
+// sofort starten; Ergebnisse werden angehängt, sobald sie eintreffen.
 export function DiktatTextarea({
   name,
   defaultValue,
@@ -20,7 +22,14 @@ export function DiktatTextarea({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const mrRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
-  const [status, setStatus] = useState<"idle" | "rec" | "busy">("idle");
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(0);
+
+  function append(text: string) {
+    if (!taRef.current || !text) return;
+    const cur = taRef.current.value.replace(/\s*$/, "");
+    taRef.current.value = cur ? `${cur} ${text}` : text;
+  }
 
   async function start() {
     try {
@@ -30,30 +39,29 @@ export function DiktatTextarea({
       mr.ondataavailable = (e) => {
         if (e.data.size) chunks.current.push(e.data);
       };
-      mr.onstop = async () => {
+      mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        setStatus("busy");
         const blob = new Blob(chunks.current, { type: mr.mimeType || "audio/webm" });
         const fd = new FormData();
         fd.append("audio", blob, "diktat");
-        try {
-          const res = await fetch("/api/transkript", { method: "POST", body: fd });
-          const j = await res.json();
-          if (j.text && taRef.current) {
-            const cur = taRef.current.value.replace(/\s*$/, "");
-            taRef.current.value = cur ? `${cur} ${j.text}` : j.text;
-          }
-        } catch {
-          /* ignore */
-        }
-        setStatus("idle");
+        setTranscribing((n) => n + 1);
+        fetch("/api/transkript", { method: "POST", body: fd })
+          .then((r) => r.json())
+          .then((j) => append(j.text))
+          .catch(() => {})
+          .finally(() => setTranscribing((n) => n - 1));
       };
       mrRef.current = mr;
       mr.start();
-      setStatus("rec");
+      setRecording(true);
     } catch {
       alert("Mikrofon nicht verfügbar oder Zugriff verweigert.");
     }
+  }
+
+  function stop() {
+    mrRef.current?.stop();
+    setRecording(false);
   }
 
   return (
@@ -66,20 +74,22 @@ export function DiktatTextarea({
         placeholder={placeholder}
         className={className}
       />
-      <button
-        type="button"
-        onClick={() => (status === "rec" ? mrRef.current?.stop() : start())}
-        disabled={status === "busy"}
-        className={`mt-1 rounded px-3 py-1.5 text-sm font-medium ${
-          status === "rec"
-            ? "bg-red-600 text-white hover:bg-red-700"
-            : status === "busy"
-              ? "bg-stone-300 text-stone-600"
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={recording ? stop : start}
+          className={`rounded px-3 py-1.5 text-sm font-medium ${
+            recording
+              ? "bg-red-600 text-white hover:bg-red-700"
               : "border border-stone-300 text-stone-700 hover:bg-stone-50"
-        }`}
-      >
-        {status === "rec" ? "⏹ Stoppen & einfügen" : status === "busy" ? "⏳ Transkribiere…" : "🎤 Diktat"}
-      </button>
+          }`}
+        >
+          {recording ? "⏹ Stoppen & einfügen" : "🎤 Diktat"}
+        </button>
+        {transcribing > 0 && (
+          <span className="text-sm text-stone-500">{transcribing} wird transkribiert…</span>
+        )}
+      </div>
     </div>
   );
 }
