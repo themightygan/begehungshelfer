@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { TEILNEHMER } from "@/lib/constants";
-import { getAktiveRundeId } from "@/lib/runde";
+import { getAktiveRunde } from "@/lib/runde";
 import { begehungStarten, begehungFortsetzen, begehungAbbrechen } from "./begehung/actions";
 import { ConfirmButton } from "./begehung/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [anlagen, runden, aktiveRundeId] = await Promise.all([
+  const [anlagen, runden, aktiveRunde] = await Promise.all([
     prisma.anlage.findMany({ orderBy: { kuerzel: "asc" } }),
     prisma.begehungsrunde.findMany({
       orderBy: { erstelltAm: "desc" },
       include: { anlage: true, _count: { select: { befunde: true } } },
     }),
-    getAktiveRundeId(),
+    getAktiveRunde(),
   ]);
 
   return (
@@ -40,7 +40,7 @@ export default async function Home() {
         </a>
       </div>
 
-      {aktiveRundeId && (
+      {aktiveRunde && (
         <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
           <p className="text-sm text-emerald-900">Es läuft eine Begehung.</p>
           <Link

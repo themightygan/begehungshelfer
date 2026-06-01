@@ -12,6 +12,9 @@ import { FOTO_MAX_PRO_BEFUND, type FotoKontext } from "@/lib/constants";
 export async function ensureBefund(parzelleId: string) {
   const session = await getSession();
   if (!session.rundeId) throw new Error("Keine aktive Begehung.");
+  // Verwaiste Session (z. B. nach Löschen der Runde) sauber abfangen.
+  const runde = await prisma.begehungsrunde.findUnique({ where: { id: session.rundeId } });
+  if (!runde) throw new Error("Aktive Begehung nicht gefunden.");
 
   const parzelle = await prisma.parzelle.findUniqueOrThrow({
     where: { parzelleId },

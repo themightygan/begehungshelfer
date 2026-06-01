@@ -22,7 +22,11 @@ export function FotoUpload({
     for (const f of Array.from(files)) fd.append("fotos", f);
     input.value = ""; // erlaubt erneutes Auswählen desselben Bilds / nächste Aufnahme
     startTransition(async () => {
-      await action(fd);
+      try {
+        await action(fd);
+      } catch {
+        alert("Upload fehlgeschlagen. Läuft die Begehung noch? Ggf. neu starten.");
+      }
     });
   };
 

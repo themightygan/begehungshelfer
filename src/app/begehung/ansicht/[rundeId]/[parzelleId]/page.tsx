@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
+import { Thumb } from "@/components/Thumb";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +14,7 @@ function FotoRO({ fotos }: { fotos: { id: number; dateipfad: string }[] }) {
   return (
     <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
       {fotos.map((f) => (
-        <a key={f.id} href={`/api/datei/${f.dateipfad}`} target="_blank" rel="noopener">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/datei/${f.dateipfad}`} alt="Foto" className="aspect-square w-full rounded object-cover" />
-        </a>
+        <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} />
       ))}
     </div>
   );

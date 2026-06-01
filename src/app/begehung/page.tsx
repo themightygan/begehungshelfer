@@ -2,15 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL } from "@/lib/constants";
-import { getAktiveRundeId } from "@/lib/runde";
+import { getAktiveRunde } from "@/lib/runde";
 import { begehungAbschliessen, begehungVerlassen, begehungAbbrechen } from "./actions";
 import { ConfirmButton } from "./ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function BegehungSeite() {
-  const rundeId = await getAktiveRundeId();
-  if (!rundeId) redirect("/");
+  const aktiv = await getAktiveRunde();
+  if (!aktiv) redirect("/");
+  const rundeId = aktiv.id;
 
   const runde = await prisma.begehungsrunde.findUnique({
     where: { id: rundeId },

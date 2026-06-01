@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getAktiveRundeId } from "@/lib/runde";
+import { getAktiveRunde } from "@/lib/runde";
 import { FotoUpload } from "./FotoUpload";
 import { BefundForm } from "./BefundForm";
 import { DiktatTextarea } from "./DiktatTextarea";
+import { Thumb } from "@/components/Thumb";
 import {
   ensureBefund,
   speichereBefund,
@@ -45,15 +46,10 @@ function FotoGitter({ fotos, parzelleId }: { fotos: FotoZeile[]; parzelleId: str
     <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
       {fotos.map((f) => (
         <div key={f.id} className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/datei/${f.dateipfad}`}
-            alt="Foto"
-            className="aspect-square w-full rounded object-cover"
-          />
+          <Thumb src={`/api/datei/${f.dateipfad}`} />
           <form action={loescheFoto.bind(null, parzelleId, f.id)}>
             <button
-              className="absolute right-1 top-1 rounded bg-black/60 px-2 py-1 text-sm text-white"
+              className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
               title="Foto löschen"
             >
               ✕
@@ -71,13 +67,7 @@ function FotoGitterRO({ fotos }: { fotos: FotoZeile[] }) {
   return (
     <div className="mt-2 grid grid-cols-3 gap-2">
       {fotos.map((f) => (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          key={f.id}
-          src={`/api/datei/${f.dateipfad}`}
-          alt="Foto (Vorjahr)"
-          className="aspect-square w-full rounded object-cover opacity-90"
-        />
+        <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} alt="Foto (Vorjahr)" />
       ))}
     </div>
   );
@@ -90,9 +80,10 @@ export default async function ParzelleSeite({
 }) {
   const { parzelleId } = await params;
 
-  // Erfassung nur innerhalb einer aktiven Begehung.
-  const rundeId = await getAktiveRundeId();
-  if (!rundeId) redirect("/");
+  // Erfassung nur innerhalb einer gültigen, offenen Begehung.
+  const aktiveRunde = await getAktiveRunde();
+  if (!aktiveRunde) redirect("/");
+  const rundeId = aktiveRunde.id;
 
   const parzelle = await prisma.parzelle.findUnique({
     where: { parzelleId },
@@ -393,14 +384,7 @@ export default async function ParzelleSeite({
                       {fotos.length > 0 && (
                         <div className="mt-1 grid grid-cols-4 gap-1 sm:grid-cols-6">
                           {fotos.map((f) => (
-                            <a key={f.id} href={`/api/datei/${f.dateipfad}`} target="_blank" rel="noopener">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`/api/datei/${f.dateipfad}`}
-                                alt={`Foto ${d}`}
-                                className="aspect-square w-full rounded object-cover"
-                              />
-                            </a>
+                            <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} alt={`Foto ${d}`} />
                           ))}
                         </div>
                       )}
@@ -688,19 +672,7 @@ export default async function ParzelleSeite({
                 </summary>
                 <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
                   {g.fotos.map((f) => (
-                    <a
-                      key={f.id}
-                      href={`/api/datei/${f.dateipfad}`}
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api/datei/${f.dateipfad}`}
-                        alt={`Foto ${g.datum}`}
-                        className="aspect-square w-full rounded object-cover"
-                      />
-                    </a>
+                    <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} alt={`Foto ${g.datum}`} />
                   ))}
                 </div>
               </details>
