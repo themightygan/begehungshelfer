@@ -32,7 +32,7 @@ export default async function RootLayout({
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-emerald-800">
               {HAT_LOGO ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src="/img/logo.png" alt="Vereinslogo" className="h-9 w-auto" />
+                <img src="/img/logo.png" alt="Vereinslogo" className="h-12 w-auto" />
               ) : (
                 "🌱"
               )}

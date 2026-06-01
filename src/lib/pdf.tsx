@@ -51,7 +51,7 @@ const m2 = (n: number) =>
 const s = StyleSheet.create({
   page: { padding: 36, fontSize: 10, color: "#1c1917", fontFamily: "Helvetica" },
   kopf: { flexDirection: "row", alignItems: "center", gap: 10 },
-  logo: { width: 44, height: 44 },
+  logo: { width: 52, height: 44, objectFit: "contain" },
   verein: { fontSize: 9, color: "#57534e" },
   titel: { fontSize: 18, marginTop: 4, fontFamily: "Helvetica-Bold" },
   meta: { marginTop: 2, color: "#57534e" },
