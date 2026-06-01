@@ -41,6 +41,8 @@ export type BerichtDaten = {
   beete: { bezeichnung: string; flaecheM2: number; fotos: BerichtFoto[] }[];
   beetIst: number;
   beetSoll: number | null;
+  kompensationText: string;
+  kompensationAusreichend: boolean;
   gutGemacht: boolean;
   plakettenNotiz: string;
 };
@@ -175,6 +177,14 @@ function Bericht({ d }: { d: BerichtDaten }) {
                   }`
                 : ""}
             </Text>
+            {(d.kompensationAusreichend || d.kompensationText.trim() !== "") && (
+              <Text style={s.text}>
+                Kompensation: {d.kompensationText}
+                {d.kompensationAusreichend
+                  ? " — ausreichende kleingärtnerische Nutzung dokumentiert (Anbau gesamt mind. 1/3)"
+                  : ""}
+              </Text>
+            )}
           </View>
         )}
 

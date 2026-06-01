@@ -6,6 +6,7 @@ import {
   type BerichtFoto,
   type BerichtMangel,
 } from "@/lib/pdf";
+import { KOMPENSATION_FAKTOREN } from "@/lib/constants";
 
 async function ladeFotos(
   fotos: { dateipfad: string }[]
@@ -94,6 +95,17 @@ export async function GET(
     ),
     beetIst: (befund?.beete ?? []).reduce((s, b) => s + b.flaecheM2, 0),
     beetSoll: parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null,
+    kompensationText: [
+      (befund?.kompensationFaktoren ?? "")
+        .split(",")
+        .filter(Boolean)
+        .map((w) => KOMPENSATION_FAKTOREN.find((f) => f.wert === w)?.label ?? w)
+        .join(", "),
+      befund?.kompensationNotiz ?? "",
+    ]
+      .filter(Boolean)
+      .join(" — "),
+    kompensationAusreichend: befund?.kompensationAusreichend ?? false,
     gutGemacht: befund?.gutGemacht ?? false,
     plakettenNotiz: befund?.plakettenNotiz ?? "",
   });

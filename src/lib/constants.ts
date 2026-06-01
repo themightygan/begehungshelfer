@@ -32,6 +32,15 @@ export const FOTO_KONTEXT = [
   { wert: "mangel", label: "Mangel" },
   { wert: "zustand", label: "Zustand" },
   { wert: "beet", label: "Beet" },
+  { wert: "kompensation", label: "Kompensation" },
+] as const;
+
+// Kompensationsfaktoren: Anbau, der geringe Gemüsefläche ausgleicht (zählt zum
+// 1/3-Anbau nach BKleingG). Zierpflanzen zählen NICHT (nur im Kommentar dokumentiert).
+export const KOMPENSATION_FAKTOREN = [
+  { wert: "obstbaeume", label: "Obstbäume" },
+  { wert: "beerenobst", label: "Beerensträucher / Spalierobst" },
+  { wert: "sonstiger_anbau", label: "Sonstiger Anbau (Kräuter, Hochbeete …)" },
 ] as const;
 export type FotoKontext = (typeof FOTO_KONTEXT)[number]["wert"];
 

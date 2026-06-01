@@ -17,6 +17,8 @@ import {
   removeMangel,
   uploadMangelFotos,
   uploadBeetFotos,
+  uploadKompensationFotos,
+  updateKompensation,
   loescheFoto,
   mangelBehobenToggle,
   addBeet,
@@ -25,7 +27,7 @@ import {
   uploadDokument,
   removeDokument,
 } from "./actions";
-import { DOKUMENT_TYP, STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
+import { DOKUMENT_TYP, STUFE_LABEL, STUFE_SYMBOL, KOMPENSATION_FAKTOREN } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -105,11 +107,23 @@ export default async function ParzelleSeite({
         : beetRatio >= 0.6
           ? "knapp"
           : "zu wenig";
+  // Kompensation: dokumentierter Ausgleich bei Unterschreitung (Anbau gesamt >= 1/3).
+  const beetUnterSoll = beetRatio !== null && beetRatio <= 0.8;
+  const kompAktiv = befund.kompensationAusreichend && beetUnterSoll;
+  const beetStatusAnzeige = kompAktiv ? "kompensiert (dokumentiert)" : beetStatus;
+  const beetFarbeAnzeige = kompAktiv ? "text-emerald-700" : beetFarbe;
 
   const uebersichtFotos = await prisma.foto.findMany({
-    where: { befundId, mangelId: null, beetId: null },
+    where: { befundId, mangelId: null, beetId: null, kontext: "zustand" },
     orderBy: { id: "asc" },
   });
+  const kompensationFotos = await prisma.foto.findMany({
+    where: { befundId, kontext: "kompensation" },
+    orderBy: { id: "asc" },
+  });
+  const kompFaktorenGewaehlt = new Set(
+    befund.kompensationFaktoren.split(",").filter(Boolean)
+  );
   const dokumente = await prisma.dokument.findMany({
     where: { parzelleId: parzelle.id },
     orderBy: { datum: "desc" },
@@ -328,13 +342,13 @@ export default async function ParzelleSeite({
         <section className={CARD}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-base font-medium text-stone-600">Gemüsebeete</h2>
-            <span className={`text-base font-semibold ${beetFarbe}`}>
+            <span className={`text-base font-semibold ${beetFarbeAnzeige}`}>
               IST {beetIst.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
               {beetSoll !== null && (
                 <>
                   {" / SOLL "}
                   {beetSoll.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
-                  {beetStatus && ` · ${beetStatus}`}
+                  {beetStatusAnzeige && ` · ${beetStatusAnzeige}`}
                 </>
               )}
             </span>
@@ -440,6 +454,52 @@ export default async function ParzelleSeite({
               <button className={BTN}>+ Beet</button>
             </form>
           )}
+
+          {/* Kompensation: sonstiger Anbau (Obst/Beerenobst) gleicht geringe Gemüsefläche aus */}
+          <details className="mt-3 border-t border-stone-100 pt-3 text-sm" open={kompAktiv}>
+            <summary className="cursor-pointer font-medium text-stone-600">
+              Weitere Anbaunutzung / Kompensation{befund.kompensationAusreichend ? " ✓" : ""}
+            </summary>
+            <form action={updateKompensation.bind(null, parzelleId)} className="mt-2 space-y-2">
+              <div className="flex flex-wrap gap-3">
+                {KOMPENSATION_FAKTOREN.map((f) => (
+                  <label key={f.wert} className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      name="faktor"
+                      value={f.wert}
+                      defaultChecked={kompFaktorenGewaehlt.has(f.wert)}
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+              <DiktatTextarea
+                name="kompNotiz"
+                defaultValue={befund.kompensationNotiz}
+                rows={2}
+                placeholder="Kommentar (z. B. großer Obstbaumbestand, Beerenanlage). Zierpflanzen zählen nicht zum Anbau."
+                className={`block w-full ${INP}`}
+              />
+              <label className="flex items-start gap-2 font-medium text-emerald-800">
+                <input
+                  type="checkbox"
+                  name="ausreichend"
+                  value="1"
+                  defaultChecked={befund.kompensationAusreichend}
+                  className="mt-1 h-5 w-5"
+                />
+                Ausreichende kleingärtnerische Nutzung trotz geringer Gemüsefläche (Anbau gesamt ≥ 1/3)
+              </label>
+              <button className={BTN_SEC}>Kompensation speichern</button>
+            </form>
+            <FotoBereich
+              parzelleId={parzelleId}
+              fotos={kompensationFotos}
+              uploadAction={uploadKompensationFotos.bind(null, parzelleId)}
+              deleteAction={loescheFoto}
+            />
+          </details>
         </section>
       </div>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
+import { STUFE_LABEL, STUFE_SYMBOL, KOMPENSATION_FAKTOREN } from "@/lib/constants";
 import { Thumb } from "@/components/Thumb";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +95,26 @@ export default async function AnsichtSeite({
           <p className="text-base">
             IST {m2(ist)} m²{soll !== null ? ` · SOLL (1/6) ${m2(soll)} m²` : ""}
           </p>
+          {(befund.kompensationAusreichend ||
+            befund.kompensationNotiz.trim() !== "" ||
+            befund.kompensationFaktoren.trim() !== "") && (
+            <p className="mt-1 text-base text-emerald-800">
+              Kompensation:{" "}
+              {[
+                befund.kompensationFaktoren
+                  .split(",")
+                  .filter(Boolean)
+                  .map((w) => KOMPENSATION_FAKTOREN.find((f) => f.wert === w)?.label ?? w)
+                  .join(", "),
+                befund.kompensationNotiz,
+              ]
+                .filter(Boolean)
+                .join(" — ")}
+              {befund.kompensationAusreichend
+                ? " · ausreichende kleingärtnerische Nutzung dokumentiert"
+                : ""}
+            </p>
+          )}
           {befund.beete.map((b) => (
             <div key={b.id} className="mt-2">
               <p className="text-base">{b.bezeichnung || "Beet"}: {m2(b.flaecheM2)} m²</p>

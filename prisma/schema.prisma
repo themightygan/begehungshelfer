@@ -88,6 +88,12 @@ model Befund {
   gutGemacht     Boolean @default(false)
   plakettenNotiz String  @default("")
 
+  // Kompensation geringer Gemüsefläche durch sonstigen Anbau (Obst/Beerenobst);
+  // dokumentiert ausreichende kleingärtnerische Nutzung (Anbau gesamt >= 1/3).
+  kompensationFaktoren    String  @default("") // kommagetrennte Faktoren
+  kompensationNotiz       String  @default("")
+  kompensationAusreichend Boolean @default(false)
+
   beete   Beet[]
   maengel Mangel[]
   fotos   Foto[]

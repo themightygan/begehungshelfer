@@ -76,6 +76,25 @@ async function fotosAusFormData(
   }
 }
 
+export async function updateKompensation(parzelleId: string, formData: FormData) {
+  const befundId = await ensureBefund(parzelleId);
+  await prisma.befund.update({
+    where: { id: befundId },
+    data: {
+      kompensationFaktoren: formData.getAll("faktor").map(String).join(","),
+      kompensationNotiz: String(formData.get("kompNotiz") ?? ""),
+      kompensationAusreichend: formData.get("ausreichend") === "1",
+    },
+  });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
+export async function uploadKompensationFotos(parzelleId: string, formData: FormData) {
+  const befundId = await ensureBefund(parzelleId);
+  await fotosAusFormData(befundId, formData, { kontext: "kompensation" });
+  revalidatePath(`/parzelle/${parzelleId}`);
+}
+
 export async function uploadBeetFotos(
   parzelleId: string,
   beetId: number,
