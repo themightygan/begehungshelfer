@@ -16,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "^6.0.0",
     "@react-pdf/renderer": "^4.1.5",
+    "exceljs": "^4.4.0",
     "heic-convert": "^2.1.0",
     "iron-session": "^8.0.0",
     "next": "^15.1.6",

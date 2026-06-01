@@ -8,7 +8,7 @@ const TUNNEL_HOSTS = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["@react-pdf/renderer", "heic-convert", "sharp"],
+  serverExternalPackages: ["@react-pdf/renderer", "heic-convert", "sharp", "exceljs"],
   // Next-15-Dev blockt sonst Cross-Origin-Requests (HMR) vom Tunnel-Host.
   allowedDevOrigins: TUNNEL_HOSTS,
   experimental: {

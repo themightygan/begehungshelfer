@@ -52,9 +52,17 @@ export default async function ParzellenSeite({
             {parzellen.length} von {alle.length} Parzellen
           </p>
         </div>
-        <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">
-          Start
-        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          <a
+            href="/api/export/mitglieder"
+            className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+          >
+            ⬇ Mitgliederliste (xlsx)
+          </a>
+          <Link href="/" className="text-base text-emerald-700 hover:underline">
+            Start
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
