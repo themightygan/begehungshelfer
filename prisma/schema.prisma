@@ -106,7 +106,11 @@ model Befund {
 
   // Kompensation geringer Gemüsefläche durch sonstigen Anbau (Obst/Beerenobst);
   // dokumentiert ausreichende kleingärtnerische Nutzung (Anbau gesamt >= 1/3).
-  kompensationFaktoren    String  @default("") // kommagetrennte Faktoren
+  kompensationFaktoren    String  @default("") // veraltet (durch Anzahl/Fläche ersetzt)
+  kompObstAnzahl          Int     @default(0)
+  kompObstFlaecheM2       Float   @default(0)
+  kompBeerenAnzahl        Int     @default(0)
+  kompBeerenFlaecheM2     Float   @default(0)
   kompensationNotiz       String  @default("")
   kompensationAusreichend Boolean @default(false)
 

@@ -27,7 +27,7 @@ import {
   uploadDokument,
   removeDokument,
 } from "./actions";
-import { DOKUMENT_TYP, STUFE_LABEL, STUFE_SYMBOL, KOMPENSATION_FAKTOREN } from "@/lib/constants";
+import { DOKUMENT_TYP, STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -121,9 +121,10 @@ export default async function ParzelleSeite({
     where: { befundId, kontext: "kompensation" },
     orderBy: { id: "asc" },
   });
-  const kompFaktorenGewaehlt = new Set(
-    befund.kompensationFaktoren.split(",").filter(Boolean)
-  );
+  // Anbau gesamt = Gemüse-IST + Kompensationsflächen (Obst + Beerenobst).
+  const kompFlaeche = befund.kompObstFlaecheM2 + befund.kompBeerenFlaecheM2;
+  const anbauGesamt = beetIst + kompFlaeche;
+  const anbauSoll = parzelle.groesseM2 ? parzelle.groesseM2 / 3 : null; // 1/3 (BKleingG)
   const dokumente = await prisma.dokument.findMany({
     where: { parzelleId: parzelle.id },
     orderBy: { datum: "desc" },
@@ -460,19 +461,32 @@ export default async function ParzelleSeite({
             <summary className="cursor-pointer font-medium text-stone-600">
               Weitere Anbaunutzung / Kompensation{befund.kompensationAusreichend ? " ✓" : ""}
             </summary>
+            {anbauSoll !== null && (
+              <p className="mt-1 text-sm text-stone-500">
+                Anbau gesamt (Gemüse {beetIst.toLocaleString("de-DE", { maximumFractionDigits: 1 })} + Kompensation{" "}
+                {kompFlaeche.toLocaleString("de-DE", { maximumFractionDigits: 1 })}) ={" "}
+                <span className={anbauGesamt >= anbauSoll ? "font-medium text-emerald-700" : "font-medium text-amber-600"}>
+                  {anbauGesamt.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
+                </span>{" "}
+                / 1/3-SOLL {anbauSoll.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m²
+              </p>
+            )}
             <form action={updateKompensation.bind(null, parzelleId)} className="mt-2 space-y-2">
-              <div className="flex flex-wrap gap-3">
-                {KOMPENSATION_FAKTOREN.map((f) => (
-                  <label key={f.wert} className="flex items-center gap-1.5">
-                    <input
-                      type="checkbox"
-                      name="faktor"
-                      value={f.wert}
-                      defaultChecked={kompFaktorenGewaehlt.has(f.wert)}
-                    />
-                    {f.label}
-                  </label>
-                ))}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-40 text-stone-600">Obstbäume</span>
+                  Anzahl
+                  <input name="obstAnzahl" type="number" min="0" defaultValue={befund.kompObstAnzahl || ""} className={`w-20 ${INP}`} />
+                  Fläche
+                  <input name="obstFlaeche" inputMode="decimal" defaultValue={befund.kompObstFlaecheM2 ? String(befund.kompObstFlaecheM2).replace(".", ",") : ""} className={`w-24 ${INP}`} /> m²
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-40 text-stone-600">Beeren / Spalierobst</span>
+                  Anzahl
+                  <input name="beerenAnzahl" type="number" min="0" defaultValue={befund.kompBeerenAnzahl || ""} className={`w-20 ${INP}`} />
+                  Fläche
+                  <input name="beerenFlaeche" inputMode="decimal" defaultValue={befund.kompBeerenFlaecheM2 ? String(befund.kompBeerenFlaecheM2).replace(".", ",") : ""} className={`w-24 ${INP}`} /> m²
+                </div>
               </div>
               <DiktatTextarea
                 name="kompNotiz"

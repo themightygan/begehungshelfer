@@ -78,10 +78,21 @@ async function fotosAusFormData(
 
 export async function updateKompensation(parzelleId: string, formData: FormData) {
   const befundId = await ensureBefund(parzelleId);
+  const zahl = (k: string) => {
+    const v = parseFloat(String(formData.get(k) ?? "0").replace(",", "."));
+    return Number.isFinite(v) && v >= 0 ? v : 0;
+  };
+  const ganz = (k: string) => {
+    const v = parseInt(String(formData.get(k) ?? "0"), 10);
+    return Number.isFinite(v) && v >= 0 ? v : 0;
+  };
   await prisma.befund.update({
     where: { id: befundId },
     data: {
-      kompensationFaktoren: formData.getAll("faktor").map(String).join(","),
+      kompObstAnzahl: ganz("obstAnzahl"),
+      kompObstFlaecheM2: zahl("obstFlaeche"),
+      kompBeerenAnzahl: ganz("beerenAnzahl"),
+      kompBeerenFlaecheM2: zahl("beerenFlaeche"),
       kompensationNotiz: String(formData.get("kompNotiz") ?? ""),
       kompensationAusreichend: formData.get("ausreichend") === "1",
     },

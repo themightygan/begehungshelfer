@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL, KOMPENSATION_FAKTOREN } from "@/lib/constants";
+import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 import { Thumb } from "@/components/Thumb";
 
 export const dynamic = "force-dynamic";
@@ -97,15 +97,17 @@ export default async function AnsichtSeite({
           </p>
           {(befund.kompensationAusreichend ||
             befund.kompensationNotiz.trim() !== "" ||
-            befund.kompensationFaktoren.trim() !== "") && (
+            befund.kompObstFlaecheM2 > 0 ||
+            befund.kompBeerenFlaecheM2 > 0) && (
             <p className="mt-1 text-base text-emerald-800">
               Kompensation:{" "}
               {[
-                befund.kompensationFaktoren
-                  .split(",")
-                  .filter(Boolean)
-                  .map((w) => KOMPENSATION_FAKTOREN.find((f) => f.wert === w)?.label ?? w)
-                  .join(", "),
+                befund.kompObstAnzahl || befund.kompObstFlaecheM2
+                  ? `Obstbäume: ${befund.kompObstAnzahl} (${m2(befund.kompObstFlaecheM2)} m²)`
+                  : "",
+                befund.kompBeerenAnzahl || befund.kompBeerenFlaecheM2
+                  ? `Beeren/Spalierobst: ${befund.kompBeerenAnzahl} (${m2(befund.kompBeerenFlaecheM2)} m²)`
+                  : "",
                 befund.kompensationNotiz,
               ]
                 .filter(Boolean)

@@ -6,7 +6,6 @@ import {
   type BerichtFoto,
   type BerichtMangel,
 } from "@/lib/pdf";
-import { KOMPENSATION_FAKTOREN } from "@/lib/constants";
 
 async function ladeFotos(
   fotos: { dateipfad: string }[]
@@ -96,11 +95,12 @@ export async function GET(
     beetIst: (befund?.beete ?? []).reduce((s, b) => s + b.flaecheM2, 0),
     beetSoll: parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null,
     kompensationText: [
-      (befund?.kompensationFaktoren ?? "")
-        .split(",")
-        .filter(Boolean)
-        .map((w) => KOMPENSATION_FAKTOREN.find((f) => f.wert === w)?.label ?? w)
-        .join(", "),
+      befund?.kompObstAnzahl || befund?.kompObstFlaecheM2
+        ? `Obstbäume: ${befund.kompObstAnzahl} (${befund.kompObstFlaecheM2} m²)`
+        : "",
+      befund?.kompBeerenAnzahl || befund?.kompBeerenFlaecheM2
+        ? `Beeren/Spalierobst: ${befund.kompBeerenAnzahl} (${befund.kompBeerenFlaecheM2} m²)`
+        : "",
       befund?.kompensationNotiz ?? "",
     ]
       .filter(Boolean)
