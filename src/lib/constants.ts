@@ -13,6 +13,16 @@ export const STUFEN = [
 export type StufeWert = (typeof STUFEN)[number]["wert"];
 export const STUFE_LABEL = Object.fromEntries(STUFEN.map((s) => [s.wert, s.label]));
 
+// Symbol je Eskalationsstufe (zur schnellen visuellen Einordnung).
+export const STUFE_SYMBOL: Record<string, string> = {
+  neutral: "",
+  ok: "✅",
+  hinweis: "ℹ️",
+  abmahnung_1: "⚠️",
+  abmahnung_2: "⛔",
+  kuendigung: "🛑",
+};
+
 export const MANGEL_STATUS = [
   { wert: "offen", label: "offen" },
   { wert: "behoben", label: "behoben" },

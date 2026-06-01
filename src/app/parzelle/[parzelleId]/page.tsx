@@ -24,7 +24,7 @@ import {
   uploadDokument,
   removeDokument,
 } from "./actions";
-import { DOKUMENT_TYP } from "@/lib/constants";
+import { DOKUMENT_TYP, STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -116,24 +116,24 @@ export default async function ParzelleSeite({
   });
 
   // Gemüse: IST = Summe der Beete; SOLL = 1/6 der Parzellenfläche (UPV §12).
-  // Ampel: rot < 70 % vom Soll, gelb 70–90 %, grün ≥ 90 %.
+  // Ampel: rot < 60 % vom Soll, gelb 60–80 %, grün > 80 %.
   const beetIst = befund.beete.reduce((s, b) => s + b.flaecheM2, 0);
   const beetSoll = parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null;
   const beetRatio = beetSoll ? beetIst / beetSoll : null;
   const beetFarbe =
     beetRatio === null
       ? "text-stone-500"
-      : beetRatio >= 0.9
+      : beetRatio > 0.8
         ? "text-emerald-700"
-        : beetRatio >= 0.7
+        : beetRatio >= 0.6
           ? "text-amber-600"
           : "text-red-600";
   const beetStatus =
     beetRatio === null
       ? ""
-      : beetRatio >= 0.9
+      : beetRatio > 0.8
         ? "erfüllt"
-        : beetRatio >= 0.7
+        : beetRatio >= 0.6
           ? "knapp"
           : "zu wenig";
 
@@ -183,6 +183,16 @@ export default async function ParzelleSeite({
   const vorDatum = vorBefund?.runde?.datum
     ? new Date(vorBefund.runde.datum).toLocaleDateString("de-DE")
     : null;
+
+  // Plaketten früherer Begehungen (Jahre) für diese Parzelle.
+  const fruehPlaketten = await prisma.befund.findMany({
+    where: { parzelleId: parzelle.id, rundeId: { not: rundeId }, gutGemacht: true },
+    include: { runde: { select: { datum: true } } },
+    orderBy: { runde: { datum: "desc" } },
+  });
+  const plakettenJahre = [
+    ...new Set(fruehPlaketten.map((b) => new Date(b.runde.datum).getFullYear())),
+  ];
 
   // Offene Mängel aus FRÜHEREN Begehungen (für Nachverfolgung / Abhaken).
   const heuteDat = new Date();
@@ -269,15 +279,33 @@ export default async function ParzelleSeite({
         )}
       </div>
 
-      {/* Notiz/Transkript der letzten Begehung */}
-      {vorBefund && vorBefund.notiz.trim() !== "" && (
-        <details className="rounded-lg border border-stone-200 bg-white p-3 text-base">
-          <summary className="cursor-pointer font-medium text-stone-600">
-            📋 Letzte Begehung{vorDatum ? ` (${vorDatum})` : ""} — Notiz
-          </summary>
-          <p className="mt-2 whitespace-pre-line text-stone-700">{vorBefund.notiz}</p>
-        </details>
-      )}
+      {/* Details der letzten Begehung: Stufe, Plaketten, Notiz */}
+      {vorBefund &&
+        (vorBefund.notiz.trim() !== "" ||
+          plakettenJahre.length > 0 ||
+          vorBefund.stufe !== "neutral") && (
+          <details className="rounded-lg border border-stone-200 bg-white p-3 text-base">
+            <summary className="cursor-pointer font-medium text-stone-600">
+              📋 Letzte Begehung{vorDatum ? ` (${vorDatum})` : ""} — Details
+            </summary>
+            <div className="mt-2 space-y-1 text-stone-700">
+              {vorBefund.stufe !== "neutral" && (
+                <p>
+                  {STUFE_SYMBOL[vorBefund.stufe]} Eskalationsstufe:{" "}
+                  {STUFE_LABEL[vorBefund.stufe] ?? vorBefund.stufe}
+                </p>
+              )}
+              {plakettenJahre.length > 0 && (
+                <p className="font-medium text-emerald-700">
+                  👍 Plakette erteilt: {plakettenJahre.join(", ")}
+                </p>
+              )}
+              {vorBefund.notiz.trim() !== "" && (
+                <p className="whitespace-pre-line">{vorBefund.notiz}</p>
+              )}
+            </div>
+          </details>
+        )}
 
       {/* Offene Mängel aus früheren Begehungen — abhaken (Nachverfolgung) */}
       {offeneFruehere.length > 0 && (
@@ -343,7 +371,7 @@ export default async function ParzelleSeite({
           </div>
           <p className="text-sm text-stone-400">
             {beetSoll !== null
-              ? `SOLL = 1/6 der Parzellenfläche (${parzelle.groesseM2} m²). Ampel: rot < 70 %, gelb 70–90 %, grün ≥ 90 %.`
+              ? `SOLL = 1/6 der Parzellenfläche (${parzelle.groesseM2} m²). Ampel: rot < 60 %, gelb 60–80 %, grün > 80 %.`
               : "Keine Parzellenfläche hinterlegt — SOLL nicht berechenbar."}{" "}
             Max. 5 Beete.
           </p>

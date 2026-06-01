@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL } from "@/lib/constants";
+import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +69,9 @@ export default async function AnsichtSeite({
       {/* Befund */}
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Befund</h2>
-        <p className="mt-1 text-base">Eskalationsstufe: {STUFE_LABEL[befund.stufe] ?? befund.stufe}</p>
+        <p className="mt-1 text-base">
+          {STUFE_SYMBOL[befund.stufe]} Eskalationsstufe: {STUFE_LABEL[befund.stufe] ?? befund.stufe}
+        </p>
         {befund.gutGemacht && (
           <p className="mt-1 text-base font-medium text-emerald-700">
             👍 „Gut gemacht"-Plakette{befund.plakettenNotiz ? ` — ${befund.plakettenNotiz}` : ""}

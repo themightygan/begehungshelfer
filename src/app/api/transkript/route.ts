@@ -9,7 +9,7 @@ const exec = promisify(execFile);
 // Lokale KI auf dem Mac Mini (Datensouveränität): faster-whisper + Ollama.
 const PY = "/Users/macmini/Code/begehungshelfer/data/.venv/bin/python3";
 const SCRIPT = "/Users/macmini/Code/begehungshelfer/scripts/transcribe.py";
-const OLLAMA_MODELL = "qwen2.5-coder:7b";
+const OLLAMA_MODELL = "qwen2.5:7b-instruct";
 
 export async function POST(req: NextRequest) {
   const fd = await req.formData();

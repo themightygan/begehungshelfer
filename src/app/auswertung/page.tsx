@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,7 @@ export default async function AuswertungSeite({
                 <th className="py-2 pr-3">Garten</th>
                 <th className="py-2 pr-3">Pächter</th>
                 <th className="py-2 pr-3">Beet SOLL/IST (m²)</th>
+                <th className="py-2 pr-3">Stufe</th>
                 <th className="py-2 pr-3">Plakette</th>
                 <th className="py-2 pr-3">Mängel</th>
               </tr>
@@ -122,7 +124,8 @@ export default async function AuswertungSeite({
                     </td>
                     <td className="py-2 pr-3">{`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}</td>
                     <td className="py-2 pr-3">{soll !== null ? `${m2(soll)} / ${m2(ist)}` : `— / ${m2(ist)}`}</td>
-                    <td className="py-2 pr-3">{b.gutGemacht ? "ja" : "nein"}</td>
+                    <td className="py-2 pr-3">{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</td>
+                    <td className="py-2 pr-3">{b.gutGemacht ? "👍 ja" : "nein"}</td>
                     <td className="py-2 pr-3">{b._count.maengel}</td>
                   </tr>
                 );
