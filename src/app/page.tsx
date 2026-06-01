@@ -32,6 +32,12 @@ export default async function Home() {
         >
           📊 Auswertung
         </Link>
+        <Link
+          href="/parzellen"
+          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+        >
+          🗂️ Parzellenverwaltung
+        </Link>
         <a
           href="/api/export/csv"
           className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"

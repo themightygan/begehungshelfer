@@ -45,8 +45,24 @@ model Parzelle {
   befunde     Befund[]
   dokumente   Dokument[]
   archivFotos ArchivFoto[]
+  aenderungen ParzelleAenderung[]
 
   @@index([anlageId])
+}
+
+// Schlüssel-Ereignisse je Parzelle (Pächterwechsel, Umzug, Kontakt-/Statusänderung …)
+// mit Datum — Verwaltungs-Historie.
+model ParzelleAenderung {
+  id         Int      @id @default(autoincrement())
+  parzelle   Parzelle @relation(fields: [parzelleId], references: [id], onDelete: Cascade)
+  parzelleId Int
+  datum      DateTime @default(now())
+  // erlaubt: paechterwechsel | umzug | kontakt | status | stammdaten | sonstiges
+  art        String   @default("sonstiges")
+  notiz      String   @default("")
+  erstelltAm DateTime @default(now())
+
+  @@index([parzelleId, datum])
 }
 
 model Begehungsrunde {

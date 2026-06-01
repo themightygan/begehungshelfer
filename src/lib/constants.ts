@@ -76,6 +76,19 @@ export const TEILNEHMER = [
   "Dr. Ralf Riekers",
 ] as const;
 
+// Arten von Verwaltungs-Ereignissen je Parzelle (Historie).
+export const AENDERUNG_ART = [
+  { wert: "paechterwechsel", label: "Pächterwechsel" },
+  { wert: "umzug", label: "Umzug / Adresse" },
+  { wert: "kontakt", label: "Kontakt geändert" },
+  { wert: "status", label: "Status geändert" },
+  { wert: "stammdaten", label: "Stammdaten aktualisiert" },
+  { wert: "sonstiges", label: "Sonstiges" },
+] as const;
+export const AENDERUNG_LABEL = Object.fromEntries(
+  AENDERUNG_ART.map((a) => [a.wert, a.label])
+);
+
 // Foto-Pipeline (Audit-Pflicht beim Upload)
 export const FOTO_MAX_KANTE = 1600; // px (längste Kante)
 export const FOTO_JPEG_QUALITAET = 75;
