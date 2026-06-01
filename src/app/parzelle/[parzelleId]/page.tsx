@@ -347,9 +347,6 @@ export default async function ParzelleSeite({
         {/* Gesamtansicht-Fotos */}
         <section className={CARD}>
           <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
-          <p className="text-sm text-stone-400">
-            Garten-Übersicht ohne konkreten Mangel — steht im PDF vorne zur Orientierung.
-          </p>
           <FotoUpload action={uploadUebersichtFotos.bind(null, parzelleId)} />
           <FotoGitter fotos={uebersichtFotos} parzelleId={parzelleId} />
         </section>
@@ -369,22 +366,15 @@ export default async function ParzelleSeite({
               )}
             </span>
           </div>
-          <p className="text-sm text-stone-400">
-            {beetSoll !== null
-              ? `SOLL = 1/6 der Parzellenfläche (${parzelle.groesseM2} m²). Ampel: rot < 60 %, gelb 60–80 %, grün > 80 %.`
-              : "Keine Parzellenfläche hinterlegt — SOLL nicht berechenbar."}{" "}
-            Max. 5 Beete.
-          </p>
-
-          {zuletztGemessen && (
-            <p className="mt-1 text-sm font-medium text-stone-600">
-              Zuletzt gemessen: {zuletztGemessen.summe.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m² ({zuletztGemessen.datum})
-            </p>
-          )}
           {messHistorie.length > 0 && (
-            <details className="mt-1 text-sm">
-              <summary className="cursor-pointer text-emerald-700">
-                Historie der Messungen ({messHistorie.length})
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer text-stone-600">
+                {zuletztGemessen && (
+                  <span className="font-medium">
+                    Zuletzt gemessen: {zuletztGemessen.summe.toLocaleString("de-DE", { maximumFractionDigits: 1 })} m² ({zuletztGemessen.datum}) ·{" "}
+                  </span>
+                )}
+                <span className="text-emerald-700">Historie ({messHistorie.length})</span>
               </summary>
               <ul className="mt-2 space-y-2">
                 {messHistorie.map((h) => {

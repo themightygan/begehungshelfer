@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { getIronSession } from "iron-session";
 import { sessionOptions, type SessionData } from "@/lib/session";
 import { logout } from "./login/actions";
+import { ZoomControl } from "./ZoomControl";
 import "./globals.css";
 
 // Vereinslogo zeigen, sobald public/img/logo.png vorhanden ist (sonst Emoji).
@@ -37,13 +38,16 @@ export default async function RootLayout({
               )}
               Begehungshelfer
             </Link>
-            {session.loggedIn && (
-              <form action={logout}>
-                <button className="rounded px-3 py-1.5 text-base text-stone-500 hover:bg-stone-100 hover:text-stone-800">
-                  Abmelden
-                </button>
-              </form>
-            )}
+            <div className="flex items-center gap-3">
+              <ZoomControl />
+              {session.loggedIn && (
+                <form action={logout}>
+                  <button className="rounded px-3 py-1.5 text-base text-stone-500 hover:bg-stone-100 hover:text-stone-800">
+                    Abmelden
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
