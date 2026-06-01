@@ -23,6 +23,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // /img = öffentliche, nicht-sensible Assets (Vereinslogo im Header auch auf /login).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|img).*)"],
+  // Öffentliche, nicht-sensible Assets ausnehmen: Logo (/img), App-Icons + Manifest
+  // (Favicon/Login-Seite/Homescreen laden teils ohne Session-Cookie).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|img|icon|apple-icon|manifest).*)",
+  ],
 };
