@@ -13,11 +13,14 @@ const nextConfig = {
   allowedDevOrigins: TUNNEL_HOSTS,
   experimental: {
     serverActions: {
-      // Foto-Uploads: bis 3 Fotos × ~8 MB Rohbild pro Upload.
+      // Foto-Uploads: große iPhone-HEICs (~8 MB) pro Upload.
       bodySizeLimit: "30mb",
       // Server Actions prüfen Origin gegen Host (CSRF) -> Tunnel-Hosts erlauben.
       allowedOrigins: TUNNEL_HOSTS,
     },
+    // Body-Limit für Requests, die durch die Middleware laufen (Default 10 MB);
+    // sonst werden große Foto-Uploads abgeschnitten ("Unexpected end of form").
+    middlewareClientMaxBodySize: "30mb",
   },
 };
 

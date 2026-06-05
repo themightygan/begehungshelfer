@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Thumb } from "@/components/Thumb";
 
@@ -24,6 +24,8 @@ export function FotoBereich({
 }) {
   const router = useRouter();
   const [temps, setTemps] = useState<{ id: string; url: string }[]>([]);
+  // Uploads sequenziell abarbeiten (große HEIC-Konvertierung nicht parallel).
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   function upload(files: FileList) {
     for (const f of Array.from(files)) {
@@ -31,10 +33,16 @@ export function FotoBereich({
       setTemps((t) => [...t, { id, url: URL.createObjectURL(f) }]);
       const fd = new FormData();
       fd.append("fotos", f);
-      Promise.resolve(uploadAction(fd))
-        .then(() => router.refresh())
-        .catch(() => alert("Upload fehlgeschlagen. Läuft die Begehung noch?"))
-        .finally(() => setTemps((t) => t.filter((x) => x.id !== id)));
+      queue.current = queue.current.then(async () => {
+        try {
+          await uploadAction(fd);
+          router.refresh();
+        } catch {
+          alert("Upload fehlgeschlagen. Läuft die Begehung noch?");
+        } finally {
+          setTemps((t) => t.filter((x) => x.id !== id));
+        }
+      });
     }
   }
 

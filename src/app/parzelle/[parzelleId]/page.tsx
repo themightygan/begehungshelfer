@@ -5,6 +5,7 @@ import { getAktiveRunde } from "@/lib/runde";
 import { FotoBereich } from "./FotoBereich";
 import { BefundForm } from "./BefundForm";
 import { DiktatTextarea } from "./DiktatTextarea";
+import { FreitextMangelButton } from "./FreitextMangelButton";
 import { Thumb } from "@/components/Thumb";
 import {
   ensureBefund,
@@ -567,12 +568,7 @@ export default async function ParzelleSeite({
               </div>
             </div>
           ))}
-          <button
-            formAction={addFreierMangel.bind(null, parzelleId)}
-            className="rounded-full border border-dashed border-stone-400 px-3.5 py-2 text-sm text-stone-600 hover:bg-stone-100"
-          >
-            + Sonstiger Punkt (Freitext)
-          </button>
+          <FreitextMangelButton action={addFreierMangel.bind(null, parzelleId)} />
         </form>
       </section>
 
