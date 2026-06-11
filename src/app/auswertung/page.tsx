@@ -8,6 +8,7 @@ type BefundLite = {
   stufe: string;
   notiz: string;
   gutGemacht: boolean;
+  kompensationAusreichend: boolean;
   _count: { maengel: number; fotos: number };
   beete: { flaecheM2: number }[];
   parzelle: {
@@ -17,6 +18,33 @@ type BefundLite = {
     groesseM2: number | null;
   };
 };
+
+// Beet-IST-Zelle mit Ampel: grün = erfüllt (>80 % vom Soll) ODER dokumentiert
+// kompensiert; gelb = knapp (60–80 %); rot = unter 60 % ohne Kompensation.
+// IST 0 ohne Kompensation = (noch) nicht erfasst -> bewusst NICHT gewertet.
+function BeetZelle({ ist, soll, komp }: { ist: number; soll: number | null; komp: boolean }) {
+  const sollTeil = soll !== null ? `${m2(soll)} / ` : "— / ";
+  if (ist === 0 && !komp) {
+    return <span className="text-stone-400">{sollTeil}nicht erfasst</span>;
+  }
+  const ratio = soll ? ist / soll : null;
+  const farbe = komp || (ratio !== null && ratio > 0.8)
+    ? "text-emerald-700"
+    : ratio !== null && ratio >= 0.6
+      ? "text-amber-600"
+      : ratio !== null
+        ? "text-red-600"
+        : "text-stone-700"; // keine Parzellenfläche -> kein Soll, keine Wertung
+  return (
+    <span>
+      {sollTeil}
+      <span className={`font-medium ${farbe}`}>
+        {m2(ist)}
+        {komp ? " · kompensiert" : ""}
+      </span>
+    </span>
+  );
+}
 
 function hatDaten(b: BefundLite) {
   return (
@@ -123,7 +151,9 @@ export default async function AuswertungSeite({
                       </Link>
                     </td>
                     <td className="py-2 pr-3">{`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}</td>
-                    <td className="py-2 pr-3">{soll !== null ? `${m2(soll)} / ${m2(ist)}` : `— / ${m2(ist)}`}</td>
+                    <td className="py-2 pr-3">
+                      <BeetZelle ist={ist} soll={soll} komp={b.kompensationAusreichend} />
+                    </td>
                     <td className="py-2 pr-3">{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</td>
                     <td className="py-2 pr-3">{b.gutGemacht ? "👍 ja" : "nein"}</td>
                     <td className="py-2 pr-3">{b._count.maengel}</td>
