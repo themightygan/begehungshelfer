@@ -10,7 +10,7 @@ import {
   fotosNachtraeglich,
 } from "./actions";
 import { FotoZone } from "./FotoZone";
-import { FotoWaehlenKnopf } from "./FotoWaehlenKnopf";
+import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
 
 export const dynamic = "force-dynamic";
 

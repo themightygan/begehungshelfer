@@ -62,6 +62,20 @@ export async function aktualisiereMangel(mangelId: number, pfad: string, formDat
   revalidatePath(pfad);
 }
 
+// Beet nachträglich anlegen (z. B. Korrektur aus der Mängelliste: Fläche wurde
+// bei der Begehung nicht erfasst oder hat sich nach Behebung geändert).
+export async function beetAnlegen(befundId: number, pfad: string, formData: FormData) {
+  const v = parseFloat(String(formData.get("flaeche") ?? "0").replace(",", "."));
+  await prisma.beet.create({
+    data: {
+      befundId,
+      bezeichnung: String(formData.get("bezeichnung") ?? ""),
+      flaecheM2: Number.isFinite(v) && v >= 0 ? v : 0,
+    },
+  });
+  revalidatePath(pfad);
+}
+
 export async function aktualisiereBeet(beetId: number, pfad: string, formData: FormData) {
   const v = parseFloat(String(formData.get("flaeche") ?? "0").replace(",", "."));
   await prisma.beet.update({

@@ -2,6 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { toggleBehoben } from "./actions";
 import { Thumb } from "@/components/Thumb";
+import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
+import {
+  aktualisiereBeet,
+  beetAnlegen,
+  fotosNachtraeglich,
+} from "@/app/begehung/ansicht/[rundeId]/[parzelleId]/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +29,12 @@ export default async function MaengelSeite({
       where: { parzelleId },
       include: { anlage: true },
     });
-    // Gemüsebeet-Stand der letzten Begehung mit Beet-Messung: IST vs. SOLL (1/6)
-    // + Beet-Fotos zur Identifizierung vor Ort.
+    // Gemüsebeet-Stand der NEUESTEN Begehung: IST vs. SOLL (1/6) + Beet-Fotos.
+    // Direkt hier korrigierbar (andere Größe erfassen, Beet anlegen, Fotos
+    // hochladen) — z. B. um die Behebung von "zu wenig Anbaufläche" zu belegen.
     const beetBefund = parzelle
       ? await prisma.befund.findFirst({
-          where: { parzelleId: parzelle.id, beete: { some: {} } },
+          where: { parzelleId: parzelle.id },
           include: {
             runde: { select: { id: true, datum: true } },
             beete: { orderBy: { id: "asc" }, include: { fotos: { orderBy: { id: "asc" } } } },
@@ -38,15 +45,17 @@ export default async function MaengelSeite({
     const beetIst = beetBefund?.beete.reduce((s, b) => s + b.flaecheM2, 0) ?? 0;
     const beetSoll = parzelle?.groesseM2 ? parzelle.groesseM2 / 6 : null;
     const beetRatio = beetBefund && beetSoll ? beetIst / beetSoll : null;
+    const komp = beetBefund?.kompensationAusreichend ?? false;
     const beetFarbe =
       beetRatio === null
         ? "text-stone-500"
-        : beetRatio > 0.8
+        : komp || beetRatio > 0.8
           ? "text-emerald-700"
           : beetRatio >= 0.6
             ? "text-amber-600"
             : "text-red-600";
     const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    const pfadHier = "/maengel";
 
     const maengel = parzelle
       ? await prisma.mangel.findMany({
@@ -85,27 +94,59 @@ export default async function MaengelSeite({
           <Link href={`/maengel?parzelle=${parzelleId}&status=alle`} className={`rounded-full px-3 py-1 ${!nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"}`}>Alle</Link>
         </div>
 
-        {/* Gemüsebeete: letzte Messung IST vs. SOLL + Fotos (Wiedererkennung vor Ort) */}
+        {/* Gemüsebeete: Stand der neuesten Begehung, hier direkt korrigierbar
+            (neue Größe erfassen, Beet anlegen, Belegfotos hochladen) */}
         {beetBefund && (
           <section className="rounded-lg border border-stone-200 bg-white p-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-base font-medium text-stone-600">
                 Gemüsebeete{" "}
                 <span className="text-sm font-normal text-stone-400">
-                  (gemessen {new Date(beetBefund.runde.datum).toLocaleDateString("de-DE")})
+                  (Stand{" "}
+                  <Link
+                    href={`/begehung/ansicht/${beetBefund.runde.id}/${parzelleId}`}
+                    className="text-emerald-700 hover:underline"
+                  >
+                    Begehung {new Date(beetBefund.runde.datum).toLocaleDateString("de-DE")}
+                  </Link>
+                  )
                 </span>
               </h2>
               <span className={`text-base font-semibold ${beetFarbe}`}>
-                IST {m2(beetIst)} m²
+                {beetIst === 0 && !komp ? (
+                  <span className="font-normal text-stone-400">nicht erfasst</span>
+                ) : (
+                  <>IST {m2(beetIst)} m²{komp ? " · kompensiert" : ""}</>
+                )}
                 {beetSoll !== null ? ` / SOLL ${m2(beetSoll)} m²` : ""}
               </span>
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {beetBefund.beete.map((b) => (
                 <div key={b.id} className="rounded border border-stone-100 p-2">
-                  <p className="text-sm font-medium text-stone-700">
-                    {b.bezeichnung || "Beet"}: {m2(b.flaecheM2)} m²
-                  </p>
+                  <form
+                    action={aktualisiereBeet.bind(null, b.id, pfadHier)}
+                    className="flex flex-wrap items-center gap-1.5"
+                  >
+                    <input
+                      type="text"
+                      name="bezeichnung"
+                      defaultValue={b.bezeichnung}
+                      placeholder="Bezeichnung"
+                      className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm"
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      name="flaeche"
+                      defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""}
+                      placeholder="m²"
+                      className="w-20 rounded border border-stone-300 px-2 py-1.5 text-sm"
+                    />
+                    <button className="rounded bg-stone-700 px-2.5 py-1.5 text-sm text-white hover:bg-stone-800" title="Größe speichern">
+                      ✓
+                    </button>
+                  </form>
                   {b.fotos.length > 0 && (
                     <div className="mt-1 grid grid-cols-3 gap-1">
                       {b.fotos.map((f) => (
@@ -113,9 +154,41 @@ export default async function MaengelSeite({
                       ))}
                     </div>
                   )}
+                  <form
+                    action={fotosNachtraeglich.bind(
+                      null,
+                      beetBefund.id,
+                      { beetId: b.id, kontext: "beet" },
+                      pfadHier
+                    )}
+                    className="mt-1"
+                  >
+                    <FotoWaehlenKnopf />
+                  </form>
                 </div>
               ))}
             </div>
+            <form
+              action={beetAnlegen.bind(null, beetBefund.id, pfadHier)}
+              className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-stone-100 pt-2"
+            >
+              <input
+                type="text"
+                name="bezeichnung"
+                placeholder="Neues Beet"
+                className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm"
+              />
+              <input
+                type="text"
+                inputMode="decimal"
+                name="flaeche"
+                placeholder="m²"
+                className="w-20 rounded border border-stone-300 px-2 py-1.5 text-sm"
+              />
+              <button className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800">
+                + Beet
+              </button>
+            </form>
           </section>
         )}
 

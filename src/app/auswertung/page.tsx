@@ -134,6 +134,7 @@ export default async function AuswertungSeite({
                 <th className="py-2 pr-3">Stufe</th>
                 <th className="py-2 pr-3">Plakette</th>
                 <th className="py-2 pr-3">Mängel</th>
+                <th className="py-2 pr-3">Bericht</th>
               </tr>
             </thead>
             <tbody>
@@ -157,6 +158,16 @@ export default async function AuswertungSeite({
                     <td className="py-2 pr-3">{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</td>
                     <td className="py-2 pr-3">{b.gutGemacht ? "👍 ja" : "nein"}</td>
                     <td className="py-2 pr-3">{b._count.maengel}</td>
+                    <td className="py-2 pr-3">
+                      <a
+                        href={`/api/parzelle/${b.parzelle.parzelleId}/pdf?rundeId=${runde.id}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-emerald-700 hover:underline"
+                      >
+                        📄 PDF
+                      </a>
+                    </td>
                   </tr>
                 );
               })}
