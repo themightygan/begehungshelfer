@@ -16,7 +16,34 @@ export async function ensureBefund(parzelleId: string) {
   // Verwaiste Session (z. B. nach Löschen der Runde) sauber abfangen.
   const runde = await prisma.begehungsrunde.findUnique({ where: { id: session.rundeId } });
   if (!runde) throw new Error("Aktive Begehung nicht gefunden.");
+  // Einfrieren serverseitig durchsetzen — eine noch offene Seite eines zweiten
+  // Geräts darf nach dem Abschluss nicht weiter in die Runde schreiben.
+  if (runde.status !== "offen") throw new Error("Begehung ist abgeschlossen — keine Änderung möglich.");
   return ensureBefundFuerRunde(session.rundeId, parzelleId);
+}
+
+// Einfrieren auch für ID-basierte Mutationen durchsetzen: Mangel/Beet/Foto nur
+// ändern, wenn die zugehörige Runde noch offen ist. (Ausnahme bleibt
+// mangelBehobenToggle — Nachverfolgung wirkt bewusst auf alte Runden.)
+async function requireRundeOffen(befundId: number) {
+  const befund = await prisma.befund.findUniqueOrThrow({
+    where: { id: befundId },
+    include: { runde: { select: { status: true } } },
+  });
+  if (befund.runde.status !== "offen")
+    throw new Error("Begehung ist abgeschlossen — keine Änderung möglich.");
+}
+
+async function mangelInOffenerRunde(mangelId: number) {
+  const m = await prisma.mangel.findUniqueOrThrow({ where: { id: mangelId } });
+  await requireRundeOffen(m.befundId);
+  return m;
+}
+
+async function beetInOffenerRunde(beetId: number) {
+  const b = await prisma.beet.findUniqueOrThrow({ where: { id: beetId } });
+  await requireRundeOffen(b.befundId);
+  return b;
 }
 
 // Gemeinsame Foto-Pipeline: verarbeitet Dateien aus FormData und legt sie an.
@@ -151,6 +178,7 @@ export async function updateMangel(
   mangelId: number,
   formData: FormData
 ) {
+  await mangelInOffenerRunde(mangelId);
   const fristRaw = String(formData.get("frist") ?? "").trim();
   const punktRaw = formData.get("punkt"); // nur bei Freitext-Mangel im Formular
   await prisma.mangel.update({
@@ -165,6 +193,7 @@ export async function updateMangel(
 }
 
 export async function removeMangel(parzelleId: string, mangelId: number) {
+  await mangelInOffenerRunde(mangelId);
   // Fotos hängen per Cascade am Mangel; DB-Zeilen weg, Dateien bleiben (Prototyp).
   await prisma.mangel.delete({ where: { id: mangelId } });
   revalidatePath(`/parzelle/${parzelleId}`);
@@ -181,6 +210,8 @@ export async function uploadMangelFotos(
 }
 
 export async function loescheFoto(parzelleId: string, fotoId: number) {
+  const foto = await prisma.foto.findUniqueOrThrow({ where: { id: fotoId } });
+  await requireRundeOffen(foto.befundId);
   await prisma.foto.delete({ where: { id: fotoId } });
   revalidatePath(`/parzelle/${parzelleId}`);
 }
@@ -226,6 +257,7 @@ export async function updateBeet(
   beetId: number,
   formData: FormData
 ) {
+  await beetInOffenerRunde(beetId);
   await prisma.beet.update({
     where: { id: beetId },
     data: {
@@ -237,6 +269,7 @@ export async function updateBeet(
 }
 
 export async function removeBeet(parzelleId: string, beetId: number) {
+  await beetInOffenerRunde(beetId);
   await prisma.beet.delete({ where: { id: beetId } });
   revalidatePath(`/parzelle/${parzelleId}`);
 }

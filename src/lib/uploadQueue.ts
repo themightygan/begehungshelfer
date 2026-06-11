@@ -24,8 +24,16 @@ export type QueueItem = {
 const DB = "begehung-media";
 const STORE = "queue";
 
+// Ab so vielen SERVERseitigen Fehlversuchen (5xx/unerwartete 4xx) wird ein Item
+// übersprungen, bis die Versuche zurückgesetzt werden (online-Event / manuell).
+// Reine Netzfehler zählen NICHT — sonst würde eine Funklochphase Items vergiften.
+export const MAX_ATTEMPTS = 8;
+
 let mirror: QueueItem[] = [];
 let loaded = false;
+// IndexedDB-Schreibfehler (privater Modus, Speicher voll): Items leben dann nur
+// im Speicher und überleben keinen Reload -> Warnung im Sync-Panel.
+let persistFehler = false;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
@@ -90,7 +98,9 @@ export async function enqueue(item: {
     const s = await objStore("readwrite");
     await reqP(s.put(full));
   } catch {
-    /* ignore */
+    persistFehler = true;
+    mirror = [...mirror]; // neue Referenz, damit der Snapshot-Vergleich anschlägt
+    emit();
   }
   return full.id;
 }
@@ -106,12 +116,13 @@ export async function removeItem(id: string) {
   }
 }
 
-export async function bumpAttempt(id: string) {
-  // Neue Array- UND Item-Referenz, damit useSyncExternalStore zuverlässig neu rendert.
+// Versuche eines Items setzen (neue Array- UND Item-Referenz, damit
+// useSyncExternalStore zuverlässig neu rendert) und in IndexedDB spiegeln.
+async function setAttempts(id: string, attempts: number) {
   let updated: QueueItem | undefined;
   mirror = mirror.map((x) => {
     if (x.id !== id) return x;
-    updated = { ...x, attempts: x.attempts + 1 };
+    updated = { ...x, attempts };
     return updated;
   });
   if (!updated) return;
@@ -124,10 +135,29 @@ export async function bumpAttempt(id: string) {
   }
 }
 
+export async function bumpAttempt(id: string) {
+  const it = mirror.find((x) => x.id === id);
+  if (it) await setAttempts(id, it.attempts + 1);
+}
+
+// Item als dauerhaft unzustellbar markieren (z. B. 410: Runde gelöscht/Frist
+// abgelaufen) -> landet im „hängt"-Bereich des Sync-Panels (verwerfen/sichern).
+export async function markTot(id: string) {
+  await setAttempts(id, MAX_ATTEMPTS);
+}
+
+// Nach echtem Reconnect (online-Event) oder manuell: alle Items wieder freigeben.
+export async function resetAttempts() {
+  for (const it of mirror.filter((x) => x.attempts > 0)) {
+    await setAttempts(it.id, 0);
+  }
+}
+
 // Blob aus einem Queue-Item (für Vorschau / Versand) rekonstruieren.
 export const blobVon = (it: QueueItem) => new Blob([it.data], { type: it.mime });
 
 export const getItems = () => mirror;
+export const hatPersistFehler = () => persistFehler;
 export function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);

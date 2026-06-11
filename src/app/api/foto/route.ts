@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureBefundFuerRunde } from "@/lib/befund";
+import { ensureBefundFuerRunde, nimmtNachzueglerAn } from "@/lib/befund";
 import { fotoVerarbeitenUndSpeichern } from "@/lib/storage";
 import { FOTO_MAX_PRO_BEFUND } from "@/lib/constants";
 
@@ -8,9 +8,10 @@ import { FOTO_MAX_PRO_BEFUND } from "@/lib/constants";
 // (MediaSync) aus dem IndexedDB-Puffer gefüttert. Verarbeitet GENAU EIN Foto je
 // Request (HEIC→JPEG, resize ~1600px, EXIF/Geo-Strip via fotoVerarbeitenUndSpeichern).
 //
-// Antwortlogik (vom Client ausgewertet):
+// Antwortlogik (vom Client ausgewertet, siehe bewerte() in MediaSync):
 //   2xx ok        -> Item erledigt, aus Queue entfernen
-//   409           -> Begehung nicht (mehr) offen -> Item bleibt gepuffert
+//   410           -> dauerhaft unzustellbar (Runde gelöscht / Gnadenfrist vorbei)
+//                    -> Client legt das Item ins „hängt"-Panel (sichern/verwerfen)
 //   5xx           -> Serverfehler -> Item bleibt gepuffert (mit Backoff/Cap im Client)
 export async function POST(req: NextRequest) {
   try {
@@ -26,14 +27,28 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Ungültige Anfrage" }, { status: 400 });
     }
 
-    // Die Runde aus dem Enqueue-Zeitpunkt muss noch OFFEN sein — sonst NICHT
-    // (falsch) einer inzwischen anderen/aktuellen Begehung zuordnen.
+    // Das Foto gehört zur Runde aus dem Enqueue-Zeitpunkt — nie (falsch) einer
+    // anderen Begehung zuordnen. Offen oder innerhalb der 48-h-Gnadenfrist: ok.
     const runde = await prisma.begehungsrunde.findUnique({ where: { id: rundeId } });
-    if (!runde || runde.status !== "offen") {
-      return Response.json({ error: "Begehung nicht offen" }, { status: 409 });
+    if (!runde || !nimmtNachzueglerAn(runde)) {
+      return Response.json({ error: "Begehung nicht (mehr) verfügbar" }, { status: 410 });
     }
 
     const befundId = await ensureBefundFuerRunde(rundeId, parzelleId);
+
+    // Ziel-Mangel/-Beet kann inzwischen gelöscht sein (z. B. durch zweiten
+    // Nutzer): Foto NICHT verlieren, sondern als Gesamtansicht am Befund ablegen.
+    let zielMangelId = mangelId;
+    let zielBeetId = beetId;
+    let zielKontext = kontext;
+    if (zielMangelId != null && !(await prisma.mangel.findUnique({ where: { id: zielMangelId } }))) {
+      zielMangelId = null;
+      zielKontext = "zustand";
+    }
+    if (zielBeetId != null && !(await prisma.beet.findUnique({ where: { id: zielBeetId } }))) {
+      zielBeetId = null;
+      zielKontext = "zustand";
+    }
 
     // Foto-Limit je Befund (Audit). Erreicht -> als erledigt quittieren (kein
     // endloses Retry); 24 ist großzügig.
@@ -45,7 +60,7 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await foto.arrayBuffer());
     const pfad = await fotoVerarbeitenUndSpeichern(befundId, buf);
     const created = await prisma.foto.create({
-      data: { befundId, mangelId, beetId, kontext, dateipfad: pfad },
+      data: { befundId, mangelId: zielMangelId, beetId: zielBeetId, kontext: zielKontext, dateipfad: pfad },
     });
 
     return Response.json({ id: created.id, dateipfad: pfad });

@@ -5,6 +5,7 @@ import { STUFE_LABEL } from "@/lib/constants";
 import { getAktiveRunde } from "@/lib/runde";
 import { begehungAbschliessen, begehungVerlassen, begehungAbbrechen } from "./actions";
 import { ConfirmButton } from "./ConfirmButton";
+import { AbschlussButton } from "./AbschlussButton";
 
 export const dynamic = "force-dynamic";
 
@@ -159,12 +160,7 @@ export default async function BegehungSeite() {
             Berichte werden erzeugt. Danach keine Änderungen mehr möglich.
           </p>
           <form action={begehungAbschliessen} className="mt-2">
-            <ConfirmButton
-              message="Begehung jetzt abschließen? Die Runde wird eingefroren und kann nicht mehr geändert werden."
-              className="rounded bg-amber-700 px-4 py-2.5 text-base font-medium text-white hover:bg-amber-800"
-            >
-              Jetzt abschließen & Berichte erzeugen
-            </ConfirmButton>
+            <AbschlussButton rundeId={rundeId} />
           </form>
         </details>
         <form action={begehungVerlassen}>

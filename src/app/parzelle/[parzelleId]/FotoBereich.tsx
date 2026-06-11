@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Thumb } from "@/components/Thumb";
 import { enqueue, subscribe, getItems, blobVon, type QueueItem } from "@/lib/uploadQueue";
+import { fotoVerkleinern } from "@/lib/fotoVerkleinern";
 
 type Foto = { id: number; dateipfad: string };
 
@@ -73,23 +74,24 @@ export function FotoBereich({
     };
   }, []);
 
-  function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.currentTarget.files;
-    if (files?.length) {
-      for (const f of Array.from(files)) {
-        enqueue({
-          kind: "foto",
-          rundeId,
-          parzelleId,
-          kontext,
-          mangelId,
-          beetId,
-          blob: f,
-          mime: f.type || "image/jpeg",
-        });
-      }
-    }
+  async function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    // Dateiliste synchron sichern — currentTarget ist nach dem ersten await weg.
+    const files = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
     e.currentTarget.value = "";
+    for (const f of files) {
+      // Vor dem Puffern verkleinern: 10–25× weniger Upload-Volumen im Funkloch.
+      const blob = await fotoVerkleinern(f);
+      await enqueue({
+        kind: "foto",
+        rundeId,
+        parzelleId,
+        kontext,
+        mangelId,
+        beetId,
+        blob,
+        mime: blob.type || f.type || "image/jpeg",
+      });
+    }
   }
 
   async function del(fotoId: number) {

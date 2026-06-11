@@ -73,7 +73,8 @@ export async function begehungAbschliessen() {
   if (!rundeId) redirect("/");
   await prisma.begehungsrunde.update({
     where: { id: rundeId },
-    data: { status: "abgeschlossen" },
+    // abgeschlossenAm startet die 48-h-Gnadenfrist für offline nachgereichte Medien.
+    data: { status: "abgeschlossen", abgeschlossenAm: new Date() },
   });
   session.rundeId = undefined;
   await session.save();

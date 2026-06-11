@@ -76,6 +76,9 @@ model Begehungsrunde {
   teilnehmende String   @default("")
   // erlaubt: offen | abgeschlossen — abgeschlossen => Befunde eingefroren
   status       String   @default("offen")
+  // Zeitpunkt des Abschlusses: offline gepufferte Medien/Diktate werden noch
+  // 48 h danach angenommen (Gnadenfrist — Daten entstanden während der Runde).
+  abgeschlossenAm DateTime?
   erstelltAm   DateTime @default(now())
 
   befunde Befund[]
