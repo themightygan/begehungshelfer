@@ -5,11 +5,12 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+import { korrigiereText } from "@/lib/korrektur";
+
 const exec = promisify(execFile);
 // Lokale KI auf dem Mac Mini (Datensouveränität): faster-whisper + Ollama.
 const PY = "/Users/macmini/Code/begehungshelfer/data/.venv/bin/python3";
 const SCRIPT = "/Users/macmini/Code/begehungshelfer/scripts/transcribe.py";
-const OLLAMA_MODELL = "qwen2.5:7b-instruct";
 
 export async function POST(req: NextRequest) {
   const fd = await req.formData();
@@ -45,33 +46,9 @@ export async function POST(req: NextRequest) {
   }
   if (!raw) return Response.json({ raw: "", text: "" });
 
-  // 2) Glättung (Ollama). Fällt bei Fehler auf den Rohtext zurück.
-  let text = raw;
-  try {
-    const prompt =
-      "Du bist eine Korrekturhilfe für diktierte Notizen einer Gartenbegehung. " +
-      "Korrigiere NUR Zeichensetzung, Groß-/Kleinschreibung und offensichtliche " +
-      "Erkennungsfehler. KÜRZE NICHTS und lasse KEINE Angaben, Bewertungen, Adjektive, " +
-      "Maße oder Mängel weg; füge nichts Neues hinzu; ändere die Wortwahl nicht. " +
-      "Gib ausschließlich den korrigierten deutschen Text aus, ohne Anführungszeichen " +
-      "oder Einleitung.\n\nText:\n" + raw;
-    const r = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODELL,
-        prompt,
-        stream: false,
-        options: { temperature: 0.2 },
-      }),
-    });
-    if (r.ok) {
-      const j = (await r.json()) as { response?: string };
-      if (j.response?.trim()) text = j.response.trim();
-    }
-  } catch {
-    /* Ollama nicht erreichbar -> Rohtext */
-  }
+  // 2) Glättung über die zentrale Korrektur (Few-Shot + Garten-Vokabular +
+  //    Guards gegen Kürzung/Zahlenänderung). Fällt bei Fehler auf Rohtext zurück.
+  const text = (await korrigiereText(raw)) ?? raw;
 
   return Response.json({ raw, text });
 }

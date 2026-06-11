@@ -268,13 +268,19 @@ export function Workspace() {
             Abschließen/Abbrechen braucht Verbindung — Erfassung funktioniert offline weiter.
           </p>
         )}
+        <Link
+          href={`/begehung/korrektur/${sicht.runde.id}`}
+          className="inline-block rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+        >
+          🪄 KI-Textkorrektur (Diktatfehler) — vor dem Abschluss empfohlen
+        </Link>
         <details className="rounded-lg border border-amber-300 bg-amber-50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-amber-900">
             ✔ Begehung abschließen
           </summary>
           <p className="mt-2 text-xs text-amber-800">
-            Die Runde wird <strong>eingefroren</strong> (unveränderlich) und die Berichte werden
-            erzeugt. Danach keine Änderungen mehr möglich.
+            Die Erfassung wird beendet und die Berichte werden erzeugt. Text-Korrekturen
+            und Foto-Löschungen sind danach weiter über die Parzellenverwaltung möglich.
           </p>
           <form action={begehungAbschliessen} className="mt-2">
             <AbschlussButton rundeId={sicht.runde.id} />

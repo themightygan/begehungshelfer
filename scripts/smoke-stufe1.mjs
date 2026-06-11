@@ -73,13 +73,12 @@ try {
   const r2 = await postFoto({ rundeId: 999999, parzelleId: "K1" });
   check("unbekannte Runde -> 410", r2.status === 410, `status ${r2.status}`);
 
-  // 3) Abgeschlossen, Gnadenfrist abgelaufen (72 h) -> 410
+  // 3+4) Abgeschlossene Runden nehmen weiter an (Policy 2026-06-11: kein
+  // hartes Einfrieren — Texte korrigierbar, Medien nachreichbar).
   const r3 = await postFoto({ rundeId: rundeAlt.id, parzelleId: "K1" });
-  check("abgeschlossen >48h -> 410", r3.status === 410, `status ${r3.status}`);
-
-  // 4) Abgeschlossen, innerhalb Gnadenfrist -> Foto wird angenommen
+  check("abgeschlossen (alt) -> 200 (editierbar)", r3.status === 200, `status ${r3.status}`);
   const r4 = await postFoto({ rundeId: rundeFrisch.id, parzelleId: "K1" });
-  check("abgeschlossen <48h (Gnadenfrist) -> 200", r4.status === 200, `status ${r4.status}`);
+  check("abgeschlossen (frisch) -> 200", r4.status === 200, `status ${r4.status}`);
 
   // 5) Offene Runde, gelöschter Ziel-Mangel -> Foto landet als „zustand" am Befund
   const r5 = await postFoto({ rundeId: rundeOffen.id, parzelleId: "K1", kontext: "mangel", mangelId: 999999 });
@@ -104,9 +103,11 @@ try {
     JSON.stringify(befund?.diktatNachgereicht)
   );
 
-  // 7) Diktat in abgelaufene Runde -> 410
-  const a3 = await postNotiz({ rundeId: rundeAlt.id, parzelleId: "K1", text: "zu spät" });
-  check("notiz-append abgelaufen -> 410", a3.status === 410, `status ${a3.status}`);
+  // 7) Diktat in abgeschlossene Runde -> angenommen (editierbare Historie);
+  //    nur GELÖSCHTE Runden sind endgültig (410).
+  const a3 = await postNotiz({ rundeId: rundeAlt.id, parzelleId: "K1", text: "Nachzügler" });
+  const a4 = await postNotiz({ rundeId: 999999, parzelleId: "K1", text: "tot" });
+  check("notiz-append abgeschlossen -> 200, gelöscht -> 410", a3.status === 200 && a4.status === 410, `status ${a3.status}/${a4.status}`);
 
   // 8) Parallel-Härtetest: 12 gleichzeitige Foto-Uploads (SQLite WAL + connection_limit)
   const parallel = await Promise.all(

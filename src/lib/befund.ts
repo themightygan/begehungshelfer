@@ -3,21 +3,17 @@
 // Server Actions als auch in Route-Handlern (/api/foto, /api/notiz-append).
 import { prisma } from "./db";
 
-// Nimmt eine Runde offline nachgereichte Medien/Diktate noch an?
-// Offen: ja. Abgeschlossen: 48 h Gnadenfrist ab Abschluss — die Daten sind
-// während der Runde entstanden (z. B. Puffer eines zweiten Geräts im Funkloch).
-// Danach bzw. Runde gelöscht: dauerhaft nein (Routen antworten 410, der Client
-// legt das Item ins „hängt"-Panel statt ewig zu pollen).
-const NACHREICH_FRIST_MS = 48 * 60 * 60 * 1000;
-export function nimmtNachzueglerAn(runde: {
+// Nimmt eine Runde Ops/Medien/Diktate an? Entscheidung 2026-06-11: Begehungen
+// werden NICHT mehr hart eingefroren — Texte müssen nachträglich korrigierbar
+// und Fotos löschbar bleiben (Verständlichkeit der Doku schlägt Unveränderlich-
+// keit; der Abschluss beendet weiterhin die aktive Erfassung und erzeugt die
+// Berichte). 410 gibt es nur noch für GELÖSCHTE Runden (Queue-Schutz vor
+// Endlos-Retry); diese Funktion bleibt als zentrale Policy-Stelle bestehen.
+export function nimmtNachzueglerAn(_runde: {
   status: string;
   abgeschlossenAm: Date | null;
 }): boolean {
-  if (runde.status === "offen") return true;
-  return (
-    runde.abgeschlossenAm !== null &&
-    Date.now() - runde.abgeschlossenAm.getTime() < NACHREICH_FRIST_MS
-  );
+  return true;
 }
 
 export async function ensureBefundFuerRunde(rundeId: number, parzelleId: string) {

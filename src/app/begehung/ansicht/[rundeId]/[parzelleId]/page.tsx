@@ -1,22 +1,79 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
+import { STUFEN } from "@/lib/constants";
 import { Thumb } from "@/components/Thumb";
+import {
+  aktualisiereBefund,
+  aktualisiereKompensation,
+  aktualisiereMangel,
+  aktualisiereBeet,
+  loescheFotoNachtraeglich,
+  fotosNachtraeglich,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
+// Volle Daten einer (auch abgeschlossenen) Begehung je Parzelle — EDITIERBAR
+// (Entscheidung 2026-06-11: Texte korrigierbar, Fotos löschbar/ergänzbar).
+// Erreichbar aus Parzellenverwaltung (Begehungs-Timeline), Auswertung, Berichten.
+
 const CARD = "rounded-lg border border-stone-200 bg-white p-4";
+const INP = "rounded border border-stone-300 px-3 py-2 text-base";
+const BTN_SEC =
+  "rounded border border-stone-300 px-4 py-2 text-base font-medium text-stone-700 hover:bg-stone-50";
 const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
 
-function FotoRO({ fotos }: { fotos: { id: number; dateipfad: string }[] }) {
+function FotoEdit({
+  fotos,
+  pfad,
+}: {
+  fotos: { id: number; dateipfad: string }[];
+  pfad: string;
+}) {
   if (fotos.length === 0) return null;
   return (
     <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
       {fotos.map((f) => (
-        <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} />
+        <div key={f.id} className="relative">
+          <Thumb src={`/api/datei/${f.dateipfad}`} />
+          <form action={loescheFotoNachtraeglich.bind(null, f.id, pfad)} className="absolute right-1 top-1">
+            <button
+              className="rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
+              title="Foto löschen"
+            >
+              ✕
+            </button>
+          </form>
+        </div>
       ))}
     </div>
+  );
+}
+
+function FotoNachreichen({
+  befundId,
+  mangelId,
+  beetId,
+  kontext,
+  pfad,
+}: {
+  befundId: number;
+  mangelId?: number;
+  beetId?: number;
+  kontext: string;
+  pfad: string;
+}) {
+  return (
+    <form
+      action={fotosNachtraeglich.bind(null, befundId, { mangelId, beetId, kontext }, pfad)}
+      className="mt-2 flex flex-wrap items-center gap-2"
+    >
+      <input type="file" name="fotos" accept="image/*" multiple className="text-sm" />
+      <button className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50">
+        + Fotos ergänzen
+      </button>
+    </form>
   );
 }
 
@@ -27,6 +84,7 @@ export default async function AnsichtSeite({
 }) {
   const { rundeId: rundeIdStr, parzelleId } = await params;
   const rundeId = Number(rundeIdStr);
+  const pfad = `/begehung/ansicht/${rundeId}/${parzelleId}`;
   const parzelle = await prisma.parzelle.findUnique({
     where: { parzelleId },
     include: { anlage: true },
@@ -43,8 +101,11 @@ export default async function AnsichtSeite({
   });
   if (!runde || !befund) notFound();
 
+  const zustandFotos = befund.fotos.filter((f) => f.kontext === "zustand");
+  const kompFotos = befund.fotos.filter((f) => f.kontext === "kompensation");
   const ist = befund.beete.reduce((s, b) => s + b.flaecheM2, 0);
   const soll = parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null;
+  const fristWert = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
   return (
     <div className="space-y-5 pb-12">
@@ -56,94 +117,163 @@ export default async function AnsichtSeite({
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}
           </p>
           <p className="text-sm text-stone-400">
-            {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} · nur Ansicht
+            {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} ·
+            nachträglich bearbeitbar
           </p>
         </div>
-        <Link href={`/auswertung?rundeId=${rundeId}`} className="shrink-0 text-base text-emerald-700 hover:underline">
-          ← Auswertung
-        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1 text-base">
+          <Link href={`/parzellen/${parzelle.parzelleId}`} className="text-emerald-700 hover:underline">
+            ← Parzellen-Akte
+          </Link>
+          <Link href={`/auswertung?rundeId=${rundeId}`} className="text-emerald-700 hover:underline">
+            ← Auswertung
+          </Link>
+        </div>
       </div>
 
-      {/* Befund */}
-      <section className={CARD}>
+      {/* Befund (editierbar) */}
+      <form action={aktualisiereBefund.bind(null, befund.id, pfad)} className={`${CARD} space-y-3`}>
         <h2 className="text-base font-medium text-stone-600">Befund</h2>
-        <p className="mt-1 text-base">
-          {STUFE_SYMBOL[befund.stufe]} Eskalationsstufe: {STUFE_LABEL[befund.stufe] ?? befund.stufe}
-        </p>
-        {befund.gutGemacht && (
-          <p className="mt-1 text-base font-medium text-emerald-700">
-            👍 „Gut gemacht"-Plakette{befund.plakettenNotiz ? ` — ${befund.plakettenNotiz}` : ""}
-          </p>
+        <label className="block text-base">
+          <span className="text-stone-600">Eskalationsstufe</span>
+          <select name="stufe" defaultValue={befund.stufe} className={`mt-1 block w-full ${INP}`}>
+            {STUFEN.map((s) => (
+              <option key={s.wert} value={s.wert}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-base">
+          <span className="text-stone-600">Allgemeine Bemerkung</span>
+          <textarea name="notiz" defaultValue={befund.notiz} rows={3} className={`mt-1 block w-full ${INP}`} />
+        </label>
+        {befund.diktatNachgereicht.trim() !== "" && (
+          <label className="block text-base">
+            <span className="text-amber-800">Nachgereichte Diktate (korrigierbar)</span>
+            <textarea
+              name="diktatNachgereicht"
+              defaultValue={befund.diktatNachgereicht}
+              rows={2}
+              className={`mt-1 block w-full border-amber-300 ${INP}`}
+            />
+          </label>
         )}
-        {befund.notiz.trim() !== "" && (
-          <p className="mt-2 whitespace-pre-line text-base text-stone-700">{befund.notiz}</p>
+        {befund.diktatNachgereicht.trim() === "" && (
+          <input type="hidden" name="diktatNachgereicht" value="" />
         )}
-      </section>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-base font-medium text-emerald-800">
+            <input type="checkbox" name="gutGemacht" value="1" defaultChecked={befund.gutGemacht} className="h-5 w-5" />
+            👍 Plakette
+          </label>
+          <input
+            type="text"
+            name="plakettenNotiz"
+            defaultValue={befund.plakettenNotiz}
+            placeholder="Lob / Begründung"
+            className={`min-w-0 flex-1 ${INP}`}
+          />
+        </div>
+        <button className={BTN_SEC}>Befund speichern</button>
+      </form>
 
       {/* Gesamtansicht */}
-      {befund.fotos.length > 0 && (
-        <section className={CARD}>
-          <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
-          <FotoRO fotos={befund.fotos} />
-        </section>
-      )}
-
-      {/* Gemüsebeete */}
-      {(befund.beete.length > 0 || soll !== null) && (
-        <section className={CARD}>
-          <h2 className="text-base font-medium text-stone-600">Gemüsebeete</h2>
-          <p className="text-base">
-            IST {m2(ist)} m²{soll !== null ? ` · SOLL (1/6) ${m2(soll)} m²` : ""}
-          </p>
-          {(befund.kompensationAusreichend ||
-            befund.kompensationNotiz.trim() !== "" ||
-            befund.kompObstFlaecheM2 > 0 ||
-            befund.kompBeerenFlaecheM2 > 0) && (
-            <p className="mt-1 text-base text-emerald-800">
-              Kompensation:{" "}
-              {[
-                befund.kompObstAnzahl || befund.kompObstFlaecheM2
-                  ? `Obstbäume: ${befund.kompObstAnzahl} (${m2(befund.kompObstFlaecheM2)} m²)`
-                  : "",
-                befund.kompBeerenAnzahl || befund.kompBeerenFlaecheM2
-                  ? `Beeren/Spalierobst: ${befund.kompBeerenAnzahl} (${m2(befund.kompBeerenFlaecheM2)} m²)`
-                  : "",
-                befund.kompensationNotiz,
-              ]
-                .filter(Boolean)
-                .join(" — ")}
-              {befund.kompensationAusreichend
-                ? " · ausreichende kleingärtnerische Nutzung dokumentiert"
-                : ""}
-            </p>
-          )}
-          {befund.beete.map((b) => (
-            <div key={b.id} className="mt-2">
-              <p className="text-base">{b.bezeichnung || "Beet"}: {m2(b.flaecheM2)} m²</p>
-              <FotoRO fotos={b.fotos} />
-            </div>
-          ))}
-        </section>
-      )}
-
-      {/* Mängel */}
       <section className={CARD}>
-        <h2 className="text-base font-medium text-stone-600">Festgestellte Mängel ({befund.maengel.length})</h2>
+        <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
+        <FotoEdit fotos={zustandFotos} pfad={pfad} />
+        <FotoNachreichen befundId={befund.id} kontext="zustand" pfad={pfad} />
+      </section>
+
+      {/* Gemüsebeete + Kompensation */}
+      <section className={CARD}>
+        <h2 className="text-base font-medium text-stone-600">Gemüsebeete</h2>
+        <p className="text-base">
+          IST {m2(ist)} m²{soll !== null ? ` · SOLL (1/6) ${m2(soll)} m²` : ""}
+        </p>
+        {befund.beete.map((b) => (
+          <div key={b.id} className="mt-2 rounded border border-stone-100 p-2">
+            <form action={aktualisiereBeet.bind(null, b.id, pfad)} className="flex flex-wrap items-center gap-2">
+              <input type="text" name="bezeichnung" defaultValue={b.bezeichnung} placeholder="Bezeichnung" className={`min-w-0 flex-1 ${INP}`} />
+              <input type="text" inputMode="decimal" name="flaeche" defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""} placeholder="m²" className={`w-24 ${INP}`} />
+              <button className="rounded bg-stone-700 px-3.5 py-2 text-base text-white hover:bg-stone-800">✓</button>
+            </form>
+            <FotoEdit fotos={b.fotos} pfad={pfad} />
+            <FotoNachreichen befundId={befund.id} beetId={b.id} kontext="beet" pfad={pfad} />
+          </div>
+        ))}
+
+        <form action={aktualisiereKompensation.bind(null, befund.id, pfad)} className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm">
+          <p className="font-medium text-stone-600">Weitere Anbaunutzung / Kompensation</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-40 text-stone-600">Obstbäume</span>
+              Anzahl
+              <input name="obstAnzahl" type="number" min="0" defaultValue={befund.kompObstAnzahl || ""} className={`w-20 ${INP}`} />
+              Fläche
+              <input name="obstFlaeche" inputMode="decimal" defaultValue={befund.kompObstFlaecheM2 ? String(befund.kompObstFlaecheM2).replace(".", ",") : ""} className={`w-24 ${INP}`} /> m²
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="w-40 text-stone-600">Beeren / Spalierobst</span>
+              Anzahl
+              <input name="beerenAnzahl" type="number" min="0" defaultValue={befund.kompBeerenAnzahl || ""} className={`w-20 ${INP}`} />
+              Fläche
+              <input name="beerenFlaeche" inputMode="decimal" defaultValue={befund.kompBeerenFlaecheM2 ? String(befund.kompBeerenFlaecheM2).replace(".", ",") : ""} className={`w-24 ${INP}`} /> m²
+            </div>
+          </div>
+          <textarea name="kompNotiz" defaultValue={befund.kompensationNotiz} rows={2} placeholder="Kommentar" className={`block w-full ${INP}`} />
+          <label className="flex items-start gap-2 font-medium text-emerald-800">
+            <input type="checkbox" name="ausreichend" value="1" defaultChecked={befund.kompensationAusreichend} className="mt-1 h-5 w-5" />
+            Ausreichende kleingärtnerische Nutzung (Anbau gesamt ≥ 1/3)
+          </label>
+          <button className={BTN_SEC}>Kompensation speichern</button>
+        </form>
+        <FotoEdit fotos={kompFotos} pfad={pfad} />
+        <FotoNachreichen befundId={befund.id} kontext="kompensation" pfad={pfad} />
+      </section>
+
+      {/* Mängel (editierbar) */}
+      <section className={CARD}>
+        <h2 className="text-base font-medium text-stone-600">
+          Festgestellte Mängel ({befund.maengel.length})
+        </h2>
         {befund.maengel.length === 0 ? (
           <p className="mt-1 text-base text-stone-400">Keine Mängel erfasst.</p>
         ) : (
-          <ul className="mt-2 space-y-3">
+          <ul className="mt-2 space-y-4">
             {befund.maengel.map((m) => (
-              <li key={m.id} className="border-t border-stone-100 pt-2">
+              <li key={m.id} className="border-t border-stone-100 pt-3">
                 <p className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</p>
-                <p className="text-base font-medium">{m.punkt || "(ohne Bezeichnung)"}</p>
-                {m.katalog?.referenz && <p className="text-sm text-stone-400">{m.katalog.referenz}</p>}
-                {m.notiz && <p className="text-base text-stone-700">{m.notiz}</p>}
-                <p className="text-sm text-stone-400">
-                  {m.frist ? `Frist ${new Date(m.frist).toLocaleDateString("de-DE")} · ` : ""}
-                  Status: {m.status}
+                <p className="text-base font-medium">
+                  {m.punkt || "(Freitext-Mangel)"}
+                  <span className="ml-2 text-sm font-normal text-stone-400">
+                    Status: {m.status}
+                  </span>
                 </p>
-                <FotoRO fotos={m.fotos} />
+                {m.katalog?.referenz && <p className="text-sm text-stone-400">{m.katalog.referenz}</p>}
+                <form action={aktualisiereMangel.bind(null, m.id, pfad)} className="mt-2 space-y-2">
+                  {m.katalogId === null && (
+                    <input type="text" name="punkt" defaultValue={m.punkt} placeholder="Bezeichnung des Mangels" className={`block w-full ${INP}`} />
+                  )}
+                  <textarea name="notiz" defaultValue={m.notiz} rows={2} placeholder="Maßnahme / Beschreibung" className={`block w-full ${INP}`} />
+                  {m.diktatNachgereicht.trim() !== "" ? (
+                    <label className="block text-sm">
+                      <span className="text-amber-800">Nachgereichte Diktate (korrigierbar)</span>
+                      <textarea name="diktatNachgereicht" defaultValue={m.diktatNachgereicht} rows={2} className={`mt-1 block w-full border-amber-300 ${INP}`} />
+                    </label>
+                  ) : (
+                    <input type="hidden" name="diktatNachgereicht" value="" />
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="text-base text-stone-600">
+                      Frist
+                      <input type="date" name="frist" defaultValue={fristWert(m.frist)} className={`ml-2 ${INP}`} />
+                    </label>
+                    <button className={BTN_SEC}>Speichern</button>
+                  </div>
+                </form>
+                <FotoEdit fotos={m.fotos} pfad={pfad} />
+                <FotoNachreichen befundId={befund.id} mangelId={m.id} kontext="mangel" pfad={pfad} />
               </li>
             ))}
           </ul>

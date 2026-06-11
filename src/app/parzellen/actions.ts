@@ -88,12 +88,16 @@ export async function uploadDokument(parzelleId: string, formData: FormData) {
   if (datei instanceof File && datei.size > 0) {
     const buf = Buffer.from(await datei.arrayBuffer());
     const pfad = await dokumentSpeichern(parzelleId, buf, datei.name);
+    // Datum wählbar (rückdatierbar) — alte Schreiben werden mit ihrem
+    // Original-Datum in die Akte einsortiert; leer = heute.
+    const datumRaw = String(formData.get("datum") ?? "").trim();
     await prisma.dokument.create({
       data: {
         parzelleId: parzelle.id,
         typ: String(formData.get("typ") ?? "sonstiges"),
         dateipfad: pfad,
         notiz: String(formData.get("notiz") ?? ""),
+        ...(datumRaw ? { datum: new Date(datumRaw) } : {}),
       },
     });
   }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL } from "@/lib/constants";
 import { toggleBehoben } from "./actions";
+import { Thumb } from "@/components/Thumb";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,10 @@ export default async function MaengelSeite({
             befund: { parzelleId: parzelle.id },
             ...(nurOffen ? { status: "offen" } : {}),
           },
-          include: { befund: { include: { runde: { select: { datum: true } } } } },
+          include: {
+            befund: { include: { runde: { select: { id: true, datum: true } } } },
+            fotos: { orderBy: { id: "asc" } },
+          },
           orderBy: { id: "desc" },
         })
       : [];
@@ -65,16 +68,35 @@ export default async function MaengelSeite({
               const ueb = istUeberfaellig(m);
               return (
                 <li key={m.id} className="flex items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</span>
                     <p className="text-base font-medium">{m.punkt || "(ohne Bezeichnung)"}</p>
-                    {m.notiz && <p className="text-sm text-stone-500">{m.notiz}</p>}
+                    {m.notiz && (
+                      <p className="whitespace-pre-line text-base text-stone-700">{m.notiz}</p>
+                    )}
+                    {m.diktatNachgereicht.trim() !== "" && (
+                      <p className="whitespace-pre-line text-sm text-amber-800">
+                        🎤 {m.diktatNachgereicht}
+                      </p>
+                    )}
                     <p className="text-sm text-stone-400">
-                      Begehung {new Date(m.befund.runde.datum).toLocaleDateString("de-DE")}
+                      <Link
+                        href={`/begehung/ansicht/${m.befund.runde.id}/${parzelleId}`}
+                        className="text-emerald-700 hover:underline"
+                      >
+                        Begehung {new Date(m.befund.runde.datum).toLocaleDateString("de-DE")}
+                      </Link>
                       {m.frist ? ` · Frist ${new Date(m.frist).toLocaleDateString("de-DE")}` : ""}
                       {ueb ? " · überfällig" : ""}
                       {m.status === "behoben" && m.behobenAm ? ` · behoben ${new Date(m.behobenAm).toLocaleDateString("de-DE")}` : ""}
                     </p>
+                    {m.fotos.length > 0 && (
+                      <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                        {m.fotos.map((f) => (
+                          <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <form action={toggleBehoben.bind(null, m.id)} className="shrink-0">
                     <button className={`rounded px-3 py-1.5 text-sm font-medium ${m.status === "behoben" ? "border border-stone-300 text-stone-600 hover:bg-stone-50" : "bg-emerald-700 text-white hover:bg-emerald-800"}`}>

@@ -240,6 +240,10 @@ export default async function ParzelleVerwaltung({
             ))}
           </select>
           <input name="notiz" placeholder="Notiz (optional)" className={`min-w-0 flex-1 ${INP}`} />
+          <label className="text-sm text-stone-600">
+            Datum
+            <input type="date" name="datum" title="Original-Datum alter Schreiben (leer = heute)" className={`ml-2 ${INP}`} />
+          </label>
           <input type="file" name="datei" className="text-base" />
           <button className="rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800">
             Hochladen

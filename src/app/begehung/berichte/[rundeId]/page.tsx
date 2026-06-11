@@ -63,6 +63,12 @@ export default async function BerichteSeite({
         >
           ⬇ CSV dieser Begehung
         </a>
+        <Link
+          href={`/begehung/korrektur/${runde.id}`}
+          className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-base text-emerald-800 hover:bg-emerald-100"
+        >
+          🪄 KI-Textkorrektur
+        </Link>
         <span className="text-sm text-stone-500">
           {begutachtet.length} begutachtete Parzellen · Bericht-PDF je Parzelle:
         </span>

@@ -27,7 +27,7 @@ export function AbschlussButton({ rundeId }: { rundeId: number }) {
   }
   return (
     <ConfirmButton
-      message="Begehung jetzt abschließen? Die Runde wird eingefroren und kann nicht mehr geändert werden."
+      message="Begehung jetzt abschließen? Die Erfassung wird beendet und die Berichte werden erzeugt (Korrekturen später über die Parzellenverwaltung)."
       className="rounded bg-amber-700 px-4 py-2.5 text-base font-medium text-white hover:bg-amber-800"
     >
       Jetzt abschließen &amp; Berichte erzeugen

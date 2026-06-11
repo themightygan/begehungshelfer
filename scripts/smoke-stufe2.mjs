@@ -156,7 +156,8 @@ try {
     `nach true: ${tDb?.status}, nach false: ${tDb2?.status}`
   );
 
-  // 7) Op in abgelaufene Runde -> 410
+  // 7) Op in abgeschlossene Runde -> angenommen (editierbare Historie,
+  //    Policy 2026-06-11); Op in GELÖSCHTE Runde -> 410.
   const g1 = await fetch(`${BASE}/api/sync`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -166,7 +167,16 @@ try {
       op: { art: "befund", stufe: "ok", notiz: "", gutGemacht: false, plakettenNotiz: "" },
     }),
   });
-  check("Op in abgelaufene Runde -> 410", g1.status === 410, `status ${g1.status}`);
+  const g2 = await fetch(`${BASE}/api/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      rundeId: 999999,
+      parzelleId: "K1",
+      op: { art: "befund", stufe: "ok", notiz: "", gutGemacht: false, plakettenNotiz: "" },
+    }),
+  });
+  check("Op: abgeschlossen -> 200, gelöscht -> 410", g1.status === 200 && g2.status === 410, `status ${g1.status}/${g2.status}`);
 
   // 8) fotoLoeschen-Op (offene Runde)
   const fd2 = new FormData();
