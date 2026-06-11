@@ -10,6 +10,7 @@ import {
   fotosNachtraeglich,
 } from "./actions";
 import { FotoZone } from "./FotoZone";
+import { FotoWaehlenKnopf } from "./FotoWaehlenKnopf";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +42,7 @@ function FotoNachreichen({
       action={fotosNachtraeglich.bind(null, befundId, { mangelId, beetId, kontext }, pfad)}
       className="mt-2 flex flex-wrap items-center gap-2"
     >
-      <input type="file" name="fotos" accept="image/*" multiple className="text-sm" />
-      <button className="rounded border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50">
-        + Fotos ergänzen
-      </button>
+      <FotoWaehlenKnopf />
     </form>
   );
 }
