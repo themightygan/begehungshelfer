@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { toggleBehoben } from "./actions";
 import { Thumb } from "@/components/Thumb";
 import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
+import { AutoSaveForm } from "@/components/AutoSaveForm";
 import {
   aktualisiereBeet,
   beetAnlegen,
@@ -124,7 +125,7 @@ export default async function MaengelSeite({
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {beetBefund.beete.map((b) => (
                 <div key={b.id} className="rounded border border-stone-100 p-2">
-                  <form
+                  <AutoSaveForm
                     action={aktualisiereBeet.bind(null, b.id, pfadHier)}
                     className="flex flex-wrap items-center gap-1.5"
                   >
@@ -143,10 +144,7 @@ export default async function MaengelSeite({
                       placeholder="m²"
                       className="w-20 rounded border border-stone-300 px-2 py-1.5 text-sm"
                     />
-                    <button className="rounded bg-stone-700 px-2.5 py-1.5 text-sm text-white hover:bg-stone-800" title="Größe speichern">
-                      ✓
-                    </button>
-                  </form>
+                  </AutoSaveForm>
                   {b.fotos.length > 0 && (
                     <div className="mt-1 grid grid-cols-3 gap-1">
                       {b.fotos.map((f) => (

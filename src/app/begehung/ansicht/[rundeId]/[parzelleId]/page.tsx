@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { FotoZone } from "./FotoZone";
 import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
+import { AutoSaveForm } from "@/components/AutoSaveForm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,6 @@ export const dynamic = "force-dynamic";
 
 const CARD = "rounded-lg border border-stone-200 bg-white p-4";
 const INP = "rounded border border-stone-300 px-3 py-2 text-base";
-const BTN_SEC =
-  "rounded border border-stone-300 px-4 py-2 text-base font-medium text-stone-700 hover:bg-stone-50";
 const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
 
 function FotoNachreichen({
@@ -88,7 +87,7 @@ export default async function AnsichtSeite({
           </p>
           <p className="text-sm text-stone-400">
             {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} ·
-            nachträglich bearbeitbar · Fotos per Ziehen zwischen Bereichen verschiebbar
+            speichert automatisch beim Verlassen eines Felds · Fotos per Ziehen verschiebbar
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1 text-base">
@@ -101,8 +100,8 @@ export default async function AnsichtSeite({
         </div>
       </div>
 
-      {/* Befund (editierbar) */}
-      <form action={aktualisiereBefund.bind(null, befund.id, pfad)} className={`${CARD} space-y-3`}>
+      {/* Befund (editierbar, Auto-Save) */}
+      <AutoSaveForm action={aktualisiereBefund.bind(null, befund.id, pfad)} className={`${CARD} space-y-3`}>
         <h2 className="text-base font-medium text-stone-600">Befund</h2>
         <label className="block text-base">
           <span className="text-stone-600">Eskalationsstufe</span>
@@ -145,8 +144,7 @@ export default async function AnsichtSeite({
             className={`min-w-0 flex-1 ${INP}`}
           />
         </div>
-        <button className={BTN_SEC}>Befund speichern</button>
-      </form>
+      </AutoSaveForm>
 
       {/* Gesamtansicht */}
       <section className={CARD}>
@@ -163,17 +161,16 @@ export default async function AnsichtSeite({
         </p>
         {befund.beete.map((b) => (
           <div key={b.id} className="mt-2 rounded border border-stone-100 p-2">
-            <form action={aktualisiereBeet.bind(null, b.id, pfad)} className="flex flex-wrap items-center gap-2">
+            <AutoSaveForm action={aktualisiereBeet.bind(null, b.id, pfad)} className="flex flex-wrap items-center gap-2">
               <input type="text" name="bezeichnung" defaultValue={b.bezeichnung} placeholder="Bezeichnung" className={`min-w-0 flex-1 ${INP}`} />
               <input type="text" inputMode="decimal" name="flaeche" defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""} placeholder="m²" className={`w-24 ${INP}`} />
-              <button className="rounded bg-stone-700 px-3.5 py-2 text-base text-white hover:bg-stone-800">✓</button>
-            </form>
+            </AutoSaveForm>
             <FotoZone fotos={b.fotos} ziel={{ beetId: b.id, kontext: "beet" }} pfad={pfad} />
             <FotoNachreichen befundId={befund.id} beetId={b.id} kontext="beet" pfad={pfad} />
           </div>
         ))}
 
-        <form action={aktualisiereKompensation.bind(null, befund.id, pfad)} className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm">
+        <AutoSaveForm action={aktualisiereKompensation.bind(null, befund.id, pfad)} className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-sm">
           <p className="font-medium text-stone-600">Weitere Anbaunutzung / Kompensation</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -196,8 +193,7 @@ export default async function AnsichtSeite({
             <input type="checkbox" name="ausreichend" value="1" defaultChecked={befund.kompensationAusreichend} className="mt-1 h-5 w-5" />
             Ausreichende kleingärtnerische Nutzung (Anbau gesamt ≥ 1/3)
           </label>
-          <button className={BTN_SEC}>Kompensation speichern</button>
-        </form>
+        </AutoSaveForm>
         <FotoZone fotos={kompFotos} ziel={{ kontext: "kompensation" }} pfad={pfad} />
         <FotoNachreichen befundId={befund.id} kontext="kompensation" pfad={pfad} />
       </section>
@@ -221,7 +217,7 @@ export default async function AnsichtSeite({
                   </span>
                 </p>
                 {m.katalog?.referenz && <p className="text-sm text-stone-400">{m.katalog.referenz}</p>}
-                <form action={aktualisiereMangel.bind(null, m.id, pfad)} className="mt-2 space-y-2">
+                <AutoSaveForm action={aktualisiereMangel.bind(null, m.id, pfad)} className="mt-2 space-y-2">
                   {m.katalogId === null && (
                     <input type="text" name="punkt" defaultValue={m.punkt} placeholder="Bezeichnung des Mangels" className={`block w-full ${INP}`} />
                   )}
@@ -239,9 +235,8 @@ export default async function AnsichtSeite({
                       Frist
                       <input type="date" name="frist" defaultValue={fristWert(m.frist)} className={`ml-2 ${INP}`} />
                     </label>
-                    <button className={BTN_SEC}>Speichern</button>
                   </div>
-                </form>
+                </AutoSaveForm>
                 <FotoZone fotos={m.fotos} ziel={{ mangelId: m.id, kontext: "mangel" }} pfad={pfad} />
                 <FotoNachreichen befundId={befund.id} mangelId={m.id} kontext="mangel" pfad={pfad} />
               </li>
