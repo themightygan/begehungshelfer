@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Thumb } from "@/components/Thumb";
+import { NeupaechterTag } from "@/components/NeupaechterTag";
 import { STUFEN, STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 import type { SnapKatalog, SnapParzelle, SnapVorMangel } from "@/lib/workspaceTypes";
 import {
@@ -122,6 +123,9 @@ export function ParzelleAnsicht({
         <h1 className="text-2xl font-semibold">Parzelle {pid}</h1>
         <p className="text-base text-stone-500">
           {p.paechter}
+          {p.neupaechter && (
+            <span className="ml-1.5"><NeupaechterTag /></span>
+          )}
           {p.groesseM2 ? ` · ${p.groesseM2} m²` : ""}
           <span className="ml-2 text-sm text-stone-400">
             · speichert automatisch

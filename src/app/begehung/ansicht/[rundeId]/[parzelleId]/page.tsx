@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFEN } from "@/lib/constants";
+import { istNeupaechter } from "@/lib/paechter";
+import { NeupaechterTag } from "@/components/NeupaechterTag";
 import {
   aktualisiereBefund,
   aktualisiereKompensation,
@@ -83,6 +85,9 @@ export default async function AnsichtSeite({
           <h1 className="text-2xl font-semibold">Parzelle {parzelle.parzelleId}</h1>
           <p className="text-base text-stone-500">
             {parzelle.anlage.name} · {parzelle.nachname} {parzelle.vorname}
+            {istNeupaechter(parzelle.eintritt, parzelle.status) && (
+              <span className="ml-1.5"><NeupaechterTag /></span>
+            )}
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}
           </p>
           <p className="text-sm text-stone-400">

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PARZELLE_STATUS } from "@/lib/constants";
+import { istNeupaechter } from "@/lib/paechter";
+import { NeupaechterTag } from "@/components/NeupaechterTag";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +108,12 @@ export default async function ParzellenSeite({
                   </Link>
                 </td>
                 <td className="py-2 pr-3">{p.anlage.kuerzel}</td>
-                <td className="py-2 pr-3">{`${p.nachname} ${p.vorname}`.trim() || "—"}</td>
+                <td className="py-2 pr-3">
+                  {`${p.nachname} ${p.vorname}`.trim() || "—"}
+                  {istNeupaechter(p.eintritt, p.status) && (
+                    <span className="ml-1.5"><NeupaechterTag /></span>
+                  )}
+                </td>
                 <td className="py-2 pr-3">{p.ort || "—"}</td>
                 <td className="py-2 pr-3">{p.groesseM2 ? `${p.groesseM2} m²` : "—"}</td>
                 <td className="py-2 pr-3">{STATUS_LABEL[p.status] ?? p.status}</td>

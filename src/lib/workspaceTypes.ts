@@ -67,6 +67,7 @@ export type SnapParzelle = {
   id: number;
   parzelleId: string;
   paechter: string;
+  neupaechter: boolean; // Eintritt < 18 Monate -> bei der Begehung anzeigen
   groesseM2: number | null;
   befund: SnapBefund | null;
   vorjahr: {

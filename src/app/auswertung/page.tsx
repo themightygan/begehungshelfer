@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
+import { istNeupaechter } from "@/lib/paechter";
+import { NeupaechterTag } from "@/components/NeupaechterTag";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,8 @@ type BefundLite = {
     nachname: string;
     vorname: string;
     groesseM2: number | null;
+    eintritt: string;
+    status: string;
   };
 };
 
@@ -92,7 +96,14 @@ export default async function AuswertungSeite({
 
   const inc = {
     parzelle: {
-      select: { parzelleId: true, nachname: true, vorname: true, groesseM2: true },
+      select: {
+        parzelleId: true,
+        nachname: true,
+        vorname: true,
+        groesseM2: true,
+        eintritt: true,
+        status: true,
+      },
     },
     beete: { select: { flaecheM2: true } },
     _count: { select: { maengel: true, fotos: true } },
@@ -151,7 +162,18 @@ export default async function AuswertungSeite({
                         {b.parzelle.parzelleId}
                       </Link>
                     </td>
-                    <td className="py-2 pr-3">{`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}</td>
+                    <td className="py-2 pr-3">
+                      <Link
+                        href={`/parzellen/${b.parzelle.parzelleId}`}
+                        className="text-emerald-700 hover:underline"
+                        title="Zur Parzellenverwaltung"
+                      >
+                        {`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}
+                      </Link>
+                      {istNeupaechter(b.parzelle.eintritt, b.parzelle.status) && (
+                        <span className="ml-1.5"><NeupaechterTag /></span>
+                      )}
+                    </td>
                     <td className="py-2 pr-3">
                       <BeetZelle ist={ist} soll={soll} komp={b.kompensationAusreichend} />
                     </td>

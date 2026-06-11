@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getAktiveRunde } from "@/lib/runde";
+import { istNeupaechter } from "@/lib/paechter";
 import type {
   SnapBefund,
   SnapFoto,
@@ -126,6 +127,7 @@ export async function GET() {
       id: p.id,
       parzelleId: p.parzelleId,
       paechter: [p.nachname, p.vorname].filter(Boolean).join(" "),
+      neupaechter: istNeupaechter(p.eintritt, p.status),
       groesseM2: p.groesseM2,
       befund,
       vorjahr,
