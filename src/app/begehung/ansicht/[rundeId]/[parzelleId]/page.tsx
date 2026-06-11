@@ -2,15 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFEN } from "@/lib/constants";
-import { Thumb } from "@/components/Thumb";
 import {
   aktualisiereBefund,
   aktualisiereKompensation,
   aktualisiereMangel,
   aktualisiereBeet,
-  loescheFotoNachtraeglich,
   fotosNachtraeglich,
 } from "./actions";
+import { FotoZone } from "./FotoZone";
 
 export const dynamic = "force-dynamic";
 
@@ -23,33 +22,6 @@ const INP = "rounded border border-stone-300 px-3 py-2 text-base";
 const BTN_SEC =
   "rounded border border-stone-300 px-4 py-2 text-base font-medium text-stone-700 hover:bg-stone-50";
 const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
-
-function FotoEdit({
-  fotos,
-  pfad,
-}: {
-  fotos: { id: number; dateipfad: string }[];
-  pfad: string;
-}) {
-  if (fotos.length === 0) return null;
-  return (
-    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {fotos.map((f) => (
-        <div key={f.id} className="relative">
-          <Thumb src={`/api/datei/${f.dateipfad}`} />
-          <form action={loescheFotoNachtraeglich.bind(null, f.id, pfad)} className="absolute right-1 top-1">
-            <button
-              className="rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
-              title="Foto löschen"
-            >
-              ✕
-            </button>
-          </form>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function FotoNachreichen({
   befundId,
@@ -118,7 +90,7 @@ export default async function AnsichtSeite({
           </p>
           <p className="text-sm text-stone-400">
             {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} ·
-            nachträglich bearbeitbar
+            nachträglich bearbeitbar · Fotos per Ziehen zwischen Bereichen verschiebbar
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1 text-base">
@@ -181,7 +153,7 @@ export default async function AnsichtSeite({
       {/* Gesamtansicht */}
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
-        <FotoEdit fotos={zustandFotos} pfad={pfad} />
+        <FotoZone fotos={zustandFotos} ziel={{ kontext: "zustand" }} pfad={pfad} />
         <FotoNachreichen befundId={befund.id} kontext="zustand" pfad={pfad} />
       </section>
 
@@ -198,7 +170,7 @@ export default async function AnsichtSeite({
               <input type="text" inputMode="decimal" name="flaeche" defaultValue={b.flaecheM2 ? String(b.flaecheM2).replace(".", ",") : ""} placeholder="m²" className={`w-24 ${INP}`} />
               <button className="rounded bg-stone-700 px-3.5 py-2 text-base text-white hover:bg-stone-800">✓</button>
             </form>
-            <FotoEdit fotos={b.fotos} pfad={pfad} />
+            <FotoZone fotos={b.fotos} ziel={{ beetId: b.id, kontext: "beet" }} pfad={pfad} />
             <FotoNachreichen befundId={befund.id} beetId={b.id} kontext="beet" pfad={pfad} />
           </div>
         ))}
@@ -228,7 +200,7 @@ export default async function AnsichtSeite({
           </label>
           <button className={BTN_SEC}>Kompensation speichern</button>
         </form>
-        <FotoEdit fotos={kompFotos} pfad={pfad} />
+        <FotoZone fotos={kompFotos} ziel={{ kontext: "kompensation" }} pfad={pfad} />
         <FotoNachreichen befundId={befund.id} kontext="kompensation" pfad={pfad} />
       </section>
 
@@ -272,7 +244,7 @@ export default async function AnsichtSeite({
                     <button className={BTN_SEC}>Speichern</button>
                   </div>
                 </form>
-                <FotoEdit fotos={m.fotos} pfad={pfad} />
+                <FotoZone fotos={m.fotos} ziel={{ mangelId: m.id, kontext: "mangel" }} pfad={pfad} />
                 <FotoNachreichen befundId={befund.id} mangelId={m.id} kontext="mangel" pfad={pfad} />
               </li>
             ))}

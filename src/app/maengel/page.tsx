@@ -23,6 +23,31 @@ export default async function MaengelSeite({
       where: { parzelleId },
       include: { anlage: true },
     });
+    // Gemüsebeet-Stand der letzten Begehung mit Beet-Messung: IST vs. SOLL (1/6)
+    // + Beet-Fotos zur Identifizierung vor Ort.
+    const beetBefund = parzelle
+      ? await prisma.befund.findFirst({
+          where: { parzelleId: parzelle.id, beete: { some: {} } },
+          include: {
+            runde: { select: { id: true, datum: true } },
+            beete: { orderBy: { id: "asc" }, include: { fotos: { orderBy: { id: "asc" } } } },
+          },
+          orderBy: { runde: { datum: "desc" } },
+        })
+      : null;
+    const beetIst = beetBefund?.beete.reduce((s, b) => s + b.flaecheM2, 0) ?? 0;
+    const beetSoll = parzelle?.groesseM2 ? parzelle.groesseM2 / 6 : null;
+    const beetRatio = beetBefund && beetSoll ? beetIst / beetSoll : null;
+    const beetFarbe =
+      beetRatio === null
+        ? "text-stone-500"
+        : beetRatio > 0.8
+          ? "text-emerald-700"
+          : beetRatio >= 0.6
+            ? "text-amber-600"
+            : "text-red-600";
+    const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+
     const maengel = parzelle
       ? await prisma.mangel.findMany({
           where: {
@@ -59,6 +84,40 @@ export default async function MaengelSeite({
           <Link href={`/maengel?parzelle=${parzelleId}`} className={`rounded-full px-3 py-1 ${nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"}`}>Nur offene</Link>
           <Link href={`/maengel?parzelle=${parzelleId}&status=alle`} className={`rounded-full px-3 py-1 ${!nurOffen ? "bg-emerald-700 text-white" : "border border-stone-300"}`}>Alle</Link>
         </div>
+
+        {/* Gemüsebeete: letzte Messung IST vs. SOLL + Fotos (Wiedererkennung vor Ort) */}
+        {beetBefund && (
+          <section className="rounded-lg border border-stone-200 bg-white p-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-base font-medium text-stone-600">
+                Gemüsebeete{" "}
+                <span className="text-sm font-normal text-stone-400">
+                  (gemessen {new Date(beetBefund.runde.datum).toLocaleDateString("de-DE")})
+                </span>
+              </h2>
+              <span className={`text-base font-semibold ${beetFarbe}`}>
+                IST {m2(beetIst)} m²
+                {beetSoll !== null ? ` / SOLL ${m2(beetSoll)} m²` : ""}
+              </span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {beetBefund.beete.map((b) => (
+                <div key={b.id} className="rounded border border-stone-100 p-2">
+                  <p className="text-sm font-medium text-stone-700">
+                    {b.bezeichnung || "Beet"}: {m2(b.flaecheM2)} m²
+                  </p>
+                  {b.fotos.length > 0 && (
+                    <div className="mt-1 grid grid-cols-3 gap-1">
+                      {b.fotos.map((f) => (
+                        <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {maengel.length === 0 ? (
           <p className="text-base text-stone-400">Keine Mängel.</p>

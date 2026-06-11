@@ -74,6 +74,34 @@ export async function aktualisiereBeet(beetId: number, pfad: string, formData: F
   revalidatePath(pfad);
 }
 
+// Foto per Drag & Drop umhängen: Gesamtansicht <-> Mangel <-> Beet <-> Kompensation.
+// Ziel muss zum selben Befund gehören (Drag passiert nur innerhalb einer Seite,
+// die Prüfung schützt vor veralteten/manipulierten Requests).
+export async function verschiebeFoto(
+  fotoId: number,
+  ziel: { mangelId?: number | null; beetId?: number | null; kontext: string },
+  pfad: string
+) {
+  const foto = await prisma.foto.findUnique({ where: { id: fotoId } });
+  if (!foto) return;
+  let mangelId: number | null = null;
+  let beetId: number | null = null;
+  let kontext = ["zustand", "kompensation"].includes(ziel.kontext) ? ziel.kontext : "zustand";
+  if (ziel.mangelId != null) {
+    const m = await prisma.mangel.findUnique({ where: { id: Number(ziel.mangelId) } });
+    if (!m || m.befundId !== foto.befundId) return;
+    mangelId = m.id;
+    kontext = "mangel";
+  } else if (ziel.beetId != null) {
+    const b = await prisma.beet.findUnique({ where: { id: Number(ziel.beetId) } });
+    if (!b || b.befundId !== foto.befundId) return;
+    beetId = b.id;
+    kontext = "beet";
+  }
+  await prisma.foto.update({ where: { id: fotoId }, data: { mangelId, beetId, kontext } });
+  revalidatePath(pfad);
+}
+
 export async function loescheFotoNachtraeglich(fotoId: number, pfad: string) {
   await prisma.foto.delete({ where: { id: fotoId } }).catch(() => {});
   revalidatePath(pfad);

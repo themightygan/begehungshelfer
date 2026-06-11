@@ -22,7 +22,7 @@ export default function Error({
       <p className="text-base text-stone-700">
         {offline
           ? "Die letzte Aktion konnte nicht gesendet werden (offline). Eingaben aus Textfeldern der letzten Aktion wurden möglicherweise nicht gespeichert — bei Empfang bitte prüfen und erneut speichern."
-          : "Die letzte Aktion ist fehlgeschlagen (z. B. instabile Verbindung oder Begehung bereits abgeschlossen). Eingaben der letzten Aktion wurden möglicherweise nicht gespeichert."}
+          : "Die letzte Aktion ist fehlgeschlagen — häufigste Ursache: Die Seite war noch von einem älteren App-Stand geöffnet. Bitte die Seite neu laden und erneut versuchen."}
       </p>
       <p className="text-sm text-stone-500">
         Gepufferte Fotos und Diktate gehen nicht verloren — sie werden automatisch
@@ -30,8 +30,14 @@ export default function Error({
       </p>
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => reset()}
+          onClick={() => window.location.reload()}
           className="rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800"
+        >
+          Seite neu laden
+        </button>
+        <button
+          onClick={() => reset()}
+          className="rounded border border-stone-300 px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-50"
         >
           Erneut versuchen
         </button>
