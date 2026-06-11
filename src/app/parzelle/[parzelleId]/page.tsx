@@ -11,14 +11,10 @@ import {
   ensureBefund,
   speichereBefund,
   speichernUndWeiter,
-  uploadUebersichtFotos,
   addMangel,
   addFreierMangel,
   updateMangel,
   removeMangel,
-  uploadMangelFotos,
-  uploadBeetFotos,
-  uploadKompensationFotos,
   updateKompensation,
   loescheFoto,
   mangelBehobenToggle,
@@ -333,9 +329,10 @@ export default async function ParzelleSeite({
         <section className={CARD}>
           <h2 className="text-base font-medium text-stone-600">Gesamtansicht</h2>
           <FotoBereich
+            rundeId={rundeId}
             parzelleId={parzelleId}
             fotos={uebersichtFotos}
-            uploadAction={uploadUebersichtFotos.bind(null, parzelleId)}
+            kontext="zustand"
             deleteAction={loescheFoto}
           />
         </section>
@@ -426,9 +423,11 @@ export default async function ParzelleSeite({
                   </button>
                 </form>
                 <FotoBereich
+                  rundeId={rundeId}
                   parzelleId={parzelleId}
                   fotos={b.fotos}
-                  uploadAction={uploadBeetFotos.bind(null, parzelleId, b.id)}
+                  kontext="beet"
+                  beetId={b.id}
                   deleteAction={loescheFoto}
                 />
               </div>
@@ -495,6 +494,8 @@ export default async function ParzelleSeite({
                 rows={2}
                 placeholder="Kommentar (z. B. großer Obstbaumbestand, Beerenanlage). Zierpflanzen zählen nicht zum Anbau."
                 className={`block w-full ${INP}`}
+                rundeId={rundeId}
+                parzelleId={parzelleId}
               />
               <label className="flex items-start gap-2 font-medium text-emerald-800">
                 <input
@@ -509,9 +510,10 @@ export default async function ParzelleSeite({
               <button className={BTN_SEC}>Kompensation speichern</button>
             </form>
             <FotoBereich
+              rundeId={rundeId}
               parzelleId={parzelleId}
               fotos={kompensationFotos}
-              uploadAction={uploadKompensationFotos.bind(null, parzelleId)}
+              kontext="kompensation"
               deleteAction={loescheFoto}
             />
           </details>
@@ -638,6 +640,9 @@ export default async function ParzelleSeite({
                         rows={2}
                         placeholder="Maßnahme / Beschreibung (z. B. Wildlinge mit Wurzel entfernen)"
                         className={`block w-full ${INP}`}
+                        rundeId={rundeId}
+                        parzelleId={parzelleId}
+                        mangelId={m.id}
                       />
                       <div className="flex flex-wrap items-center gap-2">
                         <label className="text-base text-stone-600">
@@ -652,10 +657,18 @@ export default async function ParzelleSeite({
                         <button className={BTN_SEC}>Text/Frist speichern</button>
                       </div>
                     </form>
+                    {m.diktatNachgereicht.trim() !== "" && (
+                      <div className="mt-2 rounded border border-amber-200 bg-amber-50/60 p-2 text-sm">
+                        <p className="font-medium text-amber-800">Nachgereichte Diktate (offline)</p>
+                        <p className="whitespace-pre-line text-stone-700">{m.diktatNachgereicht}</p>
+                      </div>
+                    )}
                     <FotoBereich
+                      rundeId={rundeId}
                       parzelleId={parzelleId}
                       fotos={m.fotos}
-                      uploadAction={uploadMangelFotos.bind(null, parzelleId, m.id)}
+                      kontext="mangel"
+                      mangelId={m.id}
                       deleteAction={loescheFoto}
                     />
                   </div>
@@ -687,8 +700,11 @@ export default async function ParzelleSeite({
       <BefundForm
         action={speichereBefund.bind(null, parzelleId)}
         weiterAction={speichernUndWeiter.bind(null, parzelleId)}
+        rundeId={rundeId}
+        parzelleId={parzelleId}
         stufe={befund.stufe}
         notiz={befund.notiz}
+        diktatNachgereicht={befund.diktatNachgereicht}
         gutGemacht={befund.gutGemacht}
         plakettenNotiz={befund.plakettenNotiz}
       />

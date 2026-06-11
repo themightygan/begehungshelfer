@@ -1,53 +1,94 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Thumb } from "@/components/Thumb";
+import { enqueue, subscribe, getItems, blobVon, type QueueItem } from "@/lib/uploadQueue";
 
 type Foto = { id: number; dateipfad: string };
 
-// Foto-Bereich mit parallelem, nicht-blockierendem Upload: beim Auswählen
-// erscheint sofort eine Vorschau-Kachel ("wird verarbeitet"), der Upload läuft
-// im Hintergrund; weitere Fotos können sofort aufgenommen werden. Sobald der
-// Server fertig ist (resize/HEIC/EXIF-Strip), ersetzt das echte Thumbnail die
-// Vorschau. 📷 Kamera (Default) + 🖼 Mediathek (mehrere).
+const EMPTY: QueueItem[] = [];
+
+// Foto-Bereich mit lokalem Puffer (kein blockierender Upload mehr): beim Auswählen
+// wird das Foto in die IndexedDB-Queue gelegt und sofort als Vorschau-Kachel mit „⏳"
+// gezeigt. MediaSync lädt es im Hintergrund hoch (auch nach Offline-Phasen); sobald
+// fertig, ersetzt das echte Thumbnail (Server-Foto) die Vorschau.
+// 📷 Kamera (Default) + 🖼 Mediathek (mehrere).
 export function FotoBereich({
+  rundeId,
   parzelleId,
   fotos,
-  uploadAction,
+  kontext,
+  mangelId,
+  beetId,
   deleteAction,
 }: {
+  rundeId: number;
   parzelleId: string;
   fotos: Foto[];
-  uploadAction: (formData: FormData) => Promise<void> | void;
+  kontext: string;
+  mangelId?: number;
+  beetId?: number;
   deleteAction: (parzelleId: string, fotoId: number) => Promise<void> | void;
 }) {
   const router = useRouter();
-  const [temps, setTemps] = useState<{ id: string; url: string }[]>([]);
-  // Uploads sequenziell abarbeiten (große HEIC-Konvertierung nicht parallel).
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const items = useSyncExternalStore(subscribe, getItems, () => EMPTY);
 
-  function upload(files: FileList) {
-    for (const f of Array.from(files)) {
-      const id = `${Date.now()}-${Math.random()}`;
-      setTemps((t) => [...t, { id, url: URL.createObjectURL(f) }]);
-      const fd = new FormData();
-      fd.append("fotos", f);
-      queue.current = queue.current.then(async () => {
-        try {
-          await uploadAction(fd);
-          router.refresh();
-        } catch {
-          alert("Upload fehlgeschlagen. Läuft die Begehung noch?");
-        } finally {
-          setTemps((t) => t.filter((x) => x.id !== id));
-        }
-      });
+  // Nur die gepufferten Fotos GENAU dieses Ziels.
+  const meine = items.filter(
+    (it) =>
+      it.kind === "foto" &&
+      it.parzelleId === parzelleId &&
+      it.kontext === kontext &&
+      (it.mangelId ?? null) === (mangelId ?? null) &&
+      (it.beetId ?? null) === (beetId ?? null)
+  );
+
+  // Object-URLs je Item memoisieren + aufräumen (kein Leak).
+  const urls = useRef(new Map<string, string>());
+  const urlFuer = (it: QueueItem) => {
+    let u = urls.current.get(it.id);
+    if (!u) {
+      u = URL.createObjectURL(blobVon(it));
+      urls.current.set(it.id, u);
     }
-  }
+    return u;
+  };
+  useEffect(() => {
+    // Verwaiste URLs (Item hochgeladen/entfernt) freigeben.
+    const cache = urls.current;
+    const lebend = new Set(meine.map((m) => m.id));
+    for (const [id, url] of cache) {
+      if (!lebend.has(id)) {
+        URL.revokeObjectURL(url);
+        cache.delete(id);
+      }
+    }
+  });
+  useEffect(() => {
+    const cache = urls.current;
+    return () => {
+      for (const url of cache.values()) URL.revokeObjectURL(url);
+      cache.clear();
+    };
+  }, []);
 
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.currentTarget.files?.length) upload(e.currentTarget.files);
+    const files = e.currentTarget.files;
+    if (files?.length) {
+      for (const f of Array.from(files)) {
+        enqueue({
+          kind: "foto",
+          rundeId,
+          parzelleId,
+          kontext,
+          mangelId,
+          beetId,
+          blob: f,
+          mime: f.type || "image/jpeg",
+        });
+      }
+    }
     e.currentTarget.value = "";
   }
 
@@ -67,12 +108,12 @@ export function FotoBereich({
           🖼 Mediathek
           <input type="file" accept="image/*" multiple className="hidden" onChange={pick} />
         </label>
-        {temps.length > 0 && (
-          <span className="text-sm text-stone-500">{temps.length} wird verarbeitet…</span>
+        {meine.length > 0 && (
+          <span className="text-sm text-stone-500">{meine.length} gepuffert…</span>
         )}
       </div>
 
-      {(fotos.length > 0 || temps.length > 0) && (
+      {(fotos.length > 0 || meine.length > 0) && (
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {fotos.map((f) => (
             <div key={f.id} className="relative">
@@ -86,10 +127,10 @@ export function FotoBereich({
               </button>
             </div>
           ))}
-          {temps.map((t) => (
-            <div key={t.id} className="relative">
+          {meine.map((it) => (
+            <div key={it.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.url} alt="" className="aspect-square w-full rounded object-cover opacity-40" />
+              <img src={urlFuer(it)} alt="" className="aspect-square w-full rounded object-cover opacity-40" />
               <span className="absolute inset-0 flex items-center justify-center text-2xl">⏳</span>
             </div>
           ))}

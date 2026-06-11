@@ -10,15 +10,21 @@ import { DiktatTextarea } from "./DiktatTextarea";
 export function BefundForm({
   action,
   weiterAction,
+  rundeId,
+  parzelleId,
   stufe,
   notiz,
+  diktatNachgereicht,
   gutGemacht,
   plakettenNotiz,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   weiterAction?: (formData: FormData) => void | Promise<void>;
+  rundeId: number;
+  parzelleId: string;
   stufe: string;
   notiz: string;
+  diktatNachgereicht: string;
   gutGemacht: boolean;
   plakettenNotiz: string;
 }) {
@@ -54,7 +60,15 @@ export function BefundForm({
           defaultValue={notiz}
           rows={2}
           className="mt-1 block w-full rounded border border-stone-300 px-3 py-2 text-base"
+          rundeId={rundeId}
+          parzelleId={parzelleId}
         />
+        {diktatNachgereicht.trim() !== "" && (
+          <div className="mt-2 rounded border border-amber-200 bg-amber-50/60 p-2 text-sm">
+            <p className="font-medium text-amber-800">Nachgereichte Diktate (offline)</p>
+            <p className="whitespace-pre-line text-stone-700">{diktatNachgereicht}</p>
+          </div>
+        )}
       </div>
 
       {/* "Gut gemacht"-Plakette (Lob für gepflegte Gärten) */}

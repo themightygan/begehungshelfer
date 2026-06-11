@@ -93,6 +93,9 @@ model Befund {
   // erlaubt: neutral | ok | hinweis | abmahnung_1 | abmahnung_2 | kuendigung
   stufe      String         @default("neutral")
   notiz      String         @default("") // allgemeine Bemerkung / Zustand
+  // Offline nachgereichte Diktate (transkribiert nach Sync): append-only, wird vom
+  // Befund-Speichern NIE überschrieben (kein Clobber) -> read-only auf der Seite.
+  diktatNachgereicht String  @default("")
   zeitpunkt  DateTime       @default(now())
 
   // Snapshot zum Begehungszeitpunkt — eingefroren für rechtssichere Doku über Jahre
@@ -145,6 +148,9 @@ model Mangel {
   status    String   @default("offen")
   frist     DateTime?
   behobenAm DateTime? // beim Umschalten auf "behoben" gesetzt — Ursprungsstand bleibt erhalten
+  // Offline nachgereichte Diktate (transkribiert nach Sync): append-only, wird vom
+  // Mangel-Speichern NIE überschrieben (kein Clobber) -> read-only auf der Seite.
+  diktatNachgereicht String @default("")
   fotos     Foto[]
 
   @@index([befundId])

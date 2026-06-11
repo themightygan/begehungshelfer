@@ -1,29 +1,41 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { enqueue } from "@/lib/uploadQueue";
 
 // Textarea mit Diktat: nimmt Audio auf, schickt es an /api/transkript
 // (Whisper + Ollama-Glättung) und hängt den Text an. Nicht blockierend: nach
 // dem Stoppen läuft die Transkription im Hintergrund, die nächste Aufnahme kann
 // sofort starten; Ergebnisse werden angehängt, sobald sie eintreffen.
+//
+// Offline-/Fehler-Fall: schlägt die sofortige Transkription fehl, wird das Audio
+// lokal gepuffert (IndexedDB). MediaSync transkribiert es nach Sync und hängt den
+// Text serverseitig an „Nachgereichte Diktate" an (append-only, kein Clobber).
 export function DiktatTextarea({
   name,
   defaultValue,
   placeholder,
   rows = 2,
   className,
+  rundeId,
+  parzelleId,
+  mangelId,
 }: {
   name: string;
   defaultValue?: string;
   placeholder?: string;
   rows?: number;
   className?: string;
+  rundeId: number;
+  parzelleId: string;
+  mangelId?: number;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const mrRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(0);
+  const [gepuffert, setGepuffert] = useState(false);
 
   function append(text: string) {
     if (!taRef.current || !text) return;
@@ -46,9 +58,24 @@ export function DiktatTextarea({
         fd.append("audio", blob, "diktat");
         setTranscribing((n) => n + 1);
         fetch("/api/transkript", { method: "POST", body: fd })
-          .then((r) => r.json())
+          .then((r) => {
+            // r.redirected = Session abgelaufen (Login-Seite) -> wie Fehler behandeln.
+            if (r.redirected || !r.ok) throw new Error("transkript fehlgeschlagen");
+            return r.json();
+          })
           .then((j) => append(j.text))
-          .catch(() => {})
+          .catch(async () => {
+            // Offline/Fehler: Audio puffern, später transkribieren + nachreichen.
+            await enqueue({
+              kind: "audio",
+              rundeId,
+              parzelleId,
+              mangelId,
+              blob,
+              mime: blob.type || "audio/webm",
+            });
+            setGepuffert(true);
+          })
           .finally(() => setTranscribing((n) => n - 1));
       };
       mrRef.current = mr;
@@ -88,6 +115,11 @@ export function DiktatTextarea({
         </button>
         {transcribing > 0 && (
           <span className="text-sm text-stone-500">{transcribing} wird transkribiert…</span>
+        )}
+        {gepuffert && (
+          <span className="text-sm text-amber-700">
+            ⏳ offline gepuffert — Text erscheint nach Sync unter „Nachgereichte Diktate".
+          </span>
         )}
       </div>
     </div>

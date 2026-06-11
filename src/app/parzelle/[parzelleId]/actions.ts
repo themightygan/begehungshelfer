@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/runde";
+import { ensureBefundFuerRunde } from "@/lib/befund";
 import { fotoVerarbeitenUndSpeichern, dokumentSpeichern } from "@/lib/storage";
 import { FOTO_MAX_PRO_BEFUND, type FotoKontext } from "@/lib/constants";
 
@@ -15,36 +16,7 @@ export async function ensureBefund(parzelleId: string) {
   // Verwaiste Session (z. B. nach Löschen der Runde) sauber abfangen.
   const runde = await prisma.begehungsrunde.findUnique({ where: { id: session.rundeId } });
   if (!runde) throw new Error("Aktive Begehung nicht gefunden.");
-
-  const parzelle = await prisma.parzelle.findUniqueOrThrow({
-    where: { parzelleId },
-  });
-
-  const adresse = [
-    parzelle.strasse,
-    [parzelle.plz, parzelle.ort].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const paechter = [parzelle.nachname, parzelle.vorname]
-    .filter(Boolean)
-    .join(" ");
-
-  const befund = await prisma.befund.upsert({
-    where: {
-      rundeId_parzelleId: { rundeId: session.rundeId, parzelleId: parzelle.id },
-    },
-    update: {},
-    create: {
-      rundeId: session.rundeId,
-      parzelleId: parzelle.id,
-      snapParzelleId: parzelle.parzelleId,
-      snapPaechter: paechter,
-      snapAdresse: adresse,
-    },
-  });
-
-  return befund.id;
+  return ensureBefundFuerRunde(session.rundeId, parzelleId);
 }
 
 // Gemeinsame Foto-Pipeline: verarbeitet Dateien aus FormData und legt sie an.
