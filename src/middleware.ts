@@ -24,8 +24,9 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Öffentliche, nicht-sensible Assets ausnehmen: Logo (/img), App-Icons + Manifest
-  // (Favicon/Login-Seite/Homescreen laden teils ohne Session-Cookie).
+  // (Favicon/Login-Seite/Homescreen laden teils ohne Session-Cookie) + sw.js
+  // (Service-Worker-Updates dürfen nie auf den Login-Redirect laufen).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|img|icon|apple-icon|manifest).*)",
+    "/((?!_next/static|_next/image|favicon.ico|img|icon|apple-icon|manifest|sw.js).*)",
   ],
 };

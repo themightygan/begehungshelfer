@@ -8,6 +8,7 @@ import { sessionOptions, type SessionData } from "@/lib/session";
 import { logout } from "./login/actions";
 import { ZoomControl } from "./ZoomControl";
 import { MediaSync } from "./MediaSync";
+import { SWRegister } from "./SWRegister";
 import "./globals.css";
 
 // Vereinslogo zeigen, sobald public/img/logo.png vorhanden ist (sonst Emoji).
@@ -40,6 +41,7 @@ export default async function RootLayout({
               Begehungshelfer
             </Link>
             <div className="flex items-center gap-3">
+              {session.loggedIn && <SWRegister />}
               {session.loggedIn && <MediaSync />}
               <ZoomControl />
               {session.loggedIn && (

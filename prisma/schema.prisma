@@ -131,6 +131,8 @@ model Befund {
 // Gemüsebeete (bis zu 5 — Grenze in der UI) — IST-Fläche, Summe vs. SOLL (1/6 der Parzelle)
 model Beet {
   id          Int    @id @default(autoincrement())
+  // Client-UUID (Offline-Sync) — siehe Mangel.uid.
+  uid         String? @unique @default(uuid())
   befund      Befund @relation(fields: [befundId], references: [id], onDelete: Cascade)
   befundId    Int
   bezeichnung String @default("")
@@ -140,6 +142,9 @@ model Beet {
 
 model Mangel {
   id        Int      @id @default(autoincrement())
+  // Client-UUID (Offline-Sync): Idempotenzschlüssel für Op-Upserts + Referenz
+  // für gepufferte Fotos/Diktate. Nullable-unique (Altzeilen per Backfill gefüllt).
+  uid       String?  @unique @default(uuid())
   befund    Befund   @relation(fields: [befundId], references: [id], onDelete: Cascade)
   befundId  Int
   katalog   Katalog? @relation(fields: [katalogId], references: [id]) // SetNull: Katalogpunkt entfällt -> Freitext bleibt

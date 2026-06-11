@@ -15,6 +15,7 @@ import {
   MAX_ATTEMPTS,
   type QueueItem,
 } from "@/lib/uploadQueue";
+import { verarbeiteAck } from "@/lib/workspaceStore";
 
 // Stabile Server-/Initial-Snapshot-Referenz (kein Hydration-Mismatch).
 const EMPTY: QueueItem[] = [];
@@ -35,6 +36,11 @@ async function fetchMitTimeout(url: string, init: RequestInit): Promise<Response
 }
 
 type SendErgebnis = "erledigt" | "warten" | "serverfehler" | "tot";
+// Quittungs-Daten für den Workspace-Store (Foto: wohin einsortieren; Audio: Text).
+type SendResultat = {
+  ergebnis: SendErgebnis;
+  ack?: { id?: number; dateipfad?: string; kontext?: string; text?: string };
+};
 
 // Antwort-Mapping (Konvention mit /api/foto + /api/notiz-append):
 //   2xx                  -> erledigt (aus Queue entfernen — NUR bei explizitem Erfolg)
@@ -52,17 +58,32 @@ function bewerte(r: Response): SendErgebnis {
 }
 
 // Ein Item senden. Netzfehler (fetch wirft) -> Drain abbrechen, später erneut.
-async function sendItem(it: QueueItem): Promise<SendErgebnis> {
+async function sendItem(it: QueueItem): Promise<SendResultat> {
+  // Änderungs-Op (Stufe 2): idempotent, winzig — einzeln an /api/sync.
+  if (it.kind === "op") {
+    const r = await fetchMitTimeout("/api/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rundeId: it.rundeId, parzelleId: it.parzelleId, op: it.op }),
+    });
+    return { ergebnis: bewerte(r) };
+  }
+
   if (it.kind === "foto") {
     const fd = new FormData();
     fd.append("rundeId", String(it.rundeId));
     fd.append("parzelleId", it.parzelleId);
     if (it.kontext) fd.append("kontext", it.kontext);
-    if (it.mangelId != null) fd.append("mangelId", String(it.mangelId));
+    if (it.mangelUid) fd.append("mangelUid", it.mangelUid);
+    if (it.beetUid) fd.append("beetUid", it.beetUid);
+    if (it.mangelId != null) fd.append("mangelId", String(it.mangelId)); // Alt-Items
     if (it.beetId != null) fd.append("beetId", String(it.beetId));
     fd.append("foto", blobVon(it), "foto");
     const r = await fetchMitTimeout("/api/foto", { method: "POST", body: fd });
-    return bewerte(r);
+    const ergebnis = bewerte(r);
+    if (ergebnis !== "erledigt") return { ergebnis };
+    const ack = (await r.json().catch(() => ({}))) as SendResultat["ack"];
+    return { ergebnis, ack };
   }
 
   // Audio: erst transkribieren, dann serverseitig an „Nachgereichte Diktate" anhängen.
@@ -70,20 +91,21 @@ async function sendItem(it: QueueItem): Promise<SendErgebnis> {
   fda.append("audio", blobVon(it), "diktat");
   const tr = await fetchMitTimeout("/api/transkript", { method: "POST", body: fda });
   const trErgebnis = bewerte(tr);
-  if (trErgebnis !== "erledigt") return trErgebnis;
+  if (trErgebnis !== "erledigt") return { ergebnis: trErgebnis };
   const { text } = (await tr.json()) as { text?: string };
-  if (!text) return "erledigt"; // nichts erkannt -> Item erledigt
+  if (!text) return { ergebnis: "erledigt" }; // nichts erkannt -> Item erledigt
   const ar = await fetchMitTimeout("/api/notiz-append", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       rundeId: it.rundeId,
       parzelleId: it.parzelleId,
-      mangelId: it.mangelId,
+      mangelUid: it.mangelUid,
+      mangelId: it.mangelId, // Alt-Items
       text,
     }),
   });
-  return bewerte(ar);
+  return { ergebnis: bewerte(ar), ack: { text } };
 }
 
 // Gepuffertes Foto als Datei sichern (letzter Ausweg bei „toten" Items).
@@ -120,12 +142,18 @@ export function MediaSync() {
         for (const it of getItems()) {
           if (it.attempts >= MAX_ATTEMPTS) continue; // hängendes Item überspringen
           try {
-            const ergebnis = await sendItem(it);
+            const { ergebnis, ack } = await sendItem(it);
             if (ergebnis === "erledigt") {
+              // Quittung ZUERST in den lokalen Server-Stand übernehmen, dann
+              // aus der Queue entfernen — sonst flackert die Sicht kurz zurück.
+              await verarbeiteAck(it, ack ?? {});
               await removeItem(it.id);
               erfolg = true;
             } else if (ergebnis === "serverfehler") {
-              await bumpAttempt(it.id); // zählt — nächstes Item versuchen
+              await bumpAttempt(it.id);
+              // Ops bauen aufeinander auf (Mangel vor seinen Fotos): bei einem
+              // Op-Serverfehler Drain abbrechen, Reihenfolge später erneut.
+              if (it.kind === "op") break;
             } else if (ergebnis === "tot") {
               await markTot(it.id); // dauerhaft unzustellbar -> Panel
             }
@@ -213,7 +241,7 @@ export function MediaSync() {
                 {haengend.map((it) => (
                   <li key={it.id} className="flex items-center justify-between gap-2">
                     <span className="min-w-0 truncate text-stone-700">
-                      {it.kind === "foto" ? "📷" : "🎤"} {it.parzelleId} ·{" "}
+                      {it.kind === "foto" ? "📷" : it.kind === "audio" ? "🎤" : "📝"} {it.parzelleId} ·{" "}
                       {new Date(it.ts).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",
@@ -222,13 +250,15 @@ export function MediaSync() {
                       })}
                     </span>
                     <span className="flex shrink-0 gap-1">
-                      <button
-                        onClick={() => itemSichern(it)}
-                        className="rounded px-2 py-1 text-emerald-700 hover:bg-emerald-50"
-                        title="Als Datei sichern"
-                      >
-                        sichern
-                      </button>
+                      {it.kind !== "op" && (
+                        <button
+                          onClick={() => itemSichern(it)}
+                          className="rounded px-2 py-1 text-emerald-700 hover:bg-emerald-50"
+                          title="Als Datei sichern"
+                        >
+                          sichern
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           if (window.confirm("Dieses gepufferte Medium endgültig verwerfen?"))

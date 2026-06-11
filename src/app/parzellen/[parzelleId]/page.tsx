@@ -7,13 +7,17 @@ import {
   STUFE_SYMBOL,
   AENDERUNG_LABEL,
   AENDERUNG_ART,
+  DOKUMENT_TYP,
 } from "@/lib/constants";
 import {
   updateStammdaten,
   paechterwechsel,
   ereignisHinzufuegen,
   ereignisLoeschen,
+  uploadDokument,
+  removeDokument,
 } from "../actions";
+import { Thumb } from "@/components/Thumb";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +37,7 @@ export default async function ParzelleVerwaltung({
     include: {
       anlage: true,
       aenderungen: { orderBy: { datum: "desc" } },
+      dokumente: { orderBy: { datum: "desc" } },
       befunde: {
         orderBy: { runde: { datum: "desc" } },
         include: {
@@ -45,6 +50,18 @@ export default async function ParzelleVerwaltung({
   });
   if (!p) notFound();
   const soll = p.groesseM2 ? p.groesseM2 / 6 : null;
+  // Archiv-Fotos früherer Begehungen, gruppiert nach Datum (neueste zuerst).
+  const archivFotos = await prisma.archivFoto.findMany({
+    where: { parzelleId: p.id },
+    orderBy: { datum: "desc" },
+  });
+  const archivGruppen: { datum: string; quelle: string; fotos: typeof archivFotos }[] = [];
+  for (const f of archivFotos) {
+    const datum = dstr(f.datum);
+    let g = archivGruppen.find((x) => x.datum === datum);
+    if (!g) archivGruppen.push((g = { datum, quelle: f.quelle, fotos: [] }));
+    g.fotos.push(f);
+  }
 
   return (
     <div className="space-y-5 pb-12">
@@ -166,6 +183,68 @@ export default async function ParzelleVerwaltung({
             })}
           </ul>
         )}
+      </section>
+
+      {/* Akte: Dokument-Anhänge + Archiv-Fotos (aus dem Workspace hierher verlinkt) */}
+      <section className={CARD}>
+        <h2 className="text-base font-medium text-stone-600">Akte / Dokumente</h2>
+        {p.dokumente.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {p.dokumente.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-2 text-base">
+                <a
+                  href={`/api/datei/${d.dateipfad}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="min-w-0 truncate text-emerald-700 hover:underline"
+                >
+                  {DOKUMENT_TYP.find((t) => t.wert === d.typ)?.label ?? d.typ}
+                  {d.notiz ? ` — ${d.notiz}` : ""} ({dstr(d.datum)})
+                </a>
+                <form action={removeDokument.bind(null, parzelleId, d.id)}>
+                  <button className="shrink-0 rounded px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">
+                    löschen
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {archivGruppen.length > 0 && (
+          <div className="mt-3 space-y-1 border-t border-stone-100 pt-3">
+            <p className="text-sm font-medium text-stone-500">Fotos früherer Begehungen</p>
+            {archivGruppen.map((g) => (
+              <details key={g.datum} className="text-base">
+                <summary className="cursor-pointer text-emerald-700">
+                  📷 Fotos {g.datum} ({g.fotos.length})
+                  {g.quelle ? ` — ${g.quelle}` : ""}
+                </summary>
+                <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {g.fotos.map((f) => (
+                    <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} alt={`Foto ${g.datum}`} />
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+        <form
+          action={uploadDokument.bind(null, parzelleId)}
+          className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-100 pt-3"
+        >
+          <select name="typ" defaultValue="schreiben" className={INP}>
+            {DOKUMENT_TYP.map((t) => (
+              <option key={t.wert} value={t.wert}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <input name="notiz" placeholder="Notiz (optional)" className={`min-w-0 flex-1 ${INP}`} />
+          <input type="file" name="datei" className="text-base" />
+          <button className="rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800">
+            Hochladen
+          </button>
+        </form>
       </section>
     </div>
   );

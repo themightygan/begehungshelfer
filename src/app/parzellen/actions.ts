@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { dokumentSpeichern } from "@/lib/storage";
 
 // Stammdaten einer Parzelle aktualisieren (+ Ereignis-Eintrag mit Datum).
 export async function updateStammdaten(parzelleId: string, formData: FormData) {
@@ -77,5 +78,29 @@ export async function ereignisHinzufuegen(parzelleId: string, formData: FormData
 
 export async function ereignisLoeschen(parzelleId: string, id: number) {
   await prisma.parzelleAenderung.delete({ where: { id } });
+  revalidatePath(`/parzellen/${parzelleId}`);
+}
+
+// --- Akte: Dokument-Anhänge je Parzelle (Schreiben, E-Mails, Wertermittlungen) ---
+export async function uploadDokument(parzelleId: string, formData: FormData) {
+  const parzelle = await prisma.parzelle.findUniqueOrThrow({ where: { parzelleId } });
+  const datei = formData.get("datei");
+  if (datei instanceof File && datei.size > 0) {
+    const buf = Buffer.from(await datei.arrayBuffer());
+    const pfad = await dokumentSpeichern(parzelleId, buf, datei.name);
+    await prisma.dokument.create({
+      data: {
+        parzelleId: parzelle.id,
+        typ: String(formData.get("typ") ?? "sonstiges"),
+        dateipfad: pfad,
+        notiz: String(formData.get("notiz") ?? ""),
+      },
+    });
+  }
+  revalidatePath(`/parzellen/${parzelleId}`);
+}
+
+export async function removeDokument(parzelleId: string, dokumentId: number) {
+  await prisma.dokument.delete({ where: { id: dokumentId } });
   revalidatePath(`/parzellen/${parzelleId}`);
 }

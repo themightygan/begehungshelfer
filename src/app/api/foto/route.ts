@@ -21,6 +21,9 @@ export async function POST(req: NextRequest) {
     const kontext = String(fd.get("kontext") ?? "zustand");
     const mangelId = fd.get("mangelId") ? Number(fd.get("mangelId")) : null;
     const beetId = fd.get("beetId") ? Number(fd.get("beetId")) : null;
+    // Stufe 2: Referenz über Client-UUID (auch für offline angelegte Mängel/Beete)
+    const mangelUid = fd.get("mangelUid") ? String(fd.get("mangelUid")) : null;
+    const beetUid = fd.get("beetUid") ? String(fd.get("beetUid")) : null;
     const foto = fd.get("foto");
 
     if (!Number.isFinite(rundeId) || !parzelleId || !(foto instanceof File) || foto.size === 0) {
@@ -36,19 +39,26 @@ export async function POST(req: NextRequest) {
 
     const befundId = await ensureBefundFuerRunde(rundeId, parzelleId);
 
-    // Ziel-Mangel/-Beet kann inzwischen gelöscht sein (z. B. durch zweiten
-    // Nutzer): Foto NICHT verlieren, sondern als Gesamtansicht am Befund ablegen.
+    // Ziel-Mangel/-Beet auflösen (uid bevorzugt, Server-ID für Alt-Items) —
+    // kann inzwischen gelöscht sein (z. B. durch zweiten Nutzer): Foto NICHT
+    // verlieren, sondern als Gesamtansicht am Befund ablegen.
     let zielMangelId = mangelId;
     let zielBeetId = beetId;
     let zielKontext = kontext;
-    if (zielMangelId != null && !(await prisma.mangel.findUnique({ where: { id: zielMangelId } }))) {
+    if (mangelUid) {
+      const m = await prisma.mangel.findUnique({ where: { uid: mangelUid } });
+      zielMangelId = m?.id ?? null;
+    } else if (zielMangelId != null && !(await prisma.mangel.findUnique({ where: { id: zielMangelId } }))) {
       zielMangelId = null;
-      zielKontext = "zustand";
     }
-    if (zielBeetId != null && !(await prisma.beet.findUnique({ where: { id: zielBeetId } }))) {
+    if (beetUid) {
+      const beet = await prisma.beet.findUnique({ where: { uid: beetUid } });
+      zielBeetId = beet?.id ?? null;
+    } else if (zielBeetId != null && !(await prisma.beet.findUnique({ where: { id: zielBeetId } }))) {
       zielBeetId = null;
-      zielKontext = "zustand";
     }
+    if ((mangelUid || mangelId) && zielMangelId === null) zielKontext = "zustand";
+    if ((beetUid || beetId) && zielBeetId === null) zielKontext = "zustand";
 
     // Foto-Limit je Befund (Audit). Erreicht -> als erledigt quittieren (kein
     // endloses Retry); 24 ist großzügig.
@@ -63,7 +73,9 @@ export async function POST(req: NextRequest) {
       data: { befundId, mangelId: zielMangelId, beetId: zielBeetId, kontext: zielKontext, dateipfad: pfad },
     });
 
-    return Response.json({ id: created.id, dateipfad: pfad });
+    // kontext zurückmelden: bei „gerettetem" Foto (Ziel gelöscht -> zustand)
+    // sortiert der Client es lokal in die richtige Liste ein.
+    return Response.json({ id: created.id, dateipfad: pfad, kontext: zielKontext });
   } catch (e) {
     return Response.json({ error: "Verarbeitung fehlgeschlagen", detail: String(e) }, { status: 500 });
   }

@@ -35,13 +35,13 @@ async function appendBefund(befundId: number, text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { rundeId, parzelleId, mangelId, text } = await req.json();
+    const { rundeId, parzelleId, mangelId, mangelUid, text } = await req.json();
     const t = String(text ?? "").trim();
     if (!t) return Response.json({ ok: true }); // nichts anzuhängen -> erledigt
 
-    if (mangelId != null) {
+    if (mangelId != null || mangelUid) {
       const m = await prisma.mangel.findUnique({
-        where: { id: Number(mangelId) },
+        where: mangelUid ? { uid: String(mangelUid) } : { id: Number(mangelId) },
         include: { befund: { include: { runde: true } } },
       });
       if (!m) return Response.json({ ok: true }); // Mangel inzwischen weg -> verwerfen

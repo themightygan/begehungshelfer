@@ -3,32 +3,31 @@
 import { useRef, useState } from "react";
 import { enqueue } from "@/lib/uploadQueue";
 
-// Textarea mit Diktat: nimmt Audio auf, schickt es an /api/transkript
-// (Whisper + Ollama-Glättung) und hängt den Text an. Nicht blockierend: nach
-// dem Stoppen läuft die Transkription im Hintergrund, die nächste Aufnahme kann
-// sofort starten; Ergebnisse werden angehängt, sobald sie eintreffen.
+// Textarea mit Diktat für den Offline-Workspace. Der Text wird beim Verlassen
+// des Felds (onBlur) bzw. nach erfolgreicher Online-Transkription über onCommit
+// in den lokalen Store übernommen (Auto-Save, kein Speichern-Knopf nötig).
 //
 // Offline-/Fehler-Fall: schlägt die sofortige Transkription fehl, wird das Audio
 // lokal gepuffert (IndexedDB). MediaSync transkribiert es nach Sync und hängt den
 // Text serverseitig an „Nachgereichte Diktate" an (append-only, kein Clobber).
 export function DiktatTextarea({
-  name,
   defaultValue,
   placeholder,
   rows = 2,
   className,
   rundeId,
   parzelleId,
-  mangelId,
+  mangelUid,
+  onCommit,
 }: {
-  name: string;
   defaultValue?: string;
   placeholder?: string;
   rows?: number;
   className?: string;
   rundeId: number;
   parzelleId: string;
-  mangelId?: number;
+  mangelUid?: string;
+  onCommit: (text: string) => void;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const mrRef = useRef<MediaRecorder | null>(null);
@@ -41,6 +40,7 @@ export function DiktatTextarea({
     if (!taRef.current || !text) return;
     const cur = taRef.current.value.replace(/\s*$/, "");
     taRef.current.value = cur ? `${cur} ${text}` : text;
+    onCommit(taRef.current.value);
   }
 
   async function start() {
@@ -59,7 +59,6 @@ export function DiktatTextarea({
         setTranscribing((n) => n + 1);
         fetch("/api/transkript", { method: "POST", body: fd })
           .then((r) => {
-            // r.redirected = Session abgelaufen (Login-Seite) -> wie Fehler behandeln.
             if (r.redirected || !r.ok) throw new Error("transkript fehlgeschlagen");
             return r.json();
           })
@@ -70,7 +69,7 @@ export function DiktatTextarea({
               kind: "audio",
               rundeId,
               parzelleId,
-              mangelId,
+              mangelUid,
               blob,
               mime: blob.type || "audio/webm",
             });
@@ -95,11 +94,13 @@ export function DiktatTextarea({
     <div>
       <textarea
         ref={taRef}
-        name={name}
         defaultValue={defaultValue}
         rows={rows}
         placeholder={placeholder}
         className={className}
+        onBlur={(e) => {
+          if (e.target.value !== (defaultValue ?? "")) onCommit(e.target.value);
+        }}
       />
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <button

@@ -1,38 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import { Thumb } from "@/components/Thumb";
 import { enqueue, subscribe, getItems, blobVon, type QueueItem } from "@/lib/uploadQueue";
 import { fotoVerkleinern } from "@/lib/fotoVerkleinern";
-
-type Foto = { id: number; dateipfad: string };
+import { fotoLoeschen } from "@/lib/workspaceStore";
+import type { SnapFoto } from "@/lib/workspaceTypes";
 
 const EMPTY: QueueItem[] = [];
 
-// Foto-Bereich mit lokalem Puffer (kein blockierender Upload mehr): beim Auswählen
-// wird das Foto in die IndexedDB-Queue gelegt und sofort als Vorschau-Kachel mit „⏳"
-// gezeigt. MediaSync lädt es im Hintergrund hoch (auch nach Offline-Phasen); sobald
-// fertig, ersetzt das echte Thumbnail (Server-Foto) die Vorschau.
-// 📷 Kamera (Default) + 🖼 Mediathek (mehrere).
+// Foto-Bereich des Offline-Workspace: Auswahl wird clientseitig verkleinert und
+// in die IndexedDB-Queue gelegt (sofortige ⏳-Vorschau); MediaSync lädt im
+// Hintergrund hoch und meldet das Server-Foto per Ack in den lokalen Snapshot.
+// Server-Fotos kommen aus dem Snapshot (props.fotos); Löschen erzeugt eine Op.
+// Referenz auf Mangel/Beet über Client-UUID (funktioniert auch offline).
 export function FotoBereich({
   rundeId,
   parzelleId,
   fotos,
   kontext,
-  mangelId,
-  beetId,
-  deleteAction,
+  mangelUid,
+  beetUid,
 }: {
   rundeId: number;
   parzelleId: string;
-  fotos: Foto[];
+  fotos: SnapFoto[];
   kontext: string;
-  mangelId?: number;
-  beetId?: number;
-  deleteAction: (parzelleId: string, fotoId: number) => Promise<void> | void;
+  mangelUid?: string;
+  beetUid?: string;
 }) {
-  const router = useRouter();
   const items = useSyncExternalStore(subscribe, getItems, () => EMPTY);
 
   // Nur die gepufferten Fotos GENAU dieses Ziels.
@@ -41,8 +37,8 @@ export function FotoBereich({
       it.kind === "foto" &&
       it.parzelleId === parzelleId &&
       it.kontext === kontext &&
-      (it.mangelId ?? null) === (mangelId ?? null) &&
-      (it.beetId ?? null) === (beetId ?? null)
+      (it.mangelUid ?? null) === (mangelUid ?? null) &&
+      (it.beetUid ?? null) === (beetUid ?? null)
   );
 
   // Object-URLs je Item memoisieren + aufräumen (kein Leak).
@@ -56,7 +52,6 @@ export function FotoBereich({
     return u;
   };
   useEffect(() => {
-    // Verwaiste URLs (Item hochgeladen/entfernt) freigeben.
     const cache = urls.current;
     const lebend = new Set(meine.map((m) => m.id));
     for (const [id, url] of cache) {
@@ -79,24 +74,22 @@ export function FotoBereich({
     const files = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
     e.currentTarget.value = "";
     for (const f of files) {
-      // Vor dem Puffern verkleinern: 10–25× weniger Upload-Volumen im Funkloch.
       const blob = await fotoVerkleinern(f);
       await enqueue({
         kind: "foto",
         rundeId,
         parzelleId,
         kontext,
-        mangelId,
-        beetId,
+        mangelUid,
+        beetUid,
         blob,
         mime: blob.type || f.type || "image/jpeg",
       });
     }
   }
 
-  async function del(fotoId: number) {
-    await deleteAction(parzelleId, fotoId);
-    router.refresh();
+  function del(fotoId: number) {
+    if (window.confirm("Foto löschen?")) fotoLoeschen(parzelleId, fotoId);
   }
 
   return (
@@ -119,7 +112,7 @@ export function FotoBereich({
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {fotos.map((f) => (
             <div key={f.id} className="relative">
-              <Thumb src={`/api/datei/${f.dateipfad}`} />
+              <Thumb src={`/api/datei/${f.pfad}`} />
               <button
                 onClick={() => del(f.id)}
                 className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
