@@ -9,7 +9,12 @@ import {
   aktualisiereVomServer,
   type WorkspaceZustand,
 } from "@/lib/workspaceStore";
-import { begehungAbschliessen, begehungVerlassen, begehungAbbrechen } from "../actions";
+import {
+  begehungAbschliessen,
+  begehungVerlassen,
+  begehungAbbrechen,
+  teilnehmerAendern,
+} from "../actions";
 import { AbschlussButton } from "../AbschlussButton";
 import { ConfirmButton } from "../ConfirmButton";
 import { ParzelleAnsicht } from "./ParzelleAnsicht";
@@ -29,6 +34,79 @@ function hashPid(): string | null {
   if (typeof location === "undefined") return null;
   const h = decodeURIComponent(location.hash);
   return h.startsWith("#p/") ? h.slice(3) : null;
+}
+
+// Teilnehmerzeile mit Inline-Bearbeitung (jemand kommt dazu / geht) — ändert
+// die laufende Runde, ohne sie zu beenden. Braucht Verbindung (Server-Aktion).
+function TeilnehmerZeile({
+  rundeId,
+  teilnehmende,
+  online,
+}: {
+  rundeId: number;
+  teilnehmende: string;
+  online: boolean;
+}) {
+  const [bearbeite, setBearbeite] = useState(false);
+  const [wert, setWert] = useState(teilnehmende);
+  const [speichert, setSpeichert] = useState(false);
+
+  if (!bearbeite) {
+    return (
+      <p className="text-xs text-stone-400">
+        Teilnehmer: {teilnehmende || "—"}{" "}
+        <button
+          onClick={() => {
+            if (!online) {
+              alert("Teilnehmer ändern braucht Verbindung — bitte bei Empfang erneut.");
+              return;
+            }
+            setWert(teilnehmende);
+            setBearbeite(true);
+          }}
+          className="ml-1 rounded px-1.5 py-0.5 text-emerald-700 hover:bg-emerald-50"
+          title="Teilnehmer ändern"
+        >
+          ✎ ändern
+        </button>
+      </p>
+    );
+  }
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+      <input
+        type="text"
+        value={wert}
+        onChange={(e) => setWert(e.target.value)}
+        placeholder="Namen, durch Komma getrennt"
+        className="min-w-0 flex-1 rounded border border-stone-300 px-2 py-1.5 text-sm"
+      />
+      <button
+        disabled={speichert}
+        onClick={async () => {
+          setSpeichert(true);
+          try {
+            await teilnehmerAendern(rundeId, wert);
+            await aktualisiereVomServer(); // lokalen Snapshot nachziehen
+            setBearbeite(false);
+          } catch {
+            alert("Speichern fehlgeschlagen — Verbindung prüfen.");
+          } finally {
+            setSpeichert(false);
+          }
+        }}
+        className="rounded bg-emerald-700 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+      >
+        {speichert ? "…" : "✓"}
+      </button>
+      <button
+        onClick={() => setBearbeite(false)}
+        className="rounded border border-stone-300 px-2.5 py-1.5 text-sm text-stone-600 hover:bg-stone-50"
+      >
+        ✕
+      </button>
+    </span>
+  );
 }
 
 export function Workspace() {
@@ -179,9 +257,11 @@ export function Workspace() {
           <p className="text-sm text-stone-500">
             {sicht.parzellen.length} Parzellen · {bearbeitet} bearbeitet
           </p>
-          {sicht.runde.teilnehmende && (
-            <p className="text-xs text-stone-400">Teilnehmer: {sicht.runde.teilnehmende}</p>
-          )}
+          <TeilnehmerZeile
+            rundeId={sicht.runde.id}
+            teilnehmende={sicht.runde.teilnehmende}
+            online={online}
+          />
         </div>
         <Link href="/" className="shrink-0 text-sm text-emerald-700 hover:underline">
           Start

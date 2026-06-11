@@ -34,6 +34,16 @@ export async function begehungStarten(formData: FormData) {
   redirect("/begehung");
 }
 
+// Teilnehmer einer LAUFENDEN Begehung anpassen (jemand kommt dazu / geht) —
+// ohne die Runde zu beenden. Aufruf aus dem Workspace (online).
+export async function teilnehmerAendern(rundeId: number, teilnehmende: string) {
+  await prisma.begehungsrunde.update({
+    where: { id: rundeId },
+    data: { teilnehmende: teilnehmende.trim() },
+  });
+  revalidatePath("/begehung");
+}
+
 export async function begehungFortsetzen(rundeId: number) {
   const session = await getSession();
   session.rundeId = rundeId;
