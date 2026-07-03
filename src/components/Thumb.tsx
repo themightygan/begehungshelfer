@@ -20,6 +20,7 @@ export function Thumb({
       <img
         src={src}
         alt={alt}
+        loading="lazy"
         onClick={() => setOpen(true)}
         className={`${className} cursor-zoom-in`}
       />
