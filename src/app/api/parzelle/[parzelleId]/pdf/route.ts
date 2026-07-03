@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import sharp from "sharp";
 import { prisma } from "@/lib/db";
 import { dateiLesen } from "@/lib/storage";
 import {
@@ -7,13 +8,27 @@ import {
   type BerichtMangel,
 } from "@/lib/pdf";
 
+// Fotos fürs PDF auf das benötigte Format drosseln: Anzeige ist 257pt breit
+// (~3,6 Zoll) -> 1200px längste Kante ≈ 330 dpi, reicht zum Reinzoomen (~2x),
+// drückt aber die PDF-Größe von ~8 MB auf einen Bruchteil.
+const PDF_FOTO_KANTE = 1200;
+
 async function ladeFotos(
   fotos: { dateipfad: string }[]
 ): Promise<BerichtFoto[]> {
   const out: BerichtFoto[] = [];
   for (const f of fotos) {
     const data = await dateiLesen(f.dateipfad);
-    if (data) out.push({ data });
+    if (!data) continue;
+    try {
+      const klein = await sharp(data)
+        .resize(PDF_FOTO_KANTE, PDF_FOTO_KANTE, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 70, mozjpeg: true })
+        .toBuffer();
+      out.push({ data: klein });
+    } catch {
+      out.push({ data }); // nicht dekodierbar -> Original einbetten
+    }
   }
   return out;
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 import { istNeupaechter } from "@/lib/paechter";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
+import { KlickZeile } from "@/components/KlickZeile";
 
 export const dynamic = "force-dynamic";
 
@@ -153,7 +154,13 @@ export default async function AuswertungSeite({
                 const ist = b.beete.reduce((x, y) => x + y.flaecheM2, 0);
                 const soll = b.parzelle.groesseM2 ? b.parzelle.groesseM2 / 6 : null;
                 return (
-                  <tr key={b.parzelle.parzelleId} className="border-b border-stone-100">
+                  // Ganze Zeile klickbar -> Begehungsansicht; Pächter-/PDF-Link
+                  // in der Zeile behalten ihre eigenen Ziele.
+                  <KlickZeile
+                    key={b.parzelle.parzelleId}
+                    href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
+                    className="border-b border-stone-100 hover:bg-stone-50"
+                  >
                     <td className="py-2 pr-3 font-medium">
                       <Link
                         href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
@@ -190,7 +197,7 @@ export default async function AuswertungSeite({
                         📄 PDF
                       </a>
                     </td>
-                  </tr>
+                  </KlickZeile>
                 );
               })}
             </tbody>
@@ -233,18 +240,21 @@ export default async function AuswertungSeite({
               {rs.map((r) => {
                 const rs2 = summary(r.befunde);
                 return (
-                  <li key={r.id} className="flex items-start justify-between gap-3 border-t border-stone-100 pt-2 text-sm">
-                    <div className="min-w-0">
-                      <Link href={`/auswertung?rundeId=${r.id}`} className="font-medium text-emerald-700 hover:underline">
-                        {r.bezeichnung}
-                      </Link>
-                      {r.teilnehmende && (
-                        <p className="text-stone-400">Teilnehmer: {r.teilnehmende}</p>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-stone-500">
-                      {rs2.begutachtet} begutachtet · {rs2.mitMaengel} m. Mängeln · {rs2.plaketten} Plakette(n)
-                    </span>
+                  <li key={r.id} className="border-t border-stone-100">
+                    <Link
+                      href={`/auswertung?rundeId=${r.id}`}
+                      className="flex items-start justify-between gap-3 py-2 text-sm hover:bg-stone-50"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-medium text-emerald-700">{r.bezeichnung}</span>
+                        {r.teilnehmende && (
+                          <p className="text-stone-400">Teilnehmer: {r.teilnehmende}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-stone-500">
+                        {rs2.begutachtet} begutachtet · {rs2.mitMaengel} m. Mängeln · {rs2.plaketten} Plakette(n)
+                      </span>
+                    </Link>
                   </li>
                 );
               })}

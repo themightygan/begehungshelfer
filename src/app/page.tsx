@@ -161,6 +161,27 @@ export default async function Home() {
         ) : (
           <ul className="space-y-2">
             {runden.map((r) => (
+              // Abgeschlossene Runden: ganzer Balken klickbar -> Berichte.
+              // Offene behalten ihre Aktions-Knöpfe (fortsetzen/abbrechen).
+              r.status === "abgeschlossen" ? (
+                <li key={r.id}>
+                  <Link
+                    href={`/begehung/berichte/${r.id}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3 hover:border-emerald-400 hover:bg-stone-50"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{r.bezeichnung}</p>
+                      <p className="truncate text-xs text-stone-500">
+                        {r._count.befunde} Befund(e)
+                        {r.teilnehmende ? ` · ${r.teilnehmende}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded border border-stone-300 px-2.5 py-1 text-sm">
+                      Berichte →
+                    </span>
+                  </Link>
+                </li>
+              ) : (
               <li
                 key={r.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3"
@@ -172,31 +193,23 @@ export default async function Home() {
                     {r.teilnehmende ? ` · ${r.teilnehmende}` : ""}
                   </p>
                 </div>
-                {r.status === "abgeschlossen" ? (
-                  <Link
-                    href={`/begehung/berichte/${r.id}`}
-                    className="shrink-0 rounded border border-stone-300 px-2.5 py-1 text-sm hover:bg-stone-50"
-                  >
-                    Berichte
-                  </Link>
-                ) : (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <form action={begehungFortsetzen.bind(null, r.id)}>
-                      <button className="rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
-                        fortsetzen
-                      </button>
-                    </form>
-                    <form action={begehungAbbrechen.bind(null, r.id)}>
-                      <ConfirmButton
-                        message="Begehung wirklich ABBRECHEN? Alle erfassten Daten dieser Begehung werden gelöscht."
-                        className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        abbrechen
-                      </ConfirmButton>
-                    </form>
-                  </div>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  <form action={begehungFortsetzen.bind(null, r.id)}>
+                    <button className="rounded bg-emerald-700 px-2.5 py-1 text-sm font-medium text-white hover:bg-emerald-800">
+                      fortsetzen
+                    </button>
+                  </form>
+                  <form action={begehungAbbrechen.bind(null, r.id)}>
+                    <ConfirmButton
+                      message="Begehung wirklich ABBRECHEN? Alle erfassten Daten dieser Begehung werden gelöscht."
+                      className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      abbrechen
+                    </ConfirmButton>
+                  </form>
+                </div>
               </li>
+              )
             ))}
           </ul>
         )}
