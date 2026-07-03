@@ -12,14 +12,23 @@ export default function LoginSeite() {
     <div className="mx-auto mt-12 max-w-sm">
       <h1 className="text-xl font-semibold">Anmelden</h1>
       <p className="mt-1 text-sm text-stone-500">
-        Gemeinsames Passwort für den Vorstand.
+        Zugang für den Vorstand.
       </p>
       <form action={formAction} className="mt-6 space-y-3">
         <input
-          type="password"
-          name="passwort"
+          type="email"
+          name="email"
           autoFocus
           required
+          autoComplete="username"
+          placeholder="E-Mail-Adresse"
+          className="block w-full rounded border border-stone-300 px-3 py-2"
+        />
+        <input
+          type="password"
+          name="passwort"
+          required
+          autoComplete="current-password"
           placeholder="Passwort"
           className="block w-full rounded border border-stone-300 px-3 py-2"
         />

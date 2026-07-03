@@ -110,10 +110,21 @@ export async function GET(
     plakettenNotiz: befund?.plakettenNotiz ?? "",
   });
 
+  // Sprechender Dateiname: <AnlageParzelle>_<NACHNAME>_<YYYY_MM_DD>.pdf,
+  // z. B. "S71_BAIZID_2026_07_02.pdf". Umlaute transliteriert, Rest ASCII-safe.
+  const nameSafe = (parzelle.nachname || "UNBEKANNT")
+    .toUpperCase()
+    .replace(/Ä/g, "AE").replace(/Ö/g, "OE").replace(/Ü/g, "UE").replace(/ß/g, "SS")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Akzente (é -> E)
+    .replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "UNBEKANNT";
+  const datumTeil = (befund?.runde?.datum ? new Date(befund.runde.datum) : new Date())
+    .toISOString().slice(0, 10).replace(/-/g, "_");
+  const dateiname = `${parzelle.parzelleId}_${nameSafe}_${datumTeil}.pdf`;
+
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="Bericht_${parzelle.parzelleId}.pdf"`,
+      "Content-Disposition": `inline; filename="${dateiname}"`,
     },
   });
 }

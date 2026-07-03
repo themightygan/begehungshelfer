@@ -32,7 +32,7 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 - **App:** Next.js (TypeScript, App Router) + Tailwind. Mobile-first (Handy/iPad) + Desktop.
 - **DB:** SQLite (Datei `prisma/dev.db`, kein DB-Server) via Prisma 6. KISS für single-host; Backup = Datei kopieren. SQLite hat keine nativen Enums → Auswahlfelder als String mit dokumentierten Werten.
 - **Datei-Speicher:** lokales Dateisystem (Fotos + PDFs). Backup → Dropbox/Time Machine.
-- **Auth:** EIN gemeinsamer Login (ein Passwort) → simpler Passwort-Check + Session-Cookie. Kein Auth-Framework.
+- **Auth:** feste Benutzerliste in `APP_USERS` (.env, `email:passwort;…`, Stand 2026-07-03: Sascha + Vorstands-Adresse) → `timingSafeEqual` + Session-Cookie. Kein Auth-Framework, kein DB-User-Modell.
 - **Hosting:** SELF-HOSTED auf Sascha's **Mac Mini M4 (16 GB)**, Glasfaser. Kein Cloud-Hoster.
 - **Fernzugriff:** **Cloudflare Tunnel** (`cloudflared`) — kein DynDNS/Port-Forwarding, kostenloses TLS, funktioniert hinter CGNAT/DS-Lite. Optional **Cloudflare Access** als Zugriffsschutz.
 - **Lokale KI (Phase 2):** Transkription `whisper.cpp`/`faster-whisper`; Textglättung + Brief-Entwürfe via lokales **Ollama**.

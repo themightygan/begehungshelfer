@@ -118,10 +118,13 @@ export function Workspace() {
     ladeWorkspace();
     setPid(hashPid());
     setOnline(navigator.onLine);
+    // Zurück/Vor-Geste des Browsers: hashchange UND popstate abdecken
+    // (je nach Browser/History-Eintrag feuert nur eines zuverlässig).
     const onHash = () => {
       setPid(hashPid());
       window.scrollTo(0, 0);
     };
+    window.addEventListener("popstate", onHash);
     const onOnline = () => {
       setOnline(true);
       aktualisiereVomServer();
@@ -138,6 +141,7 @@ export function Workspace() {
       if (navigator.onLine) aktualisiereVomServer();
     }, AKTUALISIERE_MS);
     return () => {
+      window.removeEventListener("popstate", onHash);
       window.removeEventListener("hashchange", onHash);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
@@ -146,8 +150,17 @@ export function Workspace() {
     };
   }, []);
 
+  // Programmatische Navigation: URL setzen UND den State direkt umschalten —
+  // nicht auf das hashchange-Event verlassen (das blieb beim Wechsel zurück
+  // zum Plan, also auf den LEEREN Hash, in der Praxis teils aus -> die Knöpfe
+  // „zurück zum Plan"/„Fertig" wirkten tot).
   const navigiere = useCallback((ziel: string | null) => {
-    location.hash = ziel ? `p/${encodeURIComponent(ziel)}` : "";
+    const url = ziel
+      ? `${location.pathname}${location.search}#p/${encodeURIComponent(ziel)}`
+      : `${location.pathname}${location.search}`;
+    history.pushState(null, "", url);
+    setPid(ziel);
+    window.scrollTo(0, 0);
   }, []);
 
   const { status, sicht, veraltet } = zustand;
