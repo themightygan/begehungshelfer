@@ -69,8 +69,9 @@ const s = StyleSheet.create({
   label: { width: 110, color: "#57534e" },
   wert: { flex: 1 },
   text: { marginTop: 2, lineHeight: 1.4 },
+  // Zwei Fotos je Reihe, zusammen volle Inhaltsbreite (A4 523pt − 8pt Abstand).
   fotoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
-  foto: { width: 158, height: 118, objectFit: "cover", borderRadius: 2 },
+  foto: { width: 257, height: 193, objectFit: "cover", borderRadius: 2 },
   mangel: {
     marginTop: 10,
     paddingTop: 8,
@@ -160,9 +161,12 @@ function Bericht({ d }: { d: BerichtDaten }) {
         {(d.beete.length > 0 || d.beetSoll !== null) && (
           <View style={s.abschnitt}>
             <Text style={s.h2}>Gemüseanbaufläche</Text>
+            {/* Fotos sind jetzt groß (halbe Seitenbreite): Textkopf bleibt
+                zusammen, die Foto-Reihen dürfen auf die Folgeseite umbrechen —
+                sonst würde ein Block mit vielen Fotos die Seite sprengen. */}
             {d.beete.map((b, i) => (
-              <View key={i} wrap={false}>
-                <View style={s.zeile}>
+              <View key={i}>
+                <View style={s.zeile} wrap={false}>
                   <Text style={s.label}>{b.bezeichnung || `Beet ${i + 1}`}</Text>
                   <Text style={s.wert}>{m2(b.flaecheM2)}</Text>
                 </View>
@@ -194,19 +198,21 @@ function Bericht({ d }: { d: BerichtDaten }) {
             <Text style={s.text}>Keine Mängel erfasst.</Text>
           ) : (
             d.maengel.map((m, i) => (
-              <View key={i} style={s.mangel} wrap={false}>
-                <Text style={s.mangelBereich}>{m.bereich}</Text>
-                <Text style={s.mangelPunkt}>
-                  {i + 1}. {m.punkt || "(ohne Bezeichnung)"}
-                </Text>
-                {(m.referenz || m.frist) && (
-                  <Text style={s.mangelMeta}>
-                    {m.referenz}
-                    {m.referenz && m.frist ? " · " : ""}
-                    {m.frist ? `Frist: ${m.frist}` : ""}
+              <View key={i} style={s.mangel}>
+                <View wrap={false}>
+                  <Text style={s.mangelBereich}>{m.bereich}</Text>
+                  <Text style={s.mangelPunkt}>
+                    {i + 1}. {m.punkt || "(ohne Bezeichnung)"}
                   </Text>
-                )}
-                {m.notiz.trim() !== "" && <Text style={s.text}>{m.notiz}</Text>}
+                  {(m.referenz || m.frist) && (
+                    <Text style={s.mangelMeta}>
+                      {m.referenz}
+                      {m.referenz && m.frist ? " · " : ""}
+                      {m.frist ? `Frist: ${m.frist}` : ""}
+                    </Text>
+                  )}
+                  {m.notiz.trim() !== "" && <Text style={s.text}>{m.notiz}</Text>}
+                </View>
                 <FotoReihe fotos={m.fotos} />
               </View>
             ))
