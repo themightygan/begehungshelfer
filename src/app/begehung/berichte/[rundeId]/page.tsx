@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 import { Thumb } from "@/components/Thumb";
+import { BeetZelle } from "@/components/BeetZelle";
 
 export const dynamic = "force-dynamic";
 
@@ -114,10 +115,11 @@ export default async function BerichteSeite({
                       {b.parzelle.parzelleId}
                     </span>
                     <span className="ml-2 text-sm text-stone-500">
-                      {STUFE_LABEL[b.stufe] ?? b.stufe}
+                      {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
                       {b.gutGemacht ? " · 👍" : ""}
+                      {" · Beet "}
+                      <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
                       {b._count.maengel > 0 ? ` · ${b._count.maengel} Mangel` : ""}
-                      {b._count.beete > 0 ? ` · ${b._count.beete} Beet` : ""}
                       {b._count.fotos > 0 ? ` · ${b._count.fotos} Foto` : ""}
                     </span>
                   </summary>
