@@ -24,6 +24,8 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 
 - **Icon-Paket (2026-07-05) ✅ (deployed, Smoke ✓):** alle UI-Emojis (~35 Stellen, 20 Dateien) durch **Lucide** (`lucide-react`) ersetzt — ein Strich-Stil, lokal gebündelt, Bundle unverändert (Tree-Shaking). Konvention in DESIGN.md §5 „Icons": `h-4 w-4` Standard, `inline-flex gap-1.5` + `aria-hidden` (Text daneben) bzw. `aria-label` wenn allein. **Stufen-Symbole (`STUFE_SYMBOL`) bleiben Emojis** (semantische Ampel, PRODUCT.md-Ausnahme). Nebenbei: Plural-Fix „n Mangel/Foto" auch in der Parzellen-Akte.
 
+- **Katalog-/Einstellungs-Paket (2026-07-05) ✅ (deployed, Migration `verein` angewandt, Smoke 8/8+9/9):** (1) **Flächen-Abgleich** `scripts/abgleich-flaechen.mjs` (Dry-Run/`--fix`, exceljs, Header-basiert): DB stimmt 153/153 exakt mit `_quelldaten/PArzellenfläche.xlsx` überein (0 Diffs). (2) **Katalog jetzt 31 Punkte** (`scripts/katalog-update-2026-07.mjs`, idempotent; seed.mjs angeglichen): „Gemüseanbaufläche"→„Gemüseanbau: Unzureichender Anbau einjähriger Gemüsekulturen"; Sitzplatz-Grenzabstand/Anpflanzung in ZWEI Punkte getrennt; NEU „Mangelnde Zaunfreiheit" (Garten, GO-Ziffer fehlt noch) + „Unfallgefahr" (Sonstiges); „Laube – unerlaubter Bau / bauliche Veränderung". Alt-Mängel behalten eingefrorene punkt-Snapshots. (3) **Anlage löschen** in `/einstellungen` (nur ohne Runden/Befunde/Dokumente/Archiv-Fotos; Name eintippen, Paste blockiert, Server validiert; FK RESTRICT als Race-Netz). (4) **Tab „Verein"**: Model `Verein` (Singleton id=1) — Vereinsname, 1. Vorsitzende/r, Adresse, E-Mail, BV-E-Mail, IMAP/SMTP (Host[:Port]), Benutzername, Passwort (write-only, Klartext in lokaler DB — wandert ins Backup!), Logo-Upload (`logoSpeichern` in storage.ts: nur PNG/JPEG/WebP per Magic-Bytes, KEIN SVG = Stored-XSS; getrennt vom statischen `public/img/logo.png` — Zusammenführung später). (5) **Vorstand löschen** nach Sicherheitsfrage (teilnehmende-Strings sind Text-Snapshots; Schema-Kommentar angepasst). (6) **PII-Excel aus Git-Index entfernt** (`git rm --cached`; Dateien bleiben lokal). DB-Backups vor Mutationen: `~/Backups/begehungshelfer/`.
+
 ### Audit-Entscheidungen (gesetzt)
 - **Offline = Formular-Puffer:** online-first, aber offener Befund (Eingaben + Fotos) lokal im Browser puffern, Auto-Retry. Voll-PWA = Phase 2. (Stufe 2 ✅ — voll offline.)
 - **Historie = NICHT mehr eingefroren (geändert 2026-06-11):** Abschluss beendet die aktive Erfassung + erzeugt Berichte, aber Texte bleiben korrigierbar / Fotos löschbar (editierbare Begehungsansicht). „behoben" weiter via `Mangel.behobenAm`; Befund-Snapshot inkl. Adresse bleibt.
@@ -90,6 +92,8 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 - Dies ist ein Vereins-/Privatprojekt (nicht MAIQ).
 
 ## Offene Punkte
+- GO-Ziffer für Katalogpunkt „Mangelnde Zaunfreiheit" nachtragen (Gartenordnung.txt liegt nicht auf dieser Maschine; referenz-Feld leer).
+- Git-Historie enthält die PII-Excel noch aus dem Initial-Commit (Index bereinigt; Bereinigung via `git filter-repo` mit Sascha entscheiden).
 - Feldtest der neuen Feld-UI (Stufen-Buttons, Save-Status, 44px-Ziele) auf dem iPhone; danach `/impeccable critique`-Re-Run (Baseline: 27/23/21).
 - Cloudflare **Access** einrichten (app.begehungshelfer.de läuft bereits über Named Tunnel).
 - Backup-Routine (DB-Dump + Files → Dropbox) einrichten.

@@ -69,6 +69,25 @@ export async function dokumentSpeichern(
   return join(relDir, name);
 }
 
+// Vereinslogo unter verein/ ablegen. Nur Rasterformate (kein SVG — wäre als
+// same-origin Markup ein Stored-XSS-Vektor); Format wird per sharp aus den
+// Bytes bestimmt (Magic-Bytes, nicht Dateiname). Rückgabe: DB-Pfad oder null.
+export async function logoSpeichern(daten: Buffer): Promise<string | null> {
+  let format: string | undefined;
+  try {
+    format = (await sharp(daten).metadata()).format;
+  } catch {
+    return null;
+  }
+  if (!format || !["png", "jpeg", "webp"].includes(format)) return null;
+  const ext = format === "jpeg" ? "jpg" : format;
+  const relDir = "verein";
+  await mkdir(join(STORAGE_DIR, relDir), { recursive: true });
+  const name = `logo-${randomUUID()}.${ext}`;
+  await writeFile(join(STORAGE_DIR, relDir, name), daten);
+  return join(relDir, name);
+}
+
 // MIME-Typ nach Endung (für die Auslieferung).
 export function mimeFuer(relPfad: string): string {
   const ext = relPfad.split(".").pop()?.toLowerCase();

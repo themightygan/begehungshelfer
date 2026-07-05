@@ -37,10 +37,12 @@ const PLAN = { K: "/plaene/kuehwasen.jpg", S: "/plaene/silberwald.jpg" };
 // --- Mängelkatalog aus Formular_Gartenbegehung_neutral.pdf ---
 const KATALOG = [
   // Bereich Garten
-  ["Garten", "Gemüseanbaufläche", "nicht vorhanden / verunkrautet / zu gering / nicht bestellt", "UPV §4, §12"],
+  ["Garten", "Gemüseanbau: Unzureichender Anbau einjähriger Gemüsekulturen", "nicht vorhanden / verunkrautet / zu gering / nicht bestellt", "UPV §4, §12"],
   ["Garten", "Staudenrabatten", "", "UPV §4 / GO 1.2"],
   ["Garten", "Nicht eingehaltener Grenzabstand (Anpflanzung)", "", "UPV §4.2 / GO 1.2"],
-  ["Garten", "Nicht eingehaltener Sitzplatz-Grenzabstand / Anpflanzung entgegen GO", "", "UPV §4.2 / GO 1.2"],
+  ["Garten", "Nicht eingehaltener Sitzplatz-Grenzabstand", "", "UPV §4.2 / GO 1.2"],
+  ["Garten", "Anpflanzung entgegen GO", "", "UPV §4.2 / GO 1.2"],
+  ["Garten", "Mangelnde Zaunfreiheit", "", ""],
   ["Garten", "Vernachlässigter Pflegezustand", "", "UPV §4.1, §4.2, §4.5"],
   ["Garten", "Obstbaum-Bestand vernachlässigt", "", "UPV §4.2 / GO 2.1"],
   ["Garten", "Beerenobst vernachlässigt", "", "UPV §4.2 / GO 2.1"],
@@ -51,7 +53,7 @@ const KATALOG = [
   // Bereich Baulichkeiten und Nebenanlagen
   ["Baulichkeiten und Nebenanlagen", "Nicht eingehaltener Grenzabstand", "", "GO 4 ff."],
   ["Baulichkeiten und Nebenanlagen", "Laube – falsche Farbe", "", "UPV §4.4, §6 / GO 4.1"],
-  ["Baulichkeiten und Nebenanlagen", "Laube – unerlaubte bauliche Veränderung", "", "UPV §4.4, §6 / GO 4.1"],
+  ["Baulichkeiten und Nebenanlagen", "Laube – unerlaubter Bau / bauliche Veränderung", "", "UPV §4.4, §6 / GO 4.1"],
   ["Baulichkeiten und Nebenanlagen", "Laube – Unfallgefahr", "", "UPV §4.1 / GO 14.1"],
   ["Baulichkeiten und Nebenanlagen", "Überschreitung zulässige Terrassen-/Sitzplatzfläche", "max. 15 m²; befestigt max. 15 % der Parzelle", "UPV §4.2 / GO 4.6"],
   ["Baulichkeiten und Nebenanlagen", "Gerätekiste", "zu groß (max. 200×90×120 cm)", "UPV §4.2 / GO 4.4"],
@@ -67,6 +69,7 @@ const KATALOG = [
   ["Sonstiges", "Fehlende Umsetzung der Zusätze aus Pachtvertrag / Wertermittlung", "", "UPV §4.4 / §12"],
   ["Sonstiges", "Wasserschächte in schlechtem Zustand", "", "UPV §4.1 / GO 14.1"],
   ["Sonstiges", "Gartenteiche", "max. 6 m² Wasserfläche, 0,80 m Tiefe", "UPV §4.2 / GO 4.18"],
+  ["Sonstiges", "Unfallgefahr", "", "UPV §4.1 / GO 14.1"],
 ];
 
 async function main() {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { passwortHashen } from "@/lib/passwort";
+import { logoSpeichern, dateiLoeschen } from "@/lib/storage";
 
 // Einstellungen: Anlagen/Parzellen anlegen, Vorstand pflegen (inkl. Logins).
 // Alle Actions liefern FormState für Fehlermeldungen via useActionState.
@@ -57,6 +58,47 @@ export async function parzelleAnlegen(
   return { ok: true };
 }
 
+// Anlage endgültig löschen — nur ohne Historie (Runden/Befunde/Dokumente/
+// Archiv-Fotos/Parzellen-Änderungen), sonst Abbruch. Sicherheitsfrage: der
+// Anlagen-Name muss exakt eingetippt werden (Client blockiert Einfügen, Server
+// validiert). Checks + Delete in EINER Transaktion — kein Fenster, in dem
+// parallel angelegte Dokumente/Fotos per Cascade stumm mitgelöscht würden;
+// Runde/Befund sind zusätzlich ON DELETE RESTRICT.
+export async function anlageLoeschen(
+  anlageId: number,
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const anlage = await prisma.anlage.findUnique({ where: { id: anlageId } });
+  if (!anlage) return { fehler: "Anlage nicht gefunden." };
+
+  const bestaetigung = String(formData.get("bestaetigung") ?? "").trim();
+  if (bestaetigung !== anlage.name) {
+    return { fehler: "Bestätigung stimmt nicht mit dem Anlagen-Namen überein." };
+  }
+
+  const ergebnis = await prisma.$transaction(async (tx): Promise<FormState> => {
+    const runden = await tx.begehungsrunde.count({ where: { anlageId } });
+    const befunde = await tx.befund.count({ where: { parzelle: { anlageId } } });
+    const dokumente = await tx.dokument.count({ where: { parzelle: { anlageId } } });
+    const archivFotos = await tx.archivFoto.count({ where: { parzelle: { anlageId } } });
+    const aenderungen = await tx.parzelleAenderung.count({ where: { parzelle: { anlageId } } });
+    if (runden || befunde || dokumente || archivFotos || aenderungen) {
+      return {
+        fehler:
+          `Anlage „${anlage.name}" hat Historie (${runden} Runden, ${befunde} Befunde, ` +
+          `${dokumente} Dokumente, ${archivFotos} Archiv-Fotos, ${aenderungen} Parzellen-Änderungen) ` +
+          "und kann nicht gelöscht werden. Löschen ist nur für leere, versehentlich angelegte Anlagen gedacht.",
+      };
+    }
+    await tx.parzelle.deleteMany({ where: { anlageId } });
+    await tx.anlage.delete({ where: { id: anlageId } });
+    return { ok: true };
+  });
+  if (ergebnis.ok) revalidatePath("/einstellungen");
+  return ergebnis;
+}
+
 export async function vorstandAnlegen(_prev: FormState, formData: FormData): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { fehler: "Name fehlt." };
@@ -108,6 +150,80 @@ export async function vorstandAktualisieren(
     }
     throw e;
   }
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}
+
+// Vorstand endgültig löschen — die Sicherheitsfrage wird auch serverseitig
+// verlangt (bestaetigt=1 aus dem Bestätigungs-Formular). Gefahrlos für die
+// Historie: teilnehmende-Strings alter Runden sind reine Text-Snapshots.
+// Aussperren unmöglich — APP_USERS (.env) bleibt als Login-Fallback.
+export async function vorstandLoeschen(
+  id: number,
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  if (formData.get("bestaetigt") !== "1") return { fehler: "Löschen nicht bestätigt." };
+  const v = await prisma.vorstand.findUnique({ where: { id } });
+  if (!v) return { fehler: "Mitglied nicht gefunden." };
+  await prisma.vorstand.delete({ where: { id } });
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}
+
+// --- Vereins-Stammdaten (Singleton, id = 1) ---
+
+const VEREIN_DEFAULT = { id: 1 };
+
+export async function vereinSpeichern(_prev: FormState, formData: FormData): Promise<FormState> {
+  const feld = (name: string) => String(formData.get(name) ?? "").trim();
+  const daten: Record<string, string> = {
+    name: feld("name"),
+    vorsitzender: feld("vorsitzender"),
+    adresse: String(formData.get("adresse") ?? "").trim(), // mehrzeilig
+    email: feld("email").toLowerCase(),
+    emailBenutzer: feld("emailBenutzer"),
+    imapServer: feld("imapServer"),
+    smtpServer: feld("smtpServer"),
+    bezirksverbandEmail: feld("bezirksverbandEmail").toLowerCase(),
+  };
+  // Passwort write-only: leer = unverändert; Checkbox löscht es.
+  const passwortNeu = String(formData.get("passwortNeu") ?? "");
+  if (formData.get("passwortEntfernen") === "1") daten.emailPasswort = "";
+  else if (passwortNeu) daten.emailPasswort = passwortNeu;
+
+  await prisma.verein.upsert({
+    where: { id: 1 },
+    update: daten,
+    create: { ...VEREIN_DEFAULT, ...daten },
+  });
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}
+
+export async function vereinLogoHochladen(_prev: FormState, formData: FormData): Promise<FormState> {
+  const datei = formData.get("logo");
+  if (!(datei instanceof File) || datei.size === 0) return { fehler: "Keine Datei gewählt." };
+  if (datei.size > 2 * 1024 * 1024) return { fehler: "Logo zu groß (max. 2 MB)." };
+  const pfad = await logoSpeichern(Buffer.from(await datei.arrayBuffer()));
+  if (!pfad) return { fehler: "Kein gültiges Bild — erlaubt sind PNG, JPEG oder WebP." };
+
+  const alt = await prisma.verein.findUnique({ where: { id: 1 } });
+  await prisma.verein.upsert({
+    where: { id: 1 },
+    update: { logoPfad: pfad },
+    create: { ...VEREIN_DEFAULT, logoPfad: pfad },
+  });
+  if (alt?.logoPfad) await dateiLoeschen(alt.logoPfad);
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}
+
+export async function vereinLogoEntfernen(_prev: FormState, _formData: FormData): Promise<FormState> {
+  const verein = await prisma.verein.findUnique({ where: { id: 1 } });
+  if (!verein?.logoPfad) return { fehler: "Kein Logo vorhanden." };
+  await prisma.verein.update({ where: { id: 1 }, data: { logoPfad: null } });
+  await dateiLoeschen(verein.logoPfad);
   revalidatePath("/einstellungen");
   return { ok: true };
 }

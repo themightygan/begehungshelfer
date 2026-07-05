@@ -217,7 +217,8 @@ model ArchivFoto {
 
 // Vorstandsmitglieder: Teilnehmerliste für Begehungen + optionale Logins
 // (E-Mail + Passwort gesetzt => Anmeldung möglich). Pflege via /einstellungen.
-// Deaktivieren statt löschen — Namen stehen in alten teilnehmende-Strings.
+// Löschen ist erlaubt (nach Sicherheitsfrage) — alte teilnehmende-Strings sind
+// reine Text-Snapshots, keine Relation. Alternativ: deaktivieren.
 model Vorstand {
   id           Int     @id @default(autoincrement())
   name         String  @unique
@@ -226,6 +227,25 @@ model Vorstand {
   passwortSalt String? // hex
   aktiv        Boolean @default(true)
   sortierung   Int     @default(0) // Vereinsnummerierung
+}
+
+// Vereins-Stammdaten (Singleton, immer id = 1): für Briefkopf/Berichte und
+// späteren Mail-Versand. imap/smtpServer als "host" oder "host:port";
+// emailBenutzer = Postfach-Login (leer => email). emailPasswort liegt im
+// Klartext in der lokalen SQLite (nötig für SMTP/IMAP; DB bleibt auf dem
+// Mac Mini — Achtung: wandert mit ins Backup).
+model Verein {
+  id                  Int    @id @default(1)
+  name                String @default("")
+  vorsitzender        String @default("") // 1. Vorsitzende/r
+  adresse             String @default("") // mehrzeilig
+  email               String @default("")
+  emailBenutzer       String @default("")
+  emailPasswort       String @default("")
+  imapServer          String @default("")
+  smtpServer          String @default("")
+  logoPfad            String? // relativ zu STORAGE_DIR (verein/…)
+  bezirksverbandEmail String @default("")
 }
 
 // Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular

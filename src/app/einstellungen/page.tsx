@@ -2,18 +2,26 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { AktionsForm } from "./AktionsForm";
+import { AnlageLoeschen } from "./AnlageLoeschen";
+import { VorstandLoeschen } from "./VorstandLoeschen";
 import {
   anlageAnlegen,
   anlageUmbenennen,
+  anlageLoeschen,
   parzelleAnlegen,
   vorstandAnlegen,
   vorstandAktualisieren,
+  vorstandLoeschen,
+  vereinSpeichern,
+  vereinLogoHochladen,
+  vereinLogoEntfernen,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-// Einstellungen: Parzellen (Anlagen + Parzellen anlegen) und Vorstand
-// (Teilnehmerliste + optionale Logins). Zugriff nur eingeloggt (Middleware).
+// Einstellungen: Parzellen (Anlagen + Parzellen anlegen/löschen), Vorstand
+// (Teilnehmerliste + optionale Logins) und Vereins-Stammdaten (Briefkopf,
+// Mail-Zugang, Logo). Zugriff nur eingeloggt (Middleware).
 
 const CARD = "rounded-lg border border-stone-200 bg-white p-4";
 const INP = "rounded border border-stone-300 px-3 py-1.5 text-sm";
@@ -23,7 +31,8 @@ export default async function EinstellungenSeite({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const tab = (await searchParams).tab === "vorstand" ? "vorstand" : "parzellen";
+  const tabParam = (await searchParams).tab;
+  const tab = tabParam === "vorstand" || tabParam === "verein" ? tabParam : "parzellen";
   const tabKlasse = (aktiv: boolean) =>
     `rounded px-3 py-1.5 text-sm font-medium ${
       aktiv ? "bg-emerald-700 text-white" : "border border-stone-300 hover:bg-stone-100"
@@ -39,9 +48,10 @@ export default async function EinstellungenSeite({
       <div className="flex gap-2">
         <Link href="/einstellungen" className={tabKlasse(tab === "parzellen")}>Parzellen</Link>
         <Link href="/einstellungen?tab=vorstand" className={tabKlasse(tab === "vorstand")}>Vorstand</Link>
+        <Link href="/einstellungen?tab=verein" className={tabKlasse(tab === "verein")}>Verein</Link>
       </div>
 
-      {tab === "parzellen" ? <ParzellenTab /> : <VorstandTab />}
+      {tab === "parzellen" ? <ParzellenTab /> : tab === "vorstand" ? <VorstandTab /> : <VereinTab />}
     </div>
   );
 }
@@ -76,6 +86,13 @@ async function ParzellenTab() {
             <input type="text" name="index" placeholder="Zusatz (a)" maxLength={2} className={`w-24 ${INP}`} />
             <span className="text-xs text-stone-600">startet unverpachtet — Pächter in der Akte pflegen</span>
           </AktionsForm>
+          <div className="border-t border-stone-100 pt-3">
+            <AnlageLoeschen
+              action={anlageLoeschen.bind(null, a.id)}
+              name={a.name}
+              parzellen={a._count.parzellen}
+            />
+          </div>
         </section>
       ))}
 
@@ -145,6 +162,13 @@ async function VorstandTab() {
                   )}
                 </div>
               </AktionsForm>
+              <div className="mt-2">
+                <VorstandLoeschen
+                  action={vorstandLoeschen.bind(null, v.id)}
+                  name={v.name}
+                  hatLogin={Boolean(v.passwortHash)}
+                />
+              </div>
             </li>
           ))}
         </ul>
@@ -158,6 +182,104 @@ async function VorstandTab() {
           submitLabel="+ Mitglied anlegen"
         >
           <input type="text" name="name" placeholder="Name" required className={`w-64 ${INP}`} />
+        </AktionsForm>
+      </section>
+    </div>
+  );
+}
+
+async function VereinTab() {
+  const verein = await prisma.verein.findUnique({ where: { id: 1 } });
+  const FELD = "block text-sm";
+  const LABEL = "mb-1 block text-sm text-stone-600";
+
+  return (
+    <div className="space-y-4">
+      <section className={`${CARD} space-y-1`}>
+        <h2 className="text-base font-medium">Vereins-Stammdaten</h2>
+        <p className="text-sm text-stone-500">
+          Für Briefkopf, Berichte und späteren E-Mail-Versand aus der App.
+        </p>
+        <AktionsForm action={vereinSpeichern} className="mt-2 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={FELD}>
+              <span className={LABEL}>Name des Vereins</span>
+              <input type="text" name="name" defaultValue={verein?.name ?? ""} className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>1. Vorsitzende/r</span>
+              <input type="text" name="vorsitzender" defaultValue={verein?.vorsitzender ?? ""} className={`w-full ${INP}`} />
+            </label>
+          </div>
+          <label className={FELD}>
+            <span className={LABEL}>Adresse (mehrzeilig)</span>
+            <textarea name="adresse" rows={3} defaultValue={verein?.adresse ?? ""} className={`w-full ${INP}`} />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={FELD}>
+              <span className={LABEL}>E-Mail des Vereins</span>
+              <input type="email" name="email" defaultValue={verein?.email ?? ""} className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>E-Mail des Bezirksverbands</span>
+              <input type="email" name="bezirksverbandEmail" defaultValue={verein?.bezirksverbandEmail ?? ""} className={`w-full ${INP}`} />
+            </label>
+          </div>
+
+          <h3 className="border-t border-stone-100 pt-3 text-sm font-medium">Mail-Zugang (IMAP/SMTP)</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={FELD}>
+              <span className={LABEL}>IMAP-Server (Host oder Host:Port)</span>
+              <input type="text" name="imapServer" defaultValue={verein?.imapServer ?? ""} placeholder="z. B. imap.example.de:993" className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>SMTP-Server (Host oder Host:Port)</span>
+              <input type="text" name="smtpServer" defaultValue={verein?.smtpServer ?? ""} placeholder="z. B. smtp.example.de:587" className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>Benutzername (leer = E-Mail des Vereins)</span>
+              <input type="text" name="emailBenutzer" defaultValue={verein?.emailBenutzer ?? ""} autoComplete="off" className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>
+                Passwort {verein?.emailPasswort ? "(gesetzt — leer lassen = unverändert)" : "(nicht gesetzt)"}
+              </span>
+              <input type="password" name="passwortNeu" autoComplete="new-password" className={`w-full ${INP}`} />
+            </label>
+          </div>
+          {verein?.emailPasswort ? (
+            <label className="flex items-center gap-1.5 text-sm text-red-600">
+              <input type="checkbox" name="passwortEntfernen" value="1" />
+              Passwort entfernen
+            </label>
+          ) : null}
+        </AktionsForm>
+      </section>
+
+      <section className={`${CARD} space-y-2`}>
+        <h2 className="text-base font-medium">Vereinslogo</h2>
+        {verein?.logoPfad ? (
+          <div className="flex flex-wrap items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/datei/${verein.logoPfad}`}
+              alt="Aktuelles Vereinslogo"
+              className="max-h-24 rounded border border-stone-200 bg-white p-1"
+            />
+            <AktionsForm action={vereinLogoEntfernen} submitLabel="Logo entfernen">
+              {null}
+            </AktionsForm>
+          </div>
+        ) : (
+          <p className="text-sm text-stone-500">Noch kein Logo hochgeladen.</p>
+        )}
+        <AktionsForm
+          action={vereinLogoHochladen}
+          className="flex flex-wrap items-center gap-2"
+          submitLabel="Logo hochladen"
+        >
+          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="text-sm" />
+          <span className="text-xs text-stone-600">PNG, JPEG oder WebP, max. 2 MB</span>
         </AktionsForm>
       </section>
     </div>
