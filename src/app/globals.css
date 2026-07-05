@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+/* Semantische Farb-Tokens (Namen aus DESIGN.md). Neuer Code nutzt diese
+   Namen (z. B. text-tinte-gedaempft, bg-gruen-beet); die bestehenden
+   stone/emerald/amber/red-Klassen sind deren exakte Entsprechung.
+   Zwei-Grau-Regel: lesbarer Text NUR tinte oder tinte-gedaempft;
+   tinte-leise nur für Meta (Zeitstempel, Zähler). */
+@theme {
+  --color-tinte: var(--color-stone-900);
+  --color-tinte-gedaempft: var(--color-stone-600);
+  --color-tinte-leise: var(--color-stone-500);
+  --color-papier: var(--color-stone-50);
+  --color-hauch: var(--color-stone-100);
+  --color-rand: var(--color-stone-200);
+  --color-rand-stark: var(--color-stone-300);
+  --color-vereinsgruen: var(--color-emerald-700);
+  --color-vereinsgruen-dunkel: var(--color-emerald-800);
+  --color-gruen-tinte: var(--color-emerald-900);
+  --color-gruen-beet: var(--color-emerald-50);
+  --color-gruen-rand: var(--color-emerald-300);
+  --color-warn-tinte: var(--color-amber-800);
+  --color-warn-beet: var(--color-amber-50);
+  --color-warn-rand: var(--color-amber-300);
+  --color-alarm-tinte: var(--color-red-700);
+  --color-alarm-beet: var(--color-red-50);
+  --color-alarm-rand: var(--color-red-300);
+}
+
 :root {
   color-scheme: light;
 }

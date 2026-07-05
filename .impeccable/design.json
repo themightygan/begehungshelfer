@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-05T12:00:00+02:00",
+  "title": "Design System: Begehungshelfer",
+  "extensions": {
+    "colorMeta": {
+      "vereinsgruen": {
+        "role": "primary",
+        "displayName": "Vereinsgrün",
+        "canonical": "emerald-700 (Tailwind v4)",
+        "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#6ee7b7", "#ecfdf5"]
+      },
+      "tinte": {
+        "role": "neutral",
+        "displayName": "Tinte",
+        "canonical": "stone-900 (Tailwind v4)",
+        "tonalRamp": ["#1c1917", "#292524", "#44403c", "#57534e", "#78716c", "#a8a29e", "#d6d3d1", "#fafaf9"]
+      },
+      "warn-amber": {
+        "role": "secondary",
+        "displayName": "Warn-Amber",
+        "canonical": "amber-800 (Tailwind v4)",
+        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fffbeb"]
+      },
+      "alarm-rot": {
+        "role": "secondary",
+        "displayName": "Alarm-Rot",
+        "canonical": "red-600 (Tailwind v4)",
+        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fef2f2"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Seiten- und Kartentitel — bewusst bescheiden." },
+      "body": { "displayName": "Body", "purpose": "Fließtext und Eingabefelder (min. 1rem gegen iOS-Zoom)." },
+      "label": { "displayName": "Label", "purpose": "Feld-Beschriftungen, Knöpfe, Tabellen, Chips — das Arbeitstier." }
+    },
+    "shadows": [
+      { "name": "schwebend", "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", "purpose": "NUR für über der Seite schwebende Panels und Dialoge (Flach-mit-Rand-Regel)." }
+    ],
+    "motion": [
+      { "name": "zustandswechsel", "value": "150ms ease-out", "purpose": "Hover-/Fokus-Übergänge. Keine dekorative Motion, keine Einflug-Choreografie." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Hauptaktion — Vereinsgrün-Vollton, dunkelt bei Hover ab.",
+      "html": "<button class=\"ds-btn-primary\">→ Begehung fortsetzen</button>",
+      "css": ".ds-btn-primary { background: #047857; color: #ffffff; padding: 6px 12px; font: 500 0.875rem/1.4 ui-sans-serif, system-ui, sans-serif; border: none; border-radius: 4px; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-primary:hover { background: #065f46; } .ds-btn-primary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neben- und Werkzeugaktionen — weiße Fläche mit starkem Rand.",
+      "html": "<button class=\"ds-btn-secondary\">Abmelden</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #1c1917; padding: 6px 12px; font: 500 0.875rem/1.4 ui-sans-serif, system-ui, sans-serif; border: 1px solid #d6d3d1; border-radius: 4px; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-secondary:hover { background: #f5f5f4; } .ds-btn-secondary:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }"
+    },
+    {
+      "name": "Katalog-Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Mängelkatalog-Auswahl und Filter; ausgewählt = Grün-Beet.",
+      "html": "<span><button class=\"ds-chip\">Hecke zu hoch</button> <button class=\"ds-chip ds-chip--aktiv\">Beet-Quote</button></span>",
+      "css": ".ds-chip { background: #ffffff; color: #1c1917; padding: 4px 12px; font: 500 0.875rem/1.4 ui-sans-serif, system-ui, sans-serif; border: 1px solid #d6d3d1; border-radius: 4px; cursor: pointer; transition: background 150ms ease-out; } .ds-chip:hover { background: #f5f5f4; } .ds-chip--aktiv { background: #ecfdf5; border-color: #6ee7b7; color: #064e3b; }"
+    },
+    {
+      "name": "Karte",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Ruhender Container — Rand statt Schatten.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-titel\">Begehung starten</h3><p class=\"ds-card-text\">Anlage und Teilnehmer wählen, dann geht es los.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e7e5e4; border-radius: 8px; padding: 16px; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-card-titel { margin: 0 0 8px; font: 600 1.125rem/1.4 ui-sans-serif, system-ui, sans-serif; color: #1c1917; } .ds-card-text { margin: 0; font: 400 1rem/1.5 ui-sans-serif, system-ui, sans-serif; color: #57534e; }"
+    },
+    {
+      "name": "Eingabefeld",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Auto-Save-Feld — min. 1rem Schrift, grüner Fokusring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Bemerkung zur Parzelle…\" />",
+      "css": ".ds-input { background: #ffffff; color: #1c1917; padding: 8px 12px; font: 400 1rem/1.5 ui-sans-serif, system-ui, sans-serif; border: 1px solid #d6d3d1; border-radius: 4px; width: 100%; box-sizing: border-box; } .ds-input::placeholder { color: #78716c; } .ds-input:focus-visible { outline: 2px solid #047857; outline-offset: -1px; border-color: #047857; }"
+    },
+    {
+      "name": "Zustands-Callout",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Getönte Beet-Fläche mit Rand und dunkler Tinte derselben Farbfamilie (Grün/Amber/Rot).",
+      "html": "<div class=\"ds-callout\"><p class=\"ds-callout-text\">Es läuft eine Begehung.</p></div>",
+      "css": ".ds-callout { background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 16px; } .ds-callout-text { margin: 0; font: 500 0.875rem/1.4 ui-sans-serif, system-ui, sans-serif; color: #064e3b; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Das gepflegte Beet",
+    "overview": "Ordnung mit Wärme. Wie ein gut geführter Kleingarten ist die Oberfläche in klare Reihen gegliedert — viel Luft zwischen den Blöcken, saubere Ränder, nichts wuchert. Das satte Vereinsgrün ist Identität und Funktionsfarbe zugleich; es markiert Aktionen und den Zustand „in Ordnung", nie Dekoration. Das System dient zwei Welten: dem Feld (iPhone bei Sonnenlicht, eine Hand, Sekunden pro Eingabe) und dem Schreibtisch (Berichte, Auswertung, Akte). Das Feld gewinnt jeden Konflikt: Kontrast schlägt Eleganz, Fläche schlägt Dichte, Vertrautheit schlägt Originalität.",
+    "keyCharacteristics": [
+      "Flach und randbasiert — Tiefe durch Ränder und Tönung, fast keine Schatten",
+      "Eine Schriftfamilie (System-Sans), enge, feste rem-Skala",
+      "Grün/Amber/Rot ausschließlich als Zustandssprache (Eskalations-Ampel)",
+      "Große Touch-Ziele, Auto-Save, keine dekorative Motion"
+    ],
+    "rules": [
+      { "name": "Die Ampel-Regel", "body": "Grün, Amber und Rot sind Zustandssprache der Eskalationsstufen und Mangel-Status. Sie werden niemals dekorativ eingesetzt.", "section": "colors" },
+      { "name": "Die Zwei-Grau-Regel", "body": "Lesbarer Text kennt genau zwei Stufen: Tinte (#1c1917) und Tinte gedämpft (#57534e). stone-400 und heller sind für Text verboten; stone-500 nur für Meta-Angaben.", "section": "colors" },
+      { "name": "Die Kein-Grau-auf-Farbe-Regel", "body": "Auf getönten oder farbigen Flächen schreibt immer die dunkle Tinte derselben Farbfamilie oder Weiß auf Vollton — nie ein neutrales Grau.", "section": "colors" },
+      { "name": "Die 16-Pixel-Regel", "body": "Eingabefelder haben mindestens 1rem Schriftgröße, sonst zoomt iOS beim Fokus die ganze Seite.", "section": "typography" },
+      { "name": "Die Flach-mit-Rand-Regel", "body": "Ruht ein Element auf der Seite, trägt es einen Rand und keinen Schatten. Schwebt es über der Seite (Dialog, Panel), trägt es einen Schatten. Es gibt nichts dazwischen.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do Kontrast vor Eleganz: lesbarer Text nur in Tinte (#1c1917) oder Tinte gedämpft (#57534e) — die App wird bei Sonnenlicht benutzt.",
+      "Do Touch-Ziele im Feld-Modus min. 44×44px; Eingabefelder min. 1rem Schrift.",
+      "Do dieselbe Komponente überall gleich: ein Primary-Button, eine Chip-Form, eine Karten-Kontur — Wiedererkennung ist ein Feature.",
+      "Do Zustands-Callouts als getönte Beet-Fläche mit Rand und dunkler Tinte derselben Farbfamilie.",
+      "Do deutsches, direktes UI-Wording ohne Anglizismen („Begehung fortsetzen", nicht „Continue Session")."
+    ],
+    "donts": [
+      "Don't Grau auf Farbflächen schreiben (Kein-Grau-auf-Farbe-Regel).",
+      "Don't die verspielte Consumer-App bauen: keine Gamification, keine Maskottchen, kein Confetti, keine dekorative Motion.",
+      "Don't das altbackene Behörden-Formular bauen: keine grauen Tabellenwüsten, keine winzigen Klickziele.",
+      "Don't neue Emojis als Icons einführen — das Emoji-Provisorium wird durch ein echtes Icon-Set abgelöst, nicht erweitert (Stufen-Symbole ausgenommen).",
+      "Don't Grün, Amber oder Rot dekorativ verwenden (Ampel-Regel).",
+      "Don't Schatten auf ruhenden Elementen, Seitenstreifen-Ränder, Gradient-Text oder Karten-in-Karten."
+    ]
+  }
+}

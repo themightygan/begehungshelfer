@@ -28,6 +28,11 @@ prisma/dev.db*
 *.sql.gz
 backups/
 
+# --- Maschinen-lokale Tool-Configs (Impeccable/Claude — nicht teilen) ---
+.claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/live/sessions/
+
 # --- OS / Editor ---
 .DS_Store
 .vscode/
