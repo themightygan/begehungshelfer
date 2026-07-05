@@ -1,19 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFEN } from "@/lib/constants";
+import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, BEFUND_STATUS, BEFUND_STATUS_LABEL } from "@/lib/constants";
+import { hatDaten } from "@/lib/auswertung";
 import { istNeupaechter } from "@/lib/paechter";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
+import { BeetZelle } from "@/components/BeetZelle";
 import {
   aktualisiereBefund,
   aktualisiereKompensation,
   aktualisiereMangel,
   aktualisiereBeet,
   fotosNachtraeglich,
+  setzeFristAlle,
+  loescheMangel,
+  mangelHinzufuegenNachtraeglich,
 } from "./actions";
 import { FotoZone } from "./FotoZone";
+import { FristAlle } from "./FristAlle";
 import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
 import { AutoSaveForm } from "@/components/AutoSaveForm";
+import { ConfirmButton } from "@/app/begehung/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -50,12 +57,22 @@ function FotoNachreichen({
 
 export default async function AnsichtSeite({
   params,
+  searchParams,
 }: {
   params: Promise<{ rundeId: string; parzelleId: string }>;
+  searchParams: Promise<{ von?: string }>;
 }) {
   const { rundeId: rundeIdStr, parzelleId } = await params;
   const rundeId = Number(rundeIdStr);
   const pfad = `/begehung/ansicht/${rundeId}/${parzelleId}`;
+  // Herkunft (kombinierte Jahres-Ansicht): nur die eine erlaubte Form
+  // durchlassen, sonst Standard-Rücksprung zur Runden-Tabelle.
+  const vonRaw = (await searchParams).von ?? "";
+  const von = /^jahr=\d{4}&anlage=[A-Za-z]+$/.test(vonRaw) ? vonRaw : null;
+  const vonSuffix = von ? `?von=${encodeURIComponent(von)}` : "";
+  const zurueck = von
+    ? `/auswertung?${von}#p-${parzelleId}`
+    : `/auswertung?rundeId=${rundeId}#p-${parzelleId}`;
   const parzelle = await prisma.parzelle.findUnique({
     where: { parzelleId },
     include: { anlage: true },
@@ -71,6 +88,31 @@ export default async function AnsichtSeite({
     },
   });
   if (!runde || !befund) notFound();
+
+  // Katalog fürs nachträgliche Ergänzen von Mängeln.
+  const katalog = await prisma.katalog.findMany({
+    where: { aktiv: true },
+    orderBy: { sortierung: "asc" },
+  });
+  const katalogBereiche = new Map<string, typeof katalog>();
+  for (const k of katalog) {
+    let arr = katalogBereiche.get(k.bereich);
+    if (!arr) katalogBereiche.set(k.bereich, (arr = []));
+    arr.push(k);
+  }
+
+  // Andere Begehungen dieser Parzelle (mit Daten) — zum schnellen Hineinspringen.
+  const andereBefunde = (
+    await prisma.befund.findMany({
+      where: { parzelleId: parzelle.id, NOT: { rundeId } },
+      include: {
+        runde: { select: { id: true, datum: true } },
+        beete: { select: { flaecheM2: true } },
+        _count: { select: { maengel: true, fotos: true } },
+      },
+      orderBy: { runde: { datum: "desc" } },
+    })
+  ).filter(hatDaten);
 
   const zustandFotos = befund.fotos.filter((f) => f.kontext === "zustand");
   const kompFotos = befund.fotos.filter((f) => f.kontext === "kompensation");
@@ -99,7 +141,7 @@ export default async function AnsichtSeite({
           <Link href={`/parzellen/${parzelle.parzelleId}`} className="text-emerald-700 hover:underline">
             ← Parzellen-Akte
           </Link>
-          <Link href={`/auswertung?rundeId=${rundeId}`} className="text-emerald-700 hover:underline">
+          <Link href={zurueck} className="text-emerald-700 hover:underline">
             ← Auswertung
           </Link>
         </div>
@@ -107,7 +149,19 @@ export default async function AnsichtSeite({
 
       {/* Befund (editierbar, Auto-Save) */}
       <AutoSaveForm action={aktualisiereBefund.bind(null, befund.id, pfad)} className={`${CARD} space-y-3`}>
-        <h2 className="text-base font-medium text-stone-600">Befund</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-medium text-stone-600">Befund</h2>
+          <label className="flex items-center gap-2 text-sm text-stone-600">
+            Bearbeitung
+            <select name="status" defaultValue={befund.status} className={INP}>
+              {BEFUND_STATUS.map((s) => (
+                <option key={s.wert} value={s.wert}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <label className="block text-base">
           <span className="text-stone-600">Eskalationsstufe</span>
           <select name="stufe" defaultValue={befund.stufe} className={`mt-1 block w-full ${INP}`}>
@@ -205,16 +259,36 @@ export default async function AnsichtSeite({
 
       {/* Mängel (editierbar) */}
       <section className={CARD}>
-        <h2 className="text-base font-medium text-stone-600">
-          Festgestellte Mängel ({befund.maengel.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-medium text-stone-600">
+            Festgestellte Mängel ({befund.maengel.length})
+          </h2>
+          {befund.maengel.length > 0 && (
+            <FristAlle
+              hatFristen={befund.maengel.some((m) => m.frist !== null)}
+              action={setzeFristAlle.bind(null, befund.id, pfad)}
+            />
+          )}
+        </div>
         {befund.maengel.length === 0 ? (
           <p className="mt-1 text-base text-stone-400">Keine Mängel erfasst.</p>
         ) : (
           <ul className="mt-2 space-y-4">
             {befund.maengel.map((m) => (
               <li key={m.id} className="border-t border-stone-100 pt-3">
-                <p className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</p>
+                  {/* Eigenes Formular (Geschwister der AutoSaveForm — die würde
+                      einen Submit abfangen und stattdessen speichern). */}
+                  <form action={loescheMangel.bind(null, m.id, pfad)}>
+                    <ConfirmButton
+                      message="Diesen Mangel wirklich löschen? Notiz, Frist und Fotos des Mangels werden entfernt."
+                      className="rounded px-2 py-0.5 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Mangel löschen
+                    </ConfirmButton>
+                  </form>
+                </div>
                 <p className="text-base font-medium">
                   {m.punkt || "(Freitext-Mangel)"}
                   <span className="ml-2 text-sm font-normal text-stone-400">
@@ -238,7 +312,9 @@ export default async function AnsichtSeite({
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="text-base text-stone-600">
                       Frist
-                      <input type="date" name="frist" defaultValue={fristWert(m.frist)} className={`ml-2 ${INP}`} />
+                      {/* key = Serverwert: remountet das (uncontrolled) Feld nach
+                          router.refresh, damit die zentrale Frist sichtbar wird */}
+                      <input key={fristWert(m.frist)} type="date" name="frist" defaultValue={fristWert(m.frist)} className={`ml-2 ${INP}`} />
                     </label>
                   </div>
                 </AutoSaveForm>
@@ -248,6 +324,46 @@ export default async function AnsichtSeite({
             ))}
           </ul>
         )}
+
+        {/* Mangel nachträglich ergänzen (EIN Submit; bewusst kein FotoWaehlenKnopf —
+            der schickt das Formular schon bei der Dateiauswahl ab). */}
+        <form
+          action={mangelHinzufuegenNachtraeglich.bind(null, befund.id, pfad)}
+          className="mt-4 space-y-2 border-t border-stone-200 pt-3"
+        >
+          <p className="text-sm font-medium text-stone-600">Mangel hinzufügen</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select name="katalogId" defaultValue="" className={INP}>
+              <option value="">Freitext…</option>
+              {[...katalogBereiche.entries()].map(([bereich, punkte]) => (
+                <optgroup key={bereich} label={bereich}>
+                  {punkte.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.punkt}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <input
+              type="text"
+              name="punkt"
+              placeholder="Bezeichnung (nur bei Freitext)"
+              className={INP}
+            />
+          </div>
+          <textarea name="notiz" rows={2} placeholder="Maßnahme / Beschreibung" className={`block w-full ${INP}`} />
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-base text-stone-600">
+              Frist
+              <input type="date" name="frist" className={`ml-2 ${INP}`} />
+            </label>
+            <input type="file" name="fotos" accept="image/*" multiple className="text-sm" />
+          </div>
+          <button className="rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800">
+            + Mangel hinzufügen
+          </button>
+        </form>
       </section>
 
       <a
@@ -258,6 +374,42 @@ export default async function AnsichtSeite({
       >
         📄 Bericht-PDF
       </a>
+
+      {/* Andere Begehungen dieser Parzelle (Kurzzeile + Sprunglink) */}
+      {andereBefunde.length > 0 && (
+        <section className={CARD}>
+          <h2 className="text-base font-medium text-stone-600">
+            Weitere Begehungen dieser Parzelle
+          </h2>
+          <ul className="mt-2 space-y-1">
+            {andereBefunde.map((b) => (
+              <li key={b.id} className="border-t border-stone-100">
+                <Link
+                  href={`/begehung/ansicht/${b.rundeId}/${parzelle.parzelleId}${vonSuffix}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-stone-50"
+                >
+                  <span className="font-medium text-emerald-700">
+                    {new Date(b.runde.datum).toLocaleDateString("de-DE")}
+                  </span>
+                  <span>
+                    Beet <BeetZelle
+                      ist={b.beete.reduce((s, x) => s + x.flaecheM2, 0)}
+                      soll={soll}
+                      komp={b.kompensationAusreichend}
+                    />
+                  </span>
+                  <span>{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</span>
+                  <span>Plakette: {b.gutGemacht ? "👍 ja" : "nein"}</span>
+                  <span>{b._count.maengel === 1 ? "1 Mangel" : `${b._count.maengel} Mängel`}</span>
+                  <span className="text-stone-500">
+                    {BEFUND_STATUS_LABEL[b.status] ?? b.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

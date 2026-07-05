@@ -110,6 +110,7 @@ try {
   // 4) beetUpsert + befund + kompensation
   const beetUid = randomUUID();
   const b1 = await sync({ art: "beetUpsert", uid: beetUid, bezeichnung: "Beet T", flaecheM2: 12.5 });
+  // bewusst Alt-Wert "hinweis" senden -> testet die Legacy-Abbildung auf "mitteilung"
   const b2 = await sync({ art: "befund", stufe: "hinweis", notiz: "Befund-Notiz", gutGemacht: true, plakettenNotiz: "Top" });
   const b3 = await sync({ art: "kompensation", obstAnzahl: 3, obstFlaecheM2: 30, beerenAnzahl: 0, beerenFlaecheM2: 0, notiz: "K", ausreichend: true });
   const befund = await prisma.befund.findFirst({ where: { rundeId: runde.id }, include: { beete: true } });
@@ -117,7 +118,7 @@ try {
     "beetUpsert + befund + kompensation angewandt",
     b1.status === 200 && b2.status === 200 && b3.status === 200 &&
       befund?.beete.some((x) => x.uid === beetUid && x.flaecheM2 === 12.5) &&
-      befund?.stufe === "hinweis" && befund?.gutGemacht === true &&
+      befund?.stufe === "mitteilung" && befund?.gutGemacht === true &&
       befund?.kompObstAnzahl === 3 && befund?.kompensationAusreichend === true,
     `stufe ${befund?.stufe}, beete ${befund?.beete.length}`
   );

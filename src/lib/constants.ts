@@ -5,23 +5,50 @@
 export const STUFEN = [
   { wert: "neutral", label: "—" },
   { wert: "ok", label: "OK / nichts zu beanstanden" },
-  { wert: "hinweis", label: "Hinweis" },
+  { wert: "gespraech", label: "Mündliches Gespräch" },
+  { wert: "mitteilung", label: "Mitteilung" },
   { wert: "abmahnung_1", label: "1. Abmahnung" },
   { wert: "abmahnung_2", label: "2. Abmahnung" },
   { wert: "kuendigung", label: "Kündigung" },
 ] as const;
 export type StufeWert = (typeof STUFEN)[number]["wert"];
-export const STUFE_LABEL = Object.fromEntries(STUFEN.map((s) => [s.wert, s.label]));
+export const STUFE_LABEL: Record<string, string> = {
+  ...Object.fromEntries(STUFEN.map((s) => [s.wert, s.label])),
+  // Alt-Wert vor Migration 2026-07 (hinweis -> mitteilung): kann noch in alten
+  // IndexedDB-Snapshots offline-Clients stecken — nur Anzeige, nie speichern.
+  hinweis: "Mitteilung",
+};
+
+// Alt-Wert "hinweis" auf den heutigen Wert abbilden (Migration 2026-07).
+// Anwenden überall dort, wo Client-Eingaben in die DB geschrieben werden.
+export const normalisiereStufe = (s: string) => (s === "hinweis" ? "mitteilung" : s);
 
 // Symbol je Eskalationsstufe (zur schnellen visuellen Einordnung).
 export const STUFE_SYMBOL: Record<string, string> = {
   neutral: "",
   ok: "✅",
-  hinweis: "ℹ️",
+  gespraech: "💬",
+  mitteilung: "ℹ️",
+  hinweis: "ℹ️", // Alt-Wert, s. STUFE_LABEL
   abmahnung_1: "⚠️",
   abmahnung_2: "⛔",
   kuendigung: "🛑",
 };
+
+// Nachbearbeitungs-Status je Befund (was ist nach der Begehung erfolgt?).
+// Wird am Schreibtisch gepflegt — NICHT Teil der Offline-Erfassung/des Sync.
+export const BEFUND_STATUS = [
+  { wert: "offen", label: "offen" },
+  { wert: "muendlich", label: "Mündlicher Hinweis gegeben" },
+  { wert: "hinweis_versendet", label: "Hinweis versendet" },
+  { wert: "abmahnung_versendet", label: "Abmahnung versendet" },
+  { wert: "abmahnung_bv", label: "Abmahnung durch BV" },
+  { wert: "kuendigung_paechter", label: "Kündigung durch Pächter" },
+  { wert: "kuendigung_bv", label: "Kündigung durch BV" },
+] as const;
+export const BEFUND_STATUS_LABEL: Record<string, string> = Object.fromEntries(
+  BEFUND_STATUS.map((s) => [s.wert, s.label])
+);
 
 export const MANGEL_STATUS = [
   { wert: "offen", label: "offen" },
@@ -63,18 +90,8 @@ export const DOKUMENT_TYP = [
   { wert: "sonstiges", label: "Sonstiges" },
 ] as const;
 
-// Teilnehmende einer Begehung (Vorstand, Reihenfolge = Vereinsnummerierung 1–9).
-export const TEILNEHMER = [
-  "Sabine Metzger",
-  "Dr. Sascha Theißen",
-  "Sonja Theißen",
-  "Nicole Boine",
-  "Erika Strack",
-  "Adrian Jörissen",
-  "Sadullah Ödes",
-  "Günter Lorenz",
-  "Dr. Ralf Riekers",
-] as const;
+// Teilnehmende einer Begehung: seit 2026-07 im Vorstand-Modell (DB, via
+// /einstellungen pflegbar) — keine Konstante mehr.
 
 // Arten von Verwaltungs-Ereignissen je Parzelle (Historie).
 export const AENDERUNG_ART = [

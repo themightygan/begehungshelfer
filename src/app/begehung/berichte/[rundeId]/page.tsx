@@ -2,23 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
-import { Thumb } from "@/components/Thumb";
+import { hatDaten } from "@/lib/auswertung";
 import { BeetZelle } from "@/components/BeetZelle";
 
 export const dynamic = "force-dynamic";
-
-const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
-
-function FotoGitter({ fotos }: { fotos: { id: number; dateipfad: string }[] }) {
-  if (fotos.length === 0) return null;
-  return (
-    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-      {fotos.map((f) => (
-        <Thumb key={f.id} src={`/api/datei/${f.dateipfad}`} />
-      ))}
-    </div>
-  );
-}
 
 export default async function BerichteSeite({
   params,
@@ -34,13 +21,8 @@ export default async function BerichteSeite({
         orderBy: { parzelle: { nummer: "asc" } },
         include: {
           parzelle: true,
-          _count: { select: { maengel: true, fotos: true, beete: true } },
-          maengel: { orderBy: { id: "asc" }, include: { fotos: { orderBy: { id: "asc" } } } },
-          beete: { orderBy: { id: "asc" }, include: { fotos: { orderBy: { id: "asc" } } } },
-          fotos: {
-            where: { mangelId: null, beetId: null, kontext: "zustand" },
-            orderBy: { id: "asc" },
-          },
+          _count: { select: { maengel: true, fotos: true } },
+          beete: { select: { flaecheM2: true } },
         },
       },
     },
@@ -48,15 +30,7 @@ export default async function BerichteSeite({
   if (!runde) notFound();
 
   // Nur tatsächlich begutachtete Parzellen (mit Inhalt), nicht bloß geöffnete.
-  const begutachtet = runde.befunde.filter(
-    (b) =>
-      b.stufe !== "neutral" ||
-      b._count.maengel > 0 ||
-      b._count.fotos > 0 ||
-      b._count.beete > 0 ||
-      b.gutGemacht ||
-      b.notiz.trim() !== ""
-  );
+  const begutachtet = runde.befunde.filter(hatDaten);
 
   return (
     <div className="space-y-4">
@@ -67,10 +41,7 @@ export default async function BerichteSeite({
           {runde.teilnehmende && (
             <p className="text-sm text-stone-400">Teilnehmer: {runde.teilnehmende}</p>
           )}
-          <p className="text-sm text-stone-400">
-            Status: {runde.status}
-            {runde.status === "abgeschlossen" ? " · eingefroren (nur Ansicht)" : ""}
-          </p>
+          <p className="text-sm text-stone-400">Status: {runde.status}</p>
         </div>
         <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">
           Start
@@ -91,7 +62,7 @@ export default async function BerichteSeite({
           🪄 KI-Textkorrektur
         </Link>
         <span className="text-sm text-stone-500">
-          {begutachtet.length} begutachtete Parzellen · Bericht-PDF je Parzelle:
+          {begutachtet.length} begutachtete Parzellen · Balken öffnet die Ansicht (editierbar):
         </span>
       </div>
 
@@ -105,112 +76,33 @@ export default async function BerichteSeite({
             const beetIst = b.beete.reduce((s, x) => s + x.flaecheM2, 0);
             const beetSoll = b.parzelle.groesseM2 ? b.parzelle.groesseM2 / 6 : null;
             return (
-              <li key={b.id}>
-                {/* Ganzer Balken klappt das Protokoll auf; der PDF-Knopf liegt
-                    absolut ÜBER dem Balken (außerhalb der summary) und löst
-                    das Aufklappen daher nicht aus. */}
-                <details className="relative rounded-lg border border-stone-200 bg-white">
-                  <summary className="cursor-pointer list-none p-3 pr-28 hover:bg-stone-50 [&::-webkit-details-marker]:hidden">
-                    <span className="text-lg font-medium text-emerald-800">
-                      {b.parzelle.parzelleId}
-                    </span>
-                    <span className="ml-2 text-sm text-stone-500">
-                      {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
-                      {b.gutGemacht ? " · 👍" : ""}
-                      {" · Beet "}
-                      <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
-                      {b._count.maengel > 0 ? ` · ${b._count.maengel} Mangel` : ""}
-                      {b._count.fotos > 0 ? ` · ${b._count.fotos} Foto` : ""}
-                    </span>
-                  </summary>
-                  <a
-                    href={`/api/parzelle/${b.parzelle.parzelleId}/pdf?rundeId=${runde.id}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="absolute right-3 top-2.5 rounded border border-emerald-700 px-4 py-1.5 text-base font-medium text-emerald-700 hover:bg-emerald-50"
-                  >
-                    📄 PDF
-                  </a>
-
-                  {/* Protokoll (kompakt, read-only) */}
-                  <div className="space-y-3 border-t border-stone-100 p-3 text-base">
-                    <p className="text-sm text-stone-500">
-                      {b.parzelle.nachname} {b.parzelle.vorname}
-                      {" · "}
-                      {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
-                      {b.gutGemacht
-                        ? ` · 👍 Plakette${b.plakettenNotiz ? ` (${b.plakettenNotiz})` : ""}`
-                        : ""}
-                      {" · "}
-                      <Link
-                        href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
-                        className="text-emerald-700 hover:underline"
-                      >
-                        ✎ bearbeiten
-                      </Link>
-                    </p>
-                    {b.notiz.trim() !== "" && (
-                      <p className="whitespace-pre-line text-stone-700">{b.notiz}</p>
-                    )}
-                    {b.diktatNachgereicht.trim() !== "" && (
-                      <p className="whitespace-pre-line text-sm text-amber-800">
-                        🎤 {b.diktatNachgereicht}
-                      </p>
-                    )}
-
-                    {b.fotos.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-stone-500">Gesamtansicht</p>
-                        <FotoGitter fotos={b.fotos} />
-                      </div>
-                    )}
-
-                    {(b.beete.length > 0 || beetSoll !== null) && b._count.beete > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-stone-500">
-                          Gemüsebeete — IST {m2(beetIst)} m²
-                          {beetSoll !== null ? ` / SOLL ${m2(beetSoll)} m²` : ""}
-                          {b.kompensationAusreichend ? " · kompensiert" : ""}
-                        </p>
-                        {b.beete.map((beet) => (
-                          <div key={beet.id} className="mt-1">
-                            <p className="text-sm text-stone-600">
-                              {beet.bezeichnung || "Beet"}: {m2(beet.flaecheM2)} m²
-                            </p>
-                            <FotoGitter fotos={beet.fotos} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {b.maengel.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-stone-500">
-                          Mängel ({b.maengel.length})
-                        </p>
-                        <ul className="mt-1 space-y-2">
-                          {b.maengel.map((mg, i) => (
-                            <li key={mg.id} className="rounded border border-stone-100 p-2">
-                              <p className="font-medium">
-                                {i + 1}. {mg.punkt || "(ohne Bezeichnung)"}
-                                {mg.frist
-                                  ? ` · Frist ${new Date(mg.frist).toLocaleDateString("de-DE")}`
-                                  : ""}
-                                {mg.status === "behoben" ? " · ✓ behoben" : ""}
-                              </p>
-                              {mg.notiz.trim() !== "" && (
-                                <p className="whitespace-pre-line text-sm text-stone-600">
-                                  {mg.notiz}
-                                </p>
-                              )}
-                              <FotoGitter fotos={mg.fotos} />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </details>
+              // Ganzer Balken -> editierbare Begehungsansicht; der PDF-Knopf
+              // liegt absolut ÜBER dem Balken (Geschwister, kein <a> im <a>).
+              <li key={b.id} className="relative">
+                <Link
+                  href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
+                  className="block rounded-lg border border-stone-200 bg-white p-3 pr-28 hover:border-emerald-400 hover:bg-stone-50"
+                >
+                  <span className="text-lg font-medium text-emerald-800">
+                    {b.parzelle.parzelleId}
+                  </span>
+                  <span className="ml-2 text-sm text-stone-500">
+                    {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
+                    {b.gutGemacht ? " · 👍" : ""}
+                    {" · Beet "}
+                    <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
+                    {b._count.maengel > 0 ? ` · ${b._count.maengel} Mangel` : ""}
+                    {b._count.fotos > 0 ? ` · ${b._count.fotos} Foto` : ""}
+                  </span>
+                </Link>
+                <a
+                  href={`/api/parzelle/${b.parzelle.parzelleId}/pdf?rundeId=${runde.id}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="absolute right-3 top-2.5 rounded border border-emerald-700 px-4 py-1.5 text-base font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  📄 PDF
+                </a>
               </li>
             );
           })}

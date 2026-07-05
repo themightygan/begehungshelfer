@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { fotoVerarbeitenUndSpeichern } from "@/lib/storage";
-import { FOTO_MAX_PRO_BEFUND } from "@/lib/constants";
+import { fotoVerarbeitenUndSpeichern, dateiLoeschen } from "@/lib/storage";
+import { FOTO_MAX_PRO_BEFUND, normalisiereStufe, BEFUND_STATUS_LABEL } from "@/lib/constants";
 
 // Nachträgliche Bearbeitung einer Begehung (Entscheidung 2026-06-11: kein
 // hartes Einfrieren — Texte müssen korrigierbar, Fotos löschbar/ergänzbar
@@ -11,10 +11,17 @@ import { FOTO_MAX_PRO_BEFUND } from "@/lib/constants";
 
 export async function aktualisiereBefund(befundId: number, pfad: string, formData: FormData) {
   const gutGemacht = formData.get("gutGemacht") === "1";
+  const statusRaw = formData.get("status"); // nur schreiben, wenn Feld im Formular (alte Tabs kennen es nicht)
   await prisma.befund.update({
     where: { id: befundId },
     data: {
-      stufe: String(formData.get("stufe") || "neutral"),
+      // normalisieren: vor dem Deploy geöffnete Tabs haben noch die alte
+      // "hinweis"-Option und würden den Alt-Wert sonst zurückschreiben.
+      stufe: normalisiereStufe(String(formData.get("stufe") || "neutral")),
+      // Whitelist: nur bekannte Status-Werte in die DB lassen.
+      ...(statusRaw !== null && String(statusRaw) in BEFUND_STATUS_LABEL
+        ? { status: String(statusRaw) }
+        : {}),
       notiz: String(formData.get("notiz") ?? ""),
       gutGemacht,
       plakettenNotiz: gutGemacht ? String(formData.get("plakettenNotiz") ?? "") : "",
@@ -117,7 +124,94 @@ export async function verschiebeFoto(
 }
 
 export async function loescheFotoNachtraeglich(fotoId: number, pfad: string) {
-  await prisma.foto.delete({ where: { id: fotoId } }).catch(() => {});
+  const foto = await prisma.foto.findUnique({ where: { id: fotoId } });
+  if (foto) {
+    try {
+      // DB zuerst: schlägt das fehl, bleibt nur eine harmlose Datei-Leiche
+      // (umgekehrt zeigte eine überlebende DB-Zeile auf eine gelöschte Datei).
+      await prisma.foto.delete({ where: { id: fotoId } });
+      await dateiLoeschen(foto.dateipfad);
+    } catch {}
+  }
+  revalidatePath(pfad);
+}
+
+// Zentrale Frist für die Mängel eines Befunds: ueberschreiben=false setzt nur
+// Mängel OHNE Frist, true auch bereits gesetzte. Behobene Mängel bleiben
+// unangetastet (deren Frist ist Doku des Ursprungszustands).
+export async function setzeFristAlle(
+  befundId: number,
+  pfad: string,
+  frist: string,
+  ueberschreiben: boolean
+) {
+  if (!frist) return;
+  await prisma.mangel.updateMany({
+    where: { befundId, status: "offen", ...(ueberschreiben ? {} : { frist: null }) },
+    data: { frist: new Date(frist) },
+  });
+  revalidatePath(pfad);
+}
+
+// Mangel nachträglich löschen (Schreibtisch-Korrektur). Foto-Zeilen kaskadieren
+// in der DB; die Dateien werden NACH erfolgreichem Delete entfernt (schlägt der
+// Delete fehl, bleiben die Bilder intakt statt kaputter Referenzen).
+export async function loescheMangel(mangelId: number, pfad: string) {
+  const mangel = await prisma.mangel.findUnique({
+    where: { id: mangelId },
+    include: { fotos: true },
+  });
+  if (mangel) {
+    try {
+      await prisma.mangel.delete({ where: { id: mangelId } });
+      for (const f of mangel.fotos) await dateiLoeschen(f.dateipfad);
+    } catch {}
+  }
+  revalidatePath(pfad);
+}
+
+// Mangel nachträglich ergänzen: Katalogpunkt (Snapshot bereich/punkt) oder
+// Freitext, plus Notiz/Frist/Fotos in einem Schritt.
+export async function mangelHinzufuegenNachtraeglich(
+  befundId: number,
+  pfad: string,
+  formData: FormData
+) {
+  const katalogIdRaw = String(formData.get("katalogId") ?? "");
+  const katalogId = Number(katalogIdRaw) || null;
+  const katalog = katalogId
+    ? await prisma.katalog.findUnique({ where: { id: katalogId } })
+    : null;
+  const fristRaw = String(formData.get("frist") ?? "").trim();
+  const punktFrei = String(formData.get("punkt") ?? "").trim();
+  // Fehlklick-Schutz: Freitext ohne Bezeichnung erzeugt keinen leeren Mangel.
+  if (!katalog && !punktFrei) return;
+
+  const mangel = await prisma.mangel.create({
+    data: {
+      befundId,
+      katalogId: katalog?.id ?? null,
+      bereich: katalog?.bereich ?? "Sonstiges",
+      punkt: katalog?.punkt ?? punktFrei,
+      notiz: String(formData.get("notiz") ?? ""),
+      frist: fristRaw ? new Date(fristRaw) : null,
+    },
+  });
+
+  const vorhanden = await prisma.foto.count({ where: { befundId } });
+  const dateien = formData
+    .getAll("fotos")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  let frei = Math.max(0, FOTO_MAX_PRO_BEFUND - vorhanden);
+  for (const datei of dateien) {
+    if (frei <= 0) break;
+    const buf = Buffer.from(await datei.arrayBuffer());
+    const gespeichert = await fotoVerarbeitenUndSpeichern(befundId, buf);
+    await prisma.foto.create({
+      data: { befundId, mangelId: mangel.id, kontext: "mangel", dateipfad: gespeichert },
+    });
+    frei--;
+  }
   revalidatePath(pfad);
 }
 

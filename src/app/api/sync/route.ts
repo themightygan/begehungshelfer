@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { ensureBefundFuerRunde, nimmtNachzueglerAn } from "@/lib/befund";
+import { normalisiereStufe } from "@/lib/constants";
 import type { SyncOp } from "@/lib/workspaceTypes";
 
 // Wendet GENAU EINE Änderungs-Op aus der Offline-Outbox an (Stufe 2).
@@ -66,7 +67,9 @@ export async function POST(req: NextRequest) {
         await prisma.befund.update({
           where: { id: befundId },
           data: {
-            stufe: String(op.stufe || "neutral"),
+            // normalisieren: Altclients (Snapshot/Queue vor Migration 2026-07)
+            // können noch "hinweis" senden.
+            stufe: normalisiereStufe(String(op.stufe || "neutral")),
             notiz: String(op.notiz ?? ""),
             gutGemacht: Boolean(op.gutGemacht),
             plakettenNotiz: op.gutGemacht ? String(op.plakettenNotiz ?? "") : "",

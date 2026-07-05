@@ -1,57 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
 import { istNeupaechter } from "@/lib/paechter";
-import { NeupaechterTag } from "@/components/NeupaechterTag";
-import { KlickZeile } from "@/components/KlickZeile";
-import { BeetZelle } from "@/components/BeetZelle";
+import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
+import { AuswertungsTabelle, type Zeile } from "./AuswertungsTabelle";
 
 export const dynamic = "force-dynamic";
-
-type BefundLite = {
-  stufe: string;
-  notiz: string;
-  gutGemacht: boolean;
-  kompensationAusreichend: boolean;
-  _count: { maengel: number; fotos: number };
-  beete: { flaecheM2: number }[];
-  parzelle: {
-    parzelleId: string;
-    nachname: string;
-    vorname: string;
-    groesseM2: number | null;
-    eintritt: string;
-    status: string;
-  };
-};
-
-// Beet-Ampel: geteilte Komponente @/components/BeetZelle (auch in Berichten).
-
-function hatDaten(b: BefundLite) {
-  return (
-    b.stufe !== "neutral" ||
-    b._count.maengel > 0 ||
-    b.beete.length > 0 ||
-    b.gutGemacht ||
-    b._count.fotos > 0 ||
-    b.notiz.trim() !== ""
-  );
-}
-
-function summary(befunde: BefundLite[]) {
-  let begutachtet = 0,
-    mitMaengel = 0,
-    ohneMaengel = 0,
-    plaketten = 0;
-  for (const b of befunde) {
-    if (!hatDaten(b)) continue;
-    begutachtet++;
-    if (b._count.maengel > 0) mitMaengel++;
-    else ohneMaengel++;
-    if (b.gutGemacht) plaketten++;
-  }
-  return { begutachtet, mitMaengel, ohneMaengel, plaketten };
-}
 
 function Zusammenfassung({ s }: { s: ReturnType<typeof summary> }) {
   return (
@@ -62,19 +15,64 @@ function Zusammenfassung({ s }: { s: ReturnType<typeof summary> }) {
   );
 }
 
-const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+// Shape der Befunde aus dem `inc`-Include unten (für Zeilen-Bau).
+type BefundInc = {
+  stufe: string;
+  notiz: string;
+  gutGemacht: boolean;
+  kompensationAusreichend: boolean;
+  _count: { maengel: number; fotos: number };
+  beete: { flaecheM2: number }[];
+  parzelle: {
+    parzelleId: string;
+    nummer: number;
+    index: string;
+    nachname: string;
+    vorname: string;
+    groesseM2: number | null;
+    eintritt: string;
+    status: string;
+  };
+};
+
+function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
+  const p = b.parzelle;
+  const vonSuffix = von ? `?von=${encodeURIComponent(von)}` : "";
+  return {
+    parzelleId: p.parzelleId,
+    nummer: p.nummer,
+    index: p.index,
+    nachname: p.nachname,
+    vorname: p.vorname,
+    neupaechter: istNeupaechter(p.eintritt, p.status),
+    beetIst: b.beete.reduce((x, y) => x + y.flaecheM2, 0),
+    beetSoll: p.groesseM2 ? p.groesseM2 / 6 : null,
+    komp: b.kompensationAusreichend,
+    stufe: b.stufe,
+    stufeRang: stufeRang(b.stufe),
+    plakette: b.gutGemacht,
+    maengel: b._count.maengel,
+    ansichtHref: `/begehung/ansicht/${rundeId}/${p.parzelleId}${vonSuffix}`,
+    pdfHref: `/api/parzelle/${p.parzelleId}/pdf?rundeId=${rundeId}`,
+  };
+}
 
 export default async function AuswertungSeite({
   searchParams,
 }: {
-  searchParams: Promise<{ rundeId?: string }>;
+  searchParams: Promise<{ rundeId?: string; jahr?: string; anlage?: string }>;
 }) {
-  const rundeIdParam = Number((await searchParams).rundeId) || null;
+  const sp = await searchParams;
+  const rundeIdParam = Number(sp.rundeId) || null;
+  const jahrParam = Number(sp.jahr) || null;
+  const anlageParam = (sp.anlage ?? "").trim();
 
   const inc = {
     parzelle: {
       select: {
         parzelleId: true,
+        nummer: true,
+        index: true,
         nachname: true,
         vorname: true,
         groesseM2: true,
@@ -93,7 +91,7 @@ export default async function AuswertungSeite({
       include: { befunde: { include: inc, orderBy: { parzelle: { nummer: "asc" } } } },
     });
     if (!runde) return <p className="text-stone-500">Begehung nicht gefunden.</p>;
-    const zeilen = runde.befunde.filter(hatDaten);
+    const zeilen = runde.befunde.filter(hatDaten).map((b) => zeileAusBefund(b, runde.id));
     const s = summary(runde.befunde);
 
     return (
@@ -112,81 +110,65 @@ export default async function AuswertungSeite({
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-stone-300 text-left text-stone-500">
-                <th className="py-2 pr-3">Garten</th>
-                <th className="py-2 pr-3">Pächter</th>
-                <th className="py-2 pr-3">Beet SOLL/IST (m²)</th>
-                <th className="py-2 pr-3">Stufe</th>
-                <th className="py-2 pr-3">Plakette</th>
-                <th className="py-2 pr-3">Mängel</th>
-                <th className="py-2 pr-3">Bericht</th>
-              </tr>
-            </thead>
-            <tbody>
-              {zeilen.map((b) => {
-                const ist = b.beete.reduce((x, y) => x + y.flaecheM2, 0);
-                const soll = b.parzelle.groesseM2 ? b.parzelle.groesseM2 / 6 : null;
-                return (
-                  // Ganze Zeile klickbar -> Begehungsansicht; Pächter-/PDF-Link
-                  // in der Zeile behalten ihre eigenen Ziele.
-                  <KlickZeile
-                    key={b.parzelle.parzelleId}
-                    href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
-                    className="border-b border-stone-100 hover:bg-stone-50"
-                  >
-                    <td className="py-2 pr-3 font-medium">
-                      <Link
-                        href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
-                        className="text-emerald-700 hover:underline"
-                      >
-                        {b.parzelle.parzelleId}
-                      </Link>
-                    </td>
-                    <td className="py-2 pr-3">
-                      <Link
-                        href={`/parzellen/${b.parzelle.parzelleId}`}
-                        className="text-emerald-700 hover:underline"
-                        title="Zur Parzellenverwaltung"
-                      >
-                        {`${b.parzelle.nachname} ${b.parzelle.vorname}`.trim() || "—"}
-                      </Link>
-                      {istNeupaechter(b.parzelle.eintritt, b.parzelle.status) && (
-                        <span className="ml-1.5"><NeupaechterTag /></span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <BeetZelle ist={ist} soll={soll} komp={b.kompensationAusreichend} />
-                    </td>
-                    <td className="py-2 pr-3">{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</td>
-                    <td className="py-2 pr-3">{b.gutGemacht ? "👍 ja" : "nein"}</td>
-                    <td className="py-2 pr-3">{b._count.maengel}</td>
-                    <td className="py-2 pr-3">
-                      <a
-                        href={`/api/parzelle/${b.parzelle.parzelleId}/pdf?rundeId=${runde.id}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="text-emerald-700 hover:underline"
-                      >
-                        📄 PDF
-                      </a>
-                    </td>
-                  </KlickZeile>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <AuswertungsTabelle zeilen={zeilen} />
         <a href={`/api/export/csv?rundeId=${runde.id}`} className="inline-block rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100">⬇ als CSV</a>
       </div>
     );
   }
 
-  // --- Übersicht: je Kalenderjahr aggregiert + Begehungen ---
+  // --- Kombinierte Jahres-Ansicht einer Anlage (alle Runden Jahr+Anlage) ---
+  if (jahrParam && anlageParam) {
+    const runden = await prisma.begehungsrunde.findMany({
+      where: {
+        anlage: { kuerzel: anlageParam },
+        datum: { gte: new Date(jahrParam, 0, 1), lt: new Date(jahrParam + 1, 0, 1) },
+      },
+      // neueste zuerst -> Merge nimmt je Parzelle den jüngsten Befund mit Daten
+      orderBy: [{ datum: "desc" }, { id: "desc" }],
+      include: { anlage: true, befunde: { include: inc } },
+    });
+    if (runden.length === 0) {
+      return (
+        <div className="space-y-2">
+          <p className="text-stone-500">Keine Begehungen gefunden.</p>
+          <Link href="/auswertung" className="text-base text-emerald-700 hover:underline">← Übersicht</Link>
+        </div>
+      );
+    }
+    const von = `jahr=${jahrParam}&anlage=${anlageParam}`;
+    const gemergt = neuesteBefundeJeParzelle(runden);
+    const zeilen = gemergt.map((e) => zeileAusBefund(e.befund, e.rundeId, von));
+    const s = summary(gemergt.map((e) => e.befund));
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold">
+              Begehungen {runden[0].anlage.name} {jahrParam}
+            </h1>
+            <p className="text-base text-stone-500">
+              {runden.length === 1
+                ? "1 Begehung"
+                : `${runden.length} Begehungen kombiniert — je Parzelle zählt der neueste Befund`}
+            </p>
+            <Zusammenfassung s={s} />
+          </div>
+          <Link href="/auswertung" className="shrink-0 text-base text-emerald-700 hover:underline">
+            ← Übersicht
+          </Link>
+        </div>
+
+        <AuswertungsTabelle zeilen={zeilen} />
+      </div>
+    );
+  }
+
+  // --- Übersicht: je Kalenderjahr aggregiert + Anlagen + Begehungen ---
+  // Tiebreak id desc: gleiche Merge-Reihenfolge wie die kombinierte Ansicht,
+  // damit die Anlagen-Zeilen exakt die Zahlen der Zielseite zeigen.
   const runden = await prisma.begehungsrunde.findMany({
-    orderBy: { datum: "desc" },
+    orderBy: [{ datum: "desc" }, { id: "desc" }],
     include: { anlage: true, befunde: { include: inc } },
   });
   const jahre = new Map<number, typeof runden>();
@@ -207,12 +189,41 @@ export default async function AuswertungSeite({
       {[...jahre.entries()].map(([jahr, rs]) => {
         const alle = rs.flatMap((r) => r.befunde);
         const s = summary(alle);
+        // Anlagen-Aggregat: gleiche Merge-Logik wie die Zielseite -> Zahlen passen.
+        const anlagen = new Map<string, { name: string; runden: typeof rs }>();
+        for (const r of rs) {
+          let a = anlagen.get(r.anlage.kuerzel);
+          if (!a) anlagen.set(r.anlage.kuerzel, (a = { name: r.anlage.name, runden: [] }));
+          a.runden.push(r);
+        }
         return (
           <section key={jahr} className="rounded-lg border border-stone-200 bg-white p-4">
             <h2 className="text-lg font-semibold">{jahr}</h2>
             <p className="text-sm font-medium text-stone-700">Jahr gesamt:</p>
             <Zusammenfassung s={s} />
             <ul className="mt-3 space-y-1">
+              {[...anlagen.entries()]
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([kuerzel, a]) => {
+                  const sa = summary(neuesteBefundeJeParzelle(a.runden).map((e) => e.befund));
+                  return (
+                    <li key={kuerzel} className="border-t border-stone-100">
+                      <Link
+                        href={`/auswertung?jahr=${jahr}&anlage=${kuerzel}`}
+                        className="flex items-start justify-between gap-3 py-2 text-sm hover:bg-stone-50"
+                      >
+                        <span className="min-w-0 font-medium text-emerald-700">
+                          Begehungen {a.name} {jahr}
+                        </span>
+                        <span className="shrink-0 text-stone-500">
+                          {sa.begutachtet} begutachtet · {sa.mitMaengel} m. Mängeln · {sa.plaketten} Plakette(n)
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+            <ul className="mt-2 space-y-1">
               {rs.map((r) => {
                 const rs2 = summary(r.befunde);
                 return (

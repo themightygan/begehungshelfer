@@ -7,16 +7,19 @@ import { useRouter } from "next/navigation";
 // PDF-Link) behalten ihr eigenes Ziel und lösen die Zeile nicht aus.
 export function KlickZeile({
   href,
+  id,
   className,
   children,
 }: {
   href: string;
+  id?: string; // Anker-Ziel für Rücksprung aus der Ansicht (#p-<parzelleId>)
   className?: string;
   children: React.ReactNode;
 }) {
   const router = useRouter();
   return (
     <tr
+      id={id}
       className={`${className ?? ""} cursor-pointer`}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("a,button")) return;

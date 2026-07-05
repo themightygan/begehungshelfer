@@ -142,12 +142,15 @@ export async function wendeKorrekturAn(schluessel: string, text: string): Promis
   const [typ, idStr, feld] = schluessel.split(":");
   const id = Number(idStr);
   if (!Number.isFinite(id)) return false;
+  // updateMany: wirft nicht, wenn der Datensatz inzwischen gelöscht wurde
+  // (Mängel sind seit 2026-07 in der Ansicht löschbar — offener Korrektur-
+  // Review darf dann nicht hart abbrechen).
   if (typ === "befund" && (BEFUND_FELDER as readonly string[]).includes(feld)) {
-    await prisma.befund.update({ where: { id }, data: { [feld]: text } });
+    await prisma.befund.updateMany({ where: { id }, data: { [feld]: text } });
     return true;
   }
   if (typ === "mangel" && (MANGEL_FELDER as readonly string[]).includes(feld)) {
-    await prisma.mangel.update({ where: { id }, data: { [feld]: text } });
+    await prisma.mangel.updateMany({ where: { id }, data: { [feld]: text } });
     return true;
   }
   return false;

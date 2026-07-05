@@ -1,5 +1,6 @@
 // Datenmodell Gartenbegehungs-App — siehe Spec/CLAUDE.md.
-// KISS: ein gemeinsamer Login (kein User-Modell), Dateien im Dateisystem, SQLite.
+// KISS: Dateien im Dateisystem, SQLite. Logins: Vorstand-Modell (E-Mail +
+// scrypt-Hash, via /einstellungen) mit APP_USERS-Env-Fallback.
 // Hinweis: SQLite kennt keine nativen Enums -> Auswahl-Felder sind String mit
 // dokumentierten erlaubten Werten. EINZIGE Quelle der Wahrheit für erlaubte Werte:
 // src/lib/constants.ts (beim App-Bau anlegen) — Schema-Kommentare spiegeln sie nur.
@@ -93,8 +94,12 @@ model Befund {
   parzelle   Parzelle       @relation(fields: [parzelleId], references: [id]) // kein Cascade: Parzelle mit Historie nicht löschbar
   parzelleId Int
   // Eskalation (GO §13.2 / UPV §4) — gilt pro Parzelle/Runde (= ein Schreiben je Parzelle)
-  // erlaubt: neutral | ok | hinweis | abmahnung_1 | abmahnung_2 | kuendigung
+  // erlaubt: neutral | ok | gespraech | mitteilung | abmahnung_1 | abmahnung_2 | kuendigung
   stufe      String         @default("neutral")
+  // Nachbearbeitungs-Status (Schreibtisch, NICHT Teil der Offline-Erfassung/des Sync).
+  // erlaubt: offen | muendlich | hinweis_versendet | abmahnung_versendet |
+  //          abmahnung_bv | kuendigung_paechter | kuendigung_bv
+  status     String         @default("offen")
   notiz      String         @default("") // allgemeine Bemerkung / Zustand
   // Offline nachgereichte Diktate (transkribiert nach Sync): append-only, wird vom
   // Befund-Speichern NIE überschrieben (kein Clobber) -> read-only auf der Seite.
@@ -208,6 +213,19 @@ model ArchivFoto {
   erstelltAm DateTime @default(now())
 
   @@index([parzelleId, datum])
+}
+
+// Vorstandsmitglieder: Teilnehmerliste für Begehungen + optionale Logins
+// (E-Mail + Passwort gesetzt => Anmeldung möglich). Pflege via /einstellungen.
+// Deaktivieren statt löschen — Namen stehen in alten teilnehmende-Strings.
+model Vorstand {
+  id           Int     @id @default(autoincrement())
+  name         String  @unique
+  email        String? @unique // klein geschrieben gespeichert (Login lowercased)
+  passwortHash String? // scrypt, hex — siehe src/lib/passwort.ts
+  passwortSalt String? // hex
+  aktiv        Boolean @default(true)
+  sortierung   Int     @default(0) // Vereinsnummerierung
 }
 
 // Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular

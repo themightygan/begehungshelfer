@@ -45,6 +45,15 @@ export default async function RootLayout({
               {session.loggedIn && <MediaSync />}
               <ZoomControl />
               {session.loggedIn && (
+                <Link
+                  href="/einstellungen"
+                  title="Einstellungen"
+                  className="rounded px-2 py-1.5 text-base hover:bg-stone-100"
+                >
+                  ⚙️
+                </Link>
+              )}
+              {session.loggedIn && (
                 <form action={logout}>
                   <button className="rounded px-3 py-1.5 text-base text-stone-500 hover:bg-stone-100 hover:text-stone-800">
                     Abmelden

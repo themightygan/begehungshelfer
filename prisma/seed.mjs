@@ -116,10 +116,27 @@ async function main() {
     });
   }
 
+  // Vorstand (Teilnehmerliste + optionale Logins). update: {} — nie E-Mail/
+  // Passwort/aktiv überschreiben (Pflege via /einstellungen). Auf der Prod-DB
+  // läuft der Erst-Seed über die Migration stufen_status_vorstand.
+  const VORSTAND = [
+    "Sabine Metzger", "Dr. Sascha Theißen", "Sonja Theißen", "Nicole Boine",
+    "Erika Strack", "Adrian Jörreßen", "Sadullah Ödes", "Tomasz Weidler",
+    "Dr. Ralf Riekers",
+  ];
+  for (let i = 0; i < VORSTAND.length; i++) {
+    await prisma.vorstand.upsert({
+      where: { name: VORSTAND[i] },
+      update: {},
+      create: { name: VORSTAND[i], sortierung: i + 1 },
+    });
+  }
+
   const counts = {
     anlagen: await prisma.anlage.count(),
     parzellen: await prisma.parzelle.count(),
     katalog: await prisma.katalog.count(),
+    vorstand: await prisma.vorstand.count(),
   };
   console.log(`Seed fertig: ${n} Parzellen verarbeitet.`, counts);
 }

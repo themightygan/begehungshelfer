@@ -1,6 +1,6 @@
 // Datei-Speicher + Foto-Pipeline.
 // Audit-Pflicht beim Upload: resize ~1600px + JPEG q75 + EXIF/Geo-Strip (DSGVO).
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { join, resolve, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
@@ -104,4 +104,11 @@ export async function dateiLesen(relPfad: string): Promise<Buffer | null> {
   } catch {
     return null;
   }
+}
+
+// Datei löschen (z. B. Fotos eines gelöschten Mangels) — fehlende Datei ist ok.
+export async function dateiLoeschen(relPfad: string): Promise<void> {
+  const abs = sichererPfad(relPfad);
+  if (!abs) return;
+  await unlink(abs).catch(() => {});
 }

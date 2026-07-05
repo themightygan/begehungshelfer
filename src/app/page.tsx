@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { TEILNEHMER } from "@/lib/constants";
 import { getAktiveRunde } from "@/lib/runde";
 import { begehungStarten, begehungFortsetzen, begehungAbbrechen } from "./begehung/actions";
 import { ConfirmButton } from "./begehung/ConfirmButton";
@@ -8,13 +7,14 @@ import { ConfirmButton } from "./begehung/ConfirmButton";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [anlagen, runden, aktiveRunde] = await Promise.all([
+  const [anlagen, runden, aktiveRunde, vorstand] = await Promise.all([
     prisma.anlage.findMany({ orderBy: { kuerzel: "asc" } }),
     prisma.begehungsrunde.findMany({
       orderBy: { erstelltAm: "desc" },
       include: { anlage: true, _count: { select: { befunde: true } } },
     }),
     getAktiveRunde(),
+    prisma.vorstand.findMany({ where: { aktiv: true }, orderBy: { sortierung: "asc" } }),
   ]);
   const offeneRunden = runden.filter((r) => r.status === "offen");
 
@@ -130,10 +130,10 @@ export default async function Home() {
         <div>
           <p className="mb-1 text-sm font-medium text-stone-600">Teilnehmer</p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {TEILNEHMER.map((name) => (
-              <label key={name} className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" name="teilnehmer" value={name} />
-                {name}
+            {vorstand.map((v) => (
+              <label key={v.id} className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" name="teilnehmer" value={v.name} />
+                {v.name}
               </label>
             ))}
           </div>
