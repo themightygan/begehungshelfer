@@ -160,6 +160,12 @@ export default async function AuswertungSeite({
         </div>
 
         <AuswertungsTabelle zeilen={zeilen} />
+        <a
+          href={`/api/export/csv?jahr=${jahrParam}&anlage=${encodeURIComponent(anlageParam)}`}
+          className="inline-block rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100"
+        >
+          ⬇ als CSV
+        </a>
       </div>
     );
   }

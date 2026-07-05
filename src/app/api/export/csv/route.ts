@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL } from "@/lib/constants";
+import { hatDaten } from "@/lib/auswertung";
 
 // CSV-Gesamtexport: eine Zeile je Mangel; Parzellen mit Befund aber ohne Mangel
 // erscheinen als eine Zusammenfassungszeile. Semikolon + UTF-8-BOM (Excel/DE).
+// ?rundeId= exportiert eine Begehung; ?jahr=&anlage= exportiert die kombinierte
+// Jahres-Ansicht (neuester Befund je Parzelle — wie /auswertung?jahr=&anlage=).
 function feld(v: string | number | null | undefined): string {
   const s = v === null || v === undefined ? "" : String(v);
   return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -12,17 +15,46 @@ const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : ""
 
 export async function GET(req: NextRequest) {
   const rundeId = Number(req.nextUrl.searchParams.get("rundeId")) || null;
-  const befunde = await prisma.befund.findMany({
-    where: rundeId ? { rundeId } : {},
-    include: {
-      parzelle: { include: { anlage: true } },
-      runde: { select: { datum: true, teilnehmende: true } },
-      maengel: { include: { _count: { select: { fotos: true } } } },
-      beete: true,
-      _count: { select: { fotos: true } },
-    },
-    orderBy: { parzelle: { parzelleId: "asc" } },
-  });
+  const jahr = Number(req.nextUrl.searchParams.get("jahr")) || null;
+  const anlage = (req.nextUrl.searchParams.get("anlage") ?? "").trim();
+
+  const inc = {
+    parzelle: { include: { anlage: true } },
+    runde: { select: { datum: true, teilnehmende: true } },
+    maengel: { include: { _count: { select: { fotos: true } } } },
+    beete: true,
+    _count: { select: { fotos: true, maengel: true } },
+  } as const;
+
+  let befunde;
+  if (!rundeId && jahr && anlage) {
+    // Kombinierte Jahres-Ansicht: gleiche Merge-Regel wie /auswertung —
+    // neuester Befund MIT Daten je Parzelle gewinnt.
+    const runden = await prisma.begehungsrunde.findMany({
+      where: {
+        anlage: { kuerzel: anlage },
+        datum: { gte: new Date(jahr, 0, 1), lt: new Date(jahr + 1, 0, 1) },
+      },
+      orderBy: [{ datum: "desc" }, { id: "desc" }],
+      include: { befunde: { include: inc } },
+    });
+    const proParzelle = new Map<string, (typeof runden)[number]["befunde"][number]>();
+    for (const r of runden) {
+      for (const b of r.befunde) {
+        if (!hatDaten(b)) continue;
+        if (!proParzelle.has(b.parzelle.parzelleId)) proParzelle.set(b.parzelle.parzelleId, b);
+      }
+    }
+    befunde = [...proParzelle.values()].sort((a, b) =>
+      a.parzelle.parzelleId.localeCompare(b.parzelle.parzelleId)
+    );
+  } else {
+    befunde = await prisma.befund.findMany({
+      where: rundeId ? { rundeId } : {},
+      include: inc,
+      orderBy: { parzelle: { parzelleId: "asc" } },
+    });
+  }
 
   const kopf = [
     "Parzelle", "Anlage", "Begehung_Datum", "Teilnehmer", "Paechter", "Adresse",
@@ -33,14 +65,7 @@ export async function GET(req: NextRequest) {
 
   for (const b of befunde) {
     // Nur tatsächlich begutachtete Parzellen (leere "nur geöffnet"-Befunde überspringen).
-    const hatDaten =
-      b.stufe !== "neutral" ||
-      b.maengel.length > 0 ||
-      b.beete.length > 0 ||
-      b._count.fotos > 0 ||
-      b.gutGemacht ||
-      b.notiz.trim() !== "";
-    if (!hatDaten) continue;
+    if (!hatDaten(b)) continue;
     const p = b.parzelle;
     const adresse = [p.strasse, [p.plz, p.ort].filter(Boolean).join(" ")]
       .filter(Boolean)
@@ -75,7 +100,9 @@ export async function GET(req: NextRequest) {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="begehung_export${rundeId ? `_runde${rundeId}` : ""}.csv"`,
+      "Content-Disposition": `attachment; filename="begehung_export${
+        rundeId ? `_runde${rundeId}` : jahr && anlage ? `_${anlage}_${jahr}` : ""
+      }.csv"`,
     },
   });
 }
