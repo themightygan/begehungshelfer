@@ -5,7 +5,9 @@
 //  - NEU "Mangelnde Zaunfreiheit" (Garten; GO-Ziffer noch nachzutragen)
 //  - NEU "Unfallgefahr" (Sonstiges)
 //  - "Laube – unerlaubte bauliche Veränderung" -> "Laube – unerlaubter Bau / bauliche Veränderung"
-// Bestehende Mängel behalten ihren eingefrorenen punkt-Snapshot (Doku-Historie).
+// Bei 1:1-Umbenennungen ziehen auch die punkt-Snapshots bestehender Mängel mit
+// (Sascha 2026-07-05: alte Einträge sollen die neue Bezeichnung zeigen — gleiche
+// Bedeutung, nur klarere Formulierung).
 // Idempotent: Renames matchen den Alt-Text, Inserts prüfen auf Existenz,
 // sortierung wird aus der kanonischen Liste komplett neu vergeben.
 // Ausführen: node --env-file=.env scripts/katalog-update-2026-07.mjs
@@ -63,6 +65,9 @@ const REIHENFOLGE = [
 for (const [alt, neu] of RENAMES) {
   const r = await prisma.katalog.updateMany({ where: { punkt: alt }, data: { punkt: neu } });
   console.log(r.count ? `✎ umbenannt: "${alt}" → "${neu}"` : `· schon aktuell: "${neu}"`);
+  // Snapshots bestehender Mängel mitziehen (nur exakter Alt-Text).
+  const m = await prisma.mangel.updateMany({ where: { punkt: alt }, data: { punkt: neu } });
+  if (m.count) console.log(`  ↳ ${m.count} Mangel-Snapshots aktualisiert`);
 }
 
 for (const [bereich, punkt, hinweis, referenz] of NEUE) {
