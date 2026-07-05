@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Download, FileText, Sparkles, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
 import { hatDaten, stufeRang } from "@/lib/auswertung";
@@ -72,15 +73,15 @@ export default async function BerichteSeite({
       <div className="flex flex-wrap items-center gap-2">
         <a
           href={`/api/export/csv?rundeId=${runde.id}`}
-          className="rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100"
+          className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100"
         >
-          ⬇ CSV dieser Begehung
+          <Download className="h-4 w-4 shrink-0" aria-hidden /> CSV dieser Begehung
         </a>
         <Link
           href={`/begehung/korrektur/${runde.id}`}
-          className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-base text-emerald-800 hover:bg-emerald-100"
+          className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-base text-emerald-800 hover:bg-emerald-100"
         >
-          🪄 KI-Textkorrektur
+          <Sparkles className="h-4 w-4 shrink-0" aria-hidden /> KI-Textkorrektur
         </Link>
         <span className="text-sm text-stone-600">
           {begutachtet.length} begutachtete Parzellen, kritische zuerst — Antippen öffnet die
@@ -127,7 +128,12 @@ export default async function BerichteSeite({
                     {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
                   </span>
                   <span className="ml-2 text-sm text-stone-600">
-                    {b.gutGemacht ? "👍 Plakette · " : ""}
+                    {b.gutGemacht && (
+                      <>
+                        <ThumbsUp className="mr-1 inline h-3.5 w-3.5 align-text-bottom text-emerald-700" aria-hidden />
+                        Plakette ·{" "}
+                      </>
+                    )}
                     {"Beet "}
                     <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
                     {b._count.maengel > 0
@@ -143,9 +149,9 @@ export default async function BerichteSeite({
                   target="_blank"
                   rel="noopener"
                   aria-label={`PDF für ${b.parzelle.parzelleId}`}
-                  className="absolute right-3 top-2.5 rounded border border-emerald-700 px-4 py-1.5 text-base font-medium text-emerald-700 hover:bg-emerald-50"
+                  className="absolute right-3 top-2.5 inline-flex items-center gap-1.5 rounded border border-emerald-700 px-4 py-1.5 text-base font-medium text-emerald-700 hover:bg-emerald-50"
                 >
-                  📄 PDF
+                  <FileText className="h-4 w-4 shrink-0" aria-hidden /> PDF
                 </a>
               </li>
             );

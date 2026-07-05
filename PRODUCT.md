@@ -42,9 +42,9 @@ Anglizismen, keine Verniedlichung.
   keine Marketing-Optik, kein Confetti.
 - **Altbackenes Behörden-Formular:** trotz Seriosität kein 2005er-Verwaltungsportal —
   keine grauen Tabellenwüsten, keine winzigen Klickziele, kein Frame-Look.
-- **Emoji als Icon-System:** die aktuellen Emojis (🔍 ⚙️ 📋 ✅ ⚠️ …) sind ein
-  Provisorium und werden durch ein echtes, einheitliches Icon-Set ersetzt.
-  (Ausnahme: die Stufen-Symbole dürfen bleiben, bis ein gleichwertig schnell
+- **Emoji als Icon-System:** ersetzt (2026-07) durch **Lucide** als einziges
+  Icon-Set (siehe DESIGN.md §5 Icons). Keine neuen Emojis in der UI.
+  (Ausnahme: die Stufen-Symbole bleiben, bis ein gleichwertig schnell
   erfassbarer Ersatz existiert — sie sind semantische Ampel, nicht Deko.)
 
 ## Design Principles

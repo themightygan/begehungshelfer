@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import type { KorrekturFeld } from "@/lib/korrektur";
 
 // Review-UI der KI-Textkorrektur: prüft Feld für Feld (kurze Requests, Fortschritt
@@ -107,7 +108,7 @@ export function KorrekturClient({ rundeId, bezeichnung }: { rundeId: number; bez
   return (
     <div className="space-y-4 pb-12">
       <div>
-        <h1 className="text-2xl font-semibold">🪄 KI-Textkorrektur</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold"><Sparkles className="h-6 w-6 shrink-0" aria-hidden /> KI-Textkorrektur</h1>
         <p className="text-base text-stone-500">{bezeichnung}</p>
         <p className="mt-1 text-sm text-stone-600">
           Korrigiert nur Diktat-/Erkennungsfehler und Zeichensetzung (lokale KI, Garten-Vokabular).

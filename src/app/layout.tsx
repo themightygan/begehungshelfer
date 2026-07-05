@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getIronSession } from "iron-session";
+import { Settings, Sprout } from "lucide-react";
 import { sessionOptions, type SessionData } from "@/lib/session";
 import { logout } from "./login/actions";
 import { ZoomControl } from "./ZoomControl";
@@ -36,7 +37,7 @@ export default async function RootLayout({
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src="/img/logo.png" alt="Vereinslogo" className="h-12 w-auto" />
               ) : (
-                "🌱"
+                <Sprout className="h-7 w-7" aria-hidden />
               )}
               Begehungshelfer
             </Link>
@@ -48,9 +49,10 @@ export default async function RootLayout({
                 <Link
                   href="/einstellungen"
                   title="Einstellungen"
-                  className="rounded px-2 py-1.5 text-base hover:bg-stone-100"
+                  aria-label="Einstellungen"
+                  className="inline-flex items-center rounded px-2 py-1.5 text-stone-600 hover:bg-stone-100 hover:text-stone-800"
                 >
-                  ⚙️
+                  <Settings className="h-5 w-5" aria-hidden />
                 </Link>
               )}
               {session.loggedIn && (

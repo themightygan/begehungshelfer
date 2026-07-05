@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { Camera, Hourglass, Images } from "lucide-react";
 import { Thumb } from "@/components/Thumb";
 import { enqueue, subscribe, getItems, blobVon, type QueueItem } from "@/lib/uploadQueue";
 import { fotoVerkleinern } from "@/lib/fotoVerkleinern";
@@ -10,7 +11,7 @@ import type { SnapFoto } from "@/lib/workspaceTypes";
 const EMPTY: QueueItem[] = [];
 
 // Foto-Bereich des Offline-Workspace: Auswahl wird clientseitig verkleinert und
-// in die IndexedDB-Queue gelegt (sofortige ⏳-Vorschau); MediaSync lädt im
+// in die IndexedDB-Queue gelegt (sofortige Sanduhr-Vorschau); MediaSync lädt im
 // Hintergrund hoch und meldet das Server-Foto per Ack in den lokalen Snapshot.
 // Server-Fotos kommen aus dem Snapshot (props.fotos); Löschen erzeugt eine Op.
 // Referenz auf Mangel/Beet über Client-UUID (funktioniert auch offline).
@@ -95,12 +96,12 @@ export function FotoBereich({
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="inline-flex cursor-pointer items-center gap-1 rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800">
-          📷 Kamera
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800">
+          <Camera className="h-4 w-4 shrink-0" aria-hidden /> Kamera
           <input type="file" accept="image/*" capture="environment" className="hidden" onChange={pick} />
         </label>
-        <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-stone-300 px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-50">
-          🖼 Mediathek
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-stone-300 px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-50">
+          <Images className="h-4 w-4 shrink-0" aria-hidden /> Mediathek
           <input type="file" accept="image/*" multiple className="hidden" onChange={pick} />
         </label>
         {meine.length > 0 && (
@@ -130,7 +131,9 @@ export function FotoBereich({
             <div key={it.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={urlFuer(it)} alt="" className="aspect-square w-full rounded object-cover opacity-40" />
-              <span className="absolute inset-0 flex items-center justify-center text-2xl">⏳</span>
+              <span className="absolute inset-0 flex items-center justify-center" title="wartet auf Upload">
+                <Hourglass className="h-7 w-7 text-stone-700" aria-label="wartet auf Upload" />
+              </span>
             </div>
           ))}
         </div>

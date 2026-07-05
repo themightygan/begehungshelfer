@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 
 // Formular mit Auto-Save: speichert bei jeder committeten Feldänderung
 // (Text: beim Verlassen des Felds; Select/Checkbox/Datum: sofort) über die
@@ -62,7 +63,12 @@ export function AutoSaveForm({
       >
         {status === "speichert" && "speichert…"}
         {status === "ok" && "✓ gespeichert"}
-        {status === "fehler" && "⚠ nicht gespeichert — Verbindung prüfen"}
+        {status === "fehler" && (
+          <>
+            <TriangleAlert className="mr-1 inline h-3 w-3 align-text-bottom" aria-hidden />
+            nicht gespeichert — Verbindung prüfen
+          </>
+        )}
       </span>
     </form>
   );

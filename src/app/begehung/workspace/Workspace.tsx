@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { CircleCheck, Map, Pencil, Sparkles, WifiOff } from "lucide-react";
 import {
   subscribe,
   getZustand,
@@ -97,10 +98,10 @@ function TeilnehmerZeile({
             setWert(teilnehmende);
             setBearbeite(true);
           }}
-          className="ml-1 rounded px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-50"
+          className="ml-1 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-50"
           title="Teilnehmer ändern"
         >
-          ✎ ändern
+          <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden /> ändern
         </button>
       </p>
     );
@@ -234,7 +235,8 @@ export function Workspace() {
 
   const offlineBanner = (!online || veraltet) && (
     <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-      📡 {online ? "Server nicht erreichbar" : "Offline"} — Eingaben werden lokal
+      <WifiOff className="mr-1.5 inline h-4 w-4 shrink-0 align-text-bottom" aria-hidden />
+      {online ? "Server nicht erreichbar" : "Offline"} — Eingaben werden lokal
       gespeichert und automatisch synchronisiert.
       {sicht.stand && (
         <span className="text-amber-800">
@@ -319,7 +321,8 @@ export function Workspace() {
       {sicht.runde.planBild ? (
         <details className="rounded-lg border border-stone-200 bg-white p-3">
           <summary className="cursor-pointer text-sm font-medium text-stone-600">
-            🗺️ Karte der Anlage anzeigen
+            <Map className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
+            Karte der Anlage anzeigen
           </summary>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -399,13 +402,15 @@ export function Workspace() {
         )}
         <Link
           href={`/begehung/korrektur/${sicht.runde.id}`}
-          className="inline-block rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
         >
-          🪄 KI-Textkorrektur (Diktatfehler) — vor dem Abschluss empfohlen
+          <Sparkles className="h-4 w-4 shrink-0" aria-hidden /> KI-Textkorrektur (Diktatfehler) —
+          vor dem Abschluss empfohlen
         </Link>
         <details className="rounded-lg border border-amber-300 bg-amber-50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-amber-900">
-            ✔ Begehung abschließen
+            <CircleCheck className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
+            Begehung abschließen
           </summary>
           <p className="mt-2 text-xs text-amber-800">
             Die Erfassung wird beendet und die Berichte werden erzeugt. Text-Korrekturen

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Camera } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   PARZELLE_STATUS,
@@ -165,11 +166,11 @@ export default async function ParzelleVerwaltung({
                     <span className="font-medium">{dstr(b.runde.datum)}</span>
                     <span className="ml-2 text-sm text-stone-500">
                       {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
-                      {b.gutGemacht ? " · 👍 Plakette" : ""}
+                      {b.gutGemacht ? " · Plakette" : ""}
                       {` · Beet ${m2(ist)}${soll !== null ? `/${m2(soll)}` : ""} m²`}
                       {b.kompensationAusreichend ? " · kompensiert" : ""}
-                      {b._count.maengel > 0 ? ` · ${b._count.maengel} Mangel` : ""}
-                      {b._count.fotos > 0 ? ` · ${b._count.fotos} Foto` : ""}
+                      {b._count.maengel > 0 ? ` · ${b._count.maengel} ${b._count.maengel === 1 ? "Mangel" : "Mängel"}` : ""}
+                      {b._count.fotos > 0 ? ` · ${b._count.fotos} ${b._count.fotos === 1 ? "Foto" : "Fotos"}` : ""}
                     </span>
                   </div>
                   <Link
@@ -216,7 +217,8 @@ export default async function ParzelleVerwaltung({
             {archivGruppen.map((g) => (
               <details key={g.datum} className="text-base">
                 <summary className="cursor-pointer text-emerald-700">
-                  📷 Fotos {g.datum} ({g.fotos.length})
+                  <Camera className="mr-1 inline h-4 w-4 align-text-bottom" aria-hidden />
+                  Fotos {g.datum} ({g.fotos.length})
                   {g.quelle ? ` — ${g.quelle}` : ""}
                 </summary>
                 <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">

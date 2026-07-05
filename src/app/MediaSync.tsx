@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { Camera, Hourglass, Mic, PenLine, TriangleAlert } from "lucide-react";
 import {
   subscribe,
   getItems,
@@ -209,8 +210,15 @@ export function MediaSync() {
         }`}
         title="Gepufferte Medien werden im Hintergrund hochgeladen, sobald Empfang besteht."
       >
-        ⏳ {offen} {offen === 1 ? "Upload" : "Uploads"}
-        {haengend.length > 0 ? ` · ⚠ ${haengend.length}` : ""}
+        <Hourglass className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
+        {offen} {offen === 1 ? "Upload" : "Uploads"}
+        {haengend.length > 0 && (
+          <>
+            {" · "}
+            <TriangleAlert className="inline h-3.5 w-3.5 align-text-bottom" aria-label="hängend" />{" "}
+            {haengend.length}
+          </>
+        )}
       </button>
 
       {panelOffen && (
@@ -221,7 +229,8 @@ export function MediaSync() {
           </p>
           {hatPersistFehler() && (
             <p className="mt-2 rounded bg-red-50 p-2 text-red-700">
-              ⚠ Puffer kann nicht dauerhaft gespeichert werden (Speicher voll oder
+              <TriangleAlert className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
+              Puffer kann nicht dauerhaft gespeichert werden (Speicher voll oder
               privater Modus) — App nicht schließen, bis alles hochgeladen ist!
             </p>
           )}
@@ -241,7 +250,14 @@ export function MediaSync() {
                 {haengend.map((it) => (
                   <li key={it.id} className="flex items-center justify-between gap-2">
                     <span className="min-w-0 truncate text-stone-700">
-                      {it.kind === "foto" ? "📷" : it.kind === "audio" ? "🎤" : "📝"} {it.parzelleId} ·{" "}
+                      {it.kind === "foto" ? (
+                        <Camera className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-label="Foto" />
+                      ) : it.kind === "audio" ? (
+                        <Mic className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-label="Diktat" />
+                      ) : (
+                        <PenLine className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-label="Eingabe" />
+                      )}
+                      {it.parzelleId} ·{" "}
                       {new Date(it.ts).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",

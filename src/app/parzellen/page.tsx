@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { PARZELLE_STATUS } from "@/lib/constants";
 import { istNeupaechter } from "@/lib/paechter";
@@ -57,9 +58,9 @@ export default async function ParzellenSeite({
         <div className="flex shrink-0 items-center gap-3">
           <a
             href="/api/export/mitglieder"
-            className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+            className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
           >
-            ⬇ Mitgliederliste (xlsx)
+            <Download className="h-4 w-4 shrink-0" aria-hidden /> Mitgliederliste (xlsx)
           </a>
           <Link href="/" className="text-base text-emerald-700 hover:underline">
             Start

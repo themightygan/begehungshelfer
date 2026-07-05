@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { FolderOpen, History, ThumbsUp, TriangleAlert } from "lucide-react";
 import { Thumb } from "@/components/Thumb";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
 import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, normalisiereStufe } from "@/lib/constants";
@@ -179,7 +180,8 @@ export function ParzelleAnsicht({
           p.vorjahr.stufe !== "neutral") && (
           <details className="rounded-lg border border-stone-200 bg-white p-3 text-base">
             <summary className="cursor-pointer font-medium text-stone-600">
-              📋 Letzte Begehung ({p.vorjahr.datum}) — Details
+              <History className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
+              Letzte Begehung ({p.vorjahr.datum}) — Details
             </summary>
             <div className="mt-2 space-y-1 text-stone-700">
               {p.vorjahr.stufe !== "neutral" && (
@@ -190,7 +192,8 @@ export function ParzelleAnsicht({
               )}
               {p.plakettenJahre.length > 0 && (
                 <p className="font-medium text-emerald-700">
-                  👍 Plakette erteilt: {p.plakettenJahre.join(", ")}
+                  <ThumbsUp className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
+                  Plakette erteilt: {p.plakettenJahre.join(", ")}
                 </p>
               )}
               {p.vorjahr.notiz.trim() !== "" && (
@@ -470,8 +473,9 @@ export function ParzelleAnsicht({
           {p.vorjahr && (
             <>
               {" "}
-              Punkte mit <span className="text-amber-700">⚠</span> waren bei der letzten Begehung (
-              {p.vorjahr.datum}) beanstandet.
+              Punkte mit{" "}
+              <TriangleAlert className="inline h-3.5 w-3.5 align-text-bottom text-amber-800" aria-label="Warnzeichen" />{" "}
+              waren bei der letzten Begehung ({p.vorjahr.datum}) beanstandet.
             </>
           )}
         </p>
@@ -504,7 +508,9 @@ export function ParzelleAnsicht({
                           : "rounded-full border border-stone-300 bg-white px-3.5 py-2 text-sm hover:border-emerald-400 hover:bg-emerald-50"
                       }
                     >
-                      {war ? "⚠ " : ""}
+                      {war && (
+                        <TriangleAlert className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-label="letztes Mal beanstandet" />
+                      )}
                       {k.punkt}
                     </button>
                   );
@@ -539,8 +545,8 @@ export function ParzelleAnsicht({
                     <h3 className="text-lg font-medium">
                       {m.punkt || (freitext ? "(Freitext-Mangel)" : "")}
                       {m.fotos.length === 0 && (
-                        <span className="ml-2 rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                          ⚠ Foto fehlt
+                        <span className="ml-2 inline-flex items-center gap-1 rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                          <TriangleAlert className="h-3 w-3 shrink-0" aria-hidden /> Foto fehlt
                         </span>
                       )}
                     </h3>
@@ -700,7 +706,7 @@ export function ParzelleAnsicht({
               }}
               className="h-5 w-5"
             />
-            👍 „Gut gemacht"-Plakette
+            <ThumbsUp className="h-4 w-4 shrink-0" aria-hidden /> „Gut gemacht"-Plakette
           </label>
           {lob && (
             <input
@@ -720,7 +726,7 @@ export function ParzelleAnsicht({
 
       {/* Akte (Dokumente/Archiv) ist Schreibtischarbeit -> Verwaltung (online) */}
       <p className="text-sm text-stone-600">
-        📁{" "}
+        <FolderOpen className="mr-1.5 inline h-4 w-4 align-text-bottom" aria-hidden />
         <Link href={`/parzellen/${pid}`} className="text-emerald-700 hover:underline">
           Akte & Dokumente (Verwaltung, online)
         </Link>

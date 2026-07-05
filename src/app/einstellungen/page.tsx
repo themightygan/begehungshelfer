@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { AktionsForm } from "./AktionsForm";
 import {
@@ -31,7 +32,7 @@ export default async function EinstellungenSeite({
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-2">
-        <h1 className="text-2xl font-semibold">⚙️ Einstellungen</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold"><Settings className="h-6 w-6 shrink-0" aria-hidden /> Einstellungen</h1>
         <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">Start</Link>
       </div>
 

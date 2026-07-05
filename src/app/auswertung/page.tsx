@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { istNeupaechter } from "@/lib/paechter";
 import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
@@ -120,9 +121,9 @@ export default async function AuswertungSeite({
             </Link>
             <a
               href={`/api/export/csv?rundeId=${runde.id}`}
-              className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+              className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
             >
-              ⬇ als CSV
+              <Download className="h-4 w-4 shrink-0" aria-hidden /> als CSV
             </a>
           </div>
         </div>
@@ -176,9 +177,9 @@ export default async function AuswertungSeite({
             </Link>
             <a
               href={`/api/export/csv?jahr=${jahrParam}&anlage=${encodeURIComponent(anlageParam)}`}
-              className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+              className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
             >
-              ⬇ als CSV
+              <Download className="h-4 w-4 shrink-0" aria-hidden /> als CSV
             </a>
           </div>
         </div>

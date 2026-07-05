@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { Hourglass } from "lucide-react";
 import { subscribe, getItems, loadQueue, type QueueItem } from "@/lib/uploadQueue";
 import { ConfirmButton } from "./ConfirmButton";
 
@@ -19,7 +20,8 @@ export function AbschlussButton({ rundeId }: { rundeId: number }) {
   if (offen > 0) {
     return (
       <p className="rounded bg-red-50 p-2 text-sm font-medium text-red-700">
-        ⏳ Noch {offen} {offen === 1 ? "Upload" : "Uploads"} dieser Begehung auf
+        <Hourglass className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
+        Noch {offen} {offen === 1 ? "Upload" : "Uploads"} dieser Begehung auf
         diesem Gerät — bitte warten, bis der Zähler oben verschwindet, dann
         abschließen.
       </p>

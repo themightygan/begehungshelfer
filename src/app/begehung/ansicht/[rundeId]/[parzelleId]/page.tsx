@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FileText, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, BEFUND_STATUS, BEFUND_STATUS_LABEL } from "@/lib/constants";
 import { hatDaten } from "@/lib/auswertung";
@@ -193,7 +194,7 @@ export default async function AnsichtSeite({
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-base font-medium text-emerald-800">
             <input type="checkbox" name="gutGemacht" value="1" defaultChecked={befund.gutGemacht} className="h-5 w-5" />
-            👍 Plakette
+            <ThumbsUp className="h-4 w-4 shrink-0" aria-hidden /> Plakette
           </label>
           <input
             type="text"
@@ -370,9 +371,9 @@ export default async function AnsichtSeite({
         href={`/api/parzelle/${parzelle.parzelleId}/pdf?rundeId=${rundeId}`}
         target="_blank"
         rel="noopener"
-        className="inline-block rounded border border-emerald-700 px-4 py-2 text-base font-medium text-emerald-700 hover:bg-emerald-50"
+        className="inline-flex items-center gap-1.5 rounded border border-emerald-700 px-4 py-2 text-base font-medium text-emerald-700 hover:bg-emerald-50"
       >
-        📄 Bericht-PDF
+        <FileText className="h-4 w-4 shrink-0" aria-hidden /> Bericht-PDF
       </a>
 
       {/* Andere Begehungen dieser Parzelle (Kurzzeile + Sprunglink) */}
@@ -399,7 +400,7 @@ export default async function AnsichtSeite({
                     />
                   </span>
                   <span>{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</span>
-                  <span>Plakette: {b.gutGemacht ? "👍 ja" : "nein"}</span>
+                  <span>Plakette: {b.gutGemacht ? "ja" : "nein"}</span>
                   <span>{b._count.maengel === 1 ? "1 Mangel" : `${b._count.maengel} Mängel`}</span>
                   <span className="text-stone-500">
                     {BEFUND_STATUS_LABEL[b.status] ?? b.status}

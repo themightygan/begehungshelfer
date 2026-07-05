@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Mic } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { toggleBehoben } from "./actions";
 import { Thumb } from "@/components/Thumb";
@@ -206,7 +207,8 @@ export default async function MaengelSeite({
                     )}
                     {m.diktatNachgereicht.trim() !== "" && (
                       <p className="whitespace-pre-line text-sm text-amber-800">
-                        🎤 {m.diktatNachgereicht}
+                        <Mic className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-label="Diktat" />
+                        {m.diktatNachgereicht}
                       </p>
                     )}
                     <p className="text-sm text-stone-500">

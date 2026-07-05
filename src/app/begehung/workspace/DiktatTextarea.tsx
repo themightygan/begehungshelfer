@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Hourglass, Mic, Square } from "lucide-react";
 import { enqueue } from "@/lib/uploadQueue";
 
 // Textarea mit Diktat für den Offline-Workspace. Der Text wird beim Verlassen
@@ -106,20 +107,29 @@ export function DiktatTextarea({
         <button
           type="button"
           onClick={recording ? stop : start}
-          className={`min-h-11 rounded px-4 py-2.5 text-sm font-medium ${
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded px-4 py-2.5 text-sm font-medium ${
             recording
               ? "bg-red-600 text-white hover:bg-red-700"
               : "border border-stone-300 text-stone-700 hover:bg-stone-50"
           }`}
         >
-          {recording ? "⏹ Stoppen & einfügen" : "🎤 Diktat"}
+          {recording ? (
+            <>
+              <Square className="h-4 w-4 shrink-0 fill-current" aria-hidden /> Stoppen & einfügen
+            </>
+          ) : (
+            <>
+              <Mic className="h-4 w-4 shrink-0" aria-hidden /> Diktat
+            </>
+          )}
         </button>
         {transcribing > 0 && (
           <span className="text-sm text-stone-500">{transcribing} wird transkribiert…</span>
         )}
         {gepuffert && (
-          <span className="text-sm text-amber-700">
-            ⏳ offline gepuffert — Text erscheint nach Sync unter „Nachgereichte Diktate".
+          <span className="text-sm text-amber-800">
+            <Hourglass className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
+            offline gepuffert — Text erscheint nach Sync unter „Nachgereichte Diktate".
           </span>
         )}
       </div>

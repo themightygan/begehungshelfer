@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ZoomIn } from "lucide-react";
 
 // Zoom/Textgröße für die ganze App (per CSS-zoom auf <body>), in localStorage gemerkt.
 const STUFEN = [75, 100, 125, 150];
@@ -22,7 +23,7 @@ export function ZoomControl() {
 
   return (
     <label className="flex items-center gap-1 text-sm text-stone-500" title="Zoom / Textgröße">
-      🔍
+      <ZoomIn className="h-4 w-4" aria-hidden />
       <select
         value={zoom}
         onChange={(e) => aendern(Number(e.target.value))}

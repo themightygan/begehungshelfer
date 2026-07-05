@@ -216,6 +216,18 @@ Große Ziele (im Feld min. 44×44px), klare Kanten mit weicher Rundung, flächig
   Vereinsgrün; Werkzeugleiste als Secondary-Chips. Kein Seitenmenü — flache
   Navigation über Startseite und Direktlinks.
 
+### Icons
+- **Set:** ausschließlich **Lucide** (`lucide-react`) — ein Strich-Stil,
+  lokal gebündelt. Standardgrößen: 16px (`h-4 w-4`) in Knöpfen/Zeilen,
+  14px (`h-3.5 w-3.5`) inline im Fließtext, 20–24px (`h-5/h-6`) in
+  Header/Überschriften.
+- **Einsatz:** Icon steht nie allein ohne Text — Ausnahme nur mit
+  `aria-label` UND `title` (z. B. Zahnrad im Header). In Knöpfen:
+  `inline-flex items-center gap-1.5` + `shrink-0` am Icon + `aria-hidden`.
+- **Ausnahme:** die Stufen-Symbole (`STUFE_SYMBOL`: ✅ 💬 ℹ️ ⚠️ ⛔ 🛑)
+  bleiben Emojis — sie sind semantische Ampel mit hoher Erkennbarkeit,
+  bis ein gleichwertig schnell erfassbarer Ersatz existiert.
+
 ### Stufen-Ampel (Signature)
 Die Eskalationsstufe (ok → Gespräch → Mitteilung → Abmahnung → Kündigung) und die
 Beet-Quote erscheinen überall als kompakte Ampel: Symbol + Label + Farbfamilie
@@ -243,9 +255,9 @@ Symbol und Text stehen immer daneben.
   Maskottchen, kein Confetti, keine dekorative Motion.
 - **Don't** das altbackene Behörden-Formular bauen: keine grauen Tabellenwüsten,
   keine winzigen Klickziele, kein Inhalt hinter verschachtelten Menüs.
-- **Don't** neue Emojis als Icons einführen — das bestehende Emoji-Provisorium
-  wird durch ein echtes Icon-Set abgelöst, nicht erweitert. (Stufen-Symbole sind
-  bis zum gleichwertigen Ersatz ausgenommen.)
+- **Don't** Emojis als Icons verwenden — das Icon-System ist Lucide (§5 Icons);
+  einzige Ausnahme sind die Stufen-Symbole (`STUFE_SYMBOL`). Auch kein zweites
+  Icon-Set mischen.
 - **Don't** Grün, Amber oder Rot dekorativ verwenden (Ampel-Regel).
 - **Don't** Schatten auf ruhenden Elementen, Seitenstreifen-Ränder (border-left
   > 1px als Akzent), Gradient-Text oder Karten-in-Karten.

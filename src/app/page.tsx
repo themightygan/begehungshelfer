@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChartColumn, ClipboardList, Download, FolderOpen } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getAktiveRunde } from "@/lib/runde";
 import { begehungStarten, begehungFortsetzen, begehungAbbrechen } from "./begehung/actions";
@@ -23,27 +24,27 @@ export default async function Home() {
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Link
           href="/maengel"
-          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
         >
-          📋 Mängel-Nachverfolgung
+          <ClipboardList className="h-4 w-4 shrink-0" aria-hidden /> Mängel-Nachverfolgung
         </Link>
         <Link
           href="/auswertung"
-          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
         >
-          📊 Auswertung
+          <ChartColumn className="h-4 w-4 shrink-0" aria-hidden /> Auswertung
         </Link>
         <Link
           href="/parzellen"
-          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
         >
-          🗂️ Parzellenverwaltung
+          <FolderOpen className="h-4 w-4 shrink-0" aria-hidden /> Parzellenverwaltung
         </Link>
         <a
           href="/api/export/csv"
-          className="rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
+          className="inline-flex items-center gap-1.5 rounded border border-stone-300 px-3 py-1 hover:bg-stone-100"
         >
-          ⬇ CSV-Export
+          <Download className="h-4 w-4 shrink-0" aria-hidden /> CSV-Export
         </a>
       </div>
 

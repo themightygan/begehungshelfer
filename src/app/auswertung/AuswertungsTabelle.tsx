@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FileText, ThumbsUp } from "lucide-react";
 import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
 import { KlickZeile } from "@/components/KlickZeile";
 import { BeetZelle } from "@/components/BeetZelle";
@@ -185,7 +186,15 @@ export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
                 <td className={`py-2 pr-3 font-medium ${STUFE_TEXTFARBE[z.stufe] ?? "text-stone-600"}`}>
                   {STUFE_SYMBOL[z.stufe]} {STUFE_LABEL[z.stufe] ?? z.stufe}
                 </td>
-                <td className="py-2 pr-3">{z.plakette ? "👍 ja" : "nein"}</td>
+                <td className="py-2 pr-3">
+                  {z.plakette ? (
+                    <span className="inline-flex items-center gap-1">
+                      <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-emerald-700" aria-hidden /> ja
+                    </span>
+                  ) : (
+                    "nein"
+                  )}
+                </td>
                 <td className="py-2 pr-3">{z.maengel}</td>
                 <td className="py-2 pr-3">
                   <a
@@ -193,9 +202,9 @@ export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
                     target="_blank"
                     rel="noopener"
                     aria-label={`PDF für ${z.parzelleId}`}
-                    className="text-emerald-700 hover:underline"
+                    className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
                   >
-                    📄 PDF
+                    <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden /> PDF
                   </a>
                 </td>
               </KlickZeile>

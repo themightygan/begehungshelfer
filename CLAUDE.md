@@ -22,6 +22,8 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 
 - **Design-System-Paket (2026-07-05) ✅ (Build ✓, Smoke ✓ auf :3101 — Deploy = App-Restart ausstehend):** (1) **Impeccable installiert** (`.claude/skills/impeccable/`, `/impeccable`-Skill ab nächster Session; Detector-Hook AKTIV — meldet Design-Anti-Patterns nach jedem UI-Edit; manuell: `npx impeccable detect src/`). (2) **PRODUCT.md + DESIGN.md** = verbindlicher Design-Kontext (North Star „Das gepflegte Beet"; Register Product; **Zwei-Grau-Regel:** Text nur stone-900/600, stone-500 nur Meta, stone-400 verboten; **Ampel-Regel:** Grün/Amber/Rot nie dekorativ, nie Farbe allein; Outdoor-streng: AA + 44px-Touch). (3) **Critique** (dual-agent, Snapshots in `.impeccable/critique/`): Workspace 27/40, Auswertung 23/40, Berichte 21/40. (4) **Polish umgesetzt:** app-weiter Grau-/Kontrast-Sweep (stone-400→600/500, amber-600→800, red-600→700 bei Kleintext); `BeetZelle` trägt Wertung als Text („✓/knapp/unter Soll"); Berichte: Stufe farbig (`STUFE_TEXTFARBE` in constants) + Eskalation-absteigend sortiert + Abmahnung/Kündigung-Zeilen getönt + Status-Label statt Roh-Wert + Plural-Fix; Workspace: Stufen-Select → farbcodierte Button-Reihe, sticky Save-Status (aria-live) über der Erfassung, Diktat/Foto-✕/entfernen/pausieren/abbrechen auf 44px; Auswertung: Client-Textfilter, Sticky-Header (md+), aria-sort/scope, CSV oben, Gruppenlabels in Übersicht; `KlickZeile` respektiert Cmd/Ctrl-Klick + Tastatur; `stufeRang` normalisiert Alt-Wert `hinweis`. (5) **Semantik-Tokens** als `@theme` in `globals.css` (tinte/vereinsgruen/warn-/alarm-… = Aliase der Tailwind-Werte) — neuer UI-Code nutzt die Token-Namen. Bewusst NICHT geändert: „Fertig"→Plan-Flow (Sascha: Reihenfolge nicht linear), Emojis (Ablösung durch Icon-Set = eigenes Paket).
 
+- **Icon-Paket (2026-07-05) ✅ (tsc/Build ✓, Smoke :3101 ✓ — Deploy zusammen mit Design-Paket ausstehend):** alle UI-Emojis (~35 Stellen, 20 Dateien) durch **Lucide** (`lucide-react`) ersetzt — ein Strich-Stil, lokal gebündelt, Bundle unverändert (Tree-Shaking). Konvention in DESIGN.md §5 „Icons": `h-4 w-4` Standard, `inline-flex gap-1.5` + `aria-hidden` (Text daneben) bzw. `aria-label` wenn allein. **Stufen-Symbole (`STUFE_SYMBOL`) bleiben Emojis** (semantische Ampel, PRODUCT.md-Ausnahme). Nebenbei: Plural-Fix „n Mangel/Foto" auch in der Parzellen-Akte.
+
 ### Audit-Entscheidungen (gesetzt)
 - **Offline = Formular-Puffer:** online-first, aber offener Befund (Eingaben + Fotos) lokal im Browser puffern, Auto-Retry. Voll-PWA = Phase 2. (Stufe 2 ✅ — voll offline.)
 - **Historie = NICHT mehr eingefroren (geändert 2026-06-11):** Abschluss beendet die aktive Erfassung + erzeugt Berichte, aber Texte bleiben korrigierbar / Fotos löschbar (editierbare Begehungsansicht). „behoben" weiter via `Mangel.behobenAm`; Befund-Snapshot inkl. Adresse bleibt.
@@ -86,8 +88,7 @@ Ziel: Papier/Doppelarbeit ersetzen; **Bericht pro Parzelle** für Akte + Pächte
 - Dies ist ein Vereins-/Privatprojekt (nicht MAIQ).
 
 ## Offene Punkte
-- **Deploy Design-Paket:** Build liegt in `.next`, App-Neustart ausstehend (`pkill -f next-server`, launchd respawnt) — durch Sascha auslösen.
-- Emoji-Icons durch echtes Icon-Set ersetzen (PRODUCT.md-Anti-Referenz; Stufen-Symbole ausgenommen bis gleichwertiger Ersatz).
+- **Deploy Design- + Icon-Paket:** Build liegt in `.next`, App-Neustart ausstehend (`pkill -f next-server`, launchd respawnt) — durch Sascha auslösen.
 - Cloudflare **Access** einrichten (app.begehungshelfer.de läuft bereits über Named Tunnel).
 - Backup-Routine (DB-Dump + Files → Dropbox) einrichten.
 - KI-Korrektur-Review Runde 58 (`/begehung/korrektur/58`) durch Sascha.
