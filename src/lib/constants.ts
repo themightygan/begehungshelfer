@@ -35,6 +35,19 @@ export const STUFE_SYMBOL: Record<string, string> = {
   kuendigung: "🛑",
 };
 
+// Text-Tinte je Eskalationsstufe (Ampel-Farbfamilien, s. DESIGN.md):
+// Grün = in Ordnung, Amber = Handlungsbedarf, Rot = Kündigung.
+export const STUFE_TEXTFARBE: Record<string, string> = {
+  neutral: "text-stone-600",
+  ok: "text-emerald-700",
+  gespraech: "text-stone-700",
+  mitteilung: "text-amber-800",
+  hinweis: "text-amber-800", // Alt-Wert, s. STUFE_LABEL
+  abmahnung_1: "text-amber-800",
+  abmahnung_2: "text-amber-800",
+  kuendigung: "text-red-700",
+};
+
 // Nachbearbeitungs-Status je Befund (was ist nach der Begehung erfolgt?).
 // Wird am Schreibtisch gepflegt — NICHT Teil der Offline-Erfassung/des Sync.
 export const BEFUND_STATUS = [

@@ -109,7 +109,7 @@ export function KorrekturClient({ rundeId, bezeichnung }: { rundeId: number; bez
       <div>
         <h1 className="text-2xl font-semibold">🪄 KI-Textkorrektur</h1>
         <p className="text-base text-stone-500">{bezeichnung}</p>
-        <p className="mt-1 text-sm text-stone-400">
+        <p className="mt-1 text-sm text-stone-600">
           Korrigiert nur Diktat-/Erkennungsfehler und Zeichensetzung (lokale KI, Garten-Vokabular).
           Übernommen wird ausschließlich, was unten bestätigt wird — jeder Vorschlag ist vorher editierbar.
         </p>

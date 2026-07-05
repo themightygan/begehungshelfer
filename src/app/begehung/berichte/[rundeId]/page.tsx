@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL } from "@/lib/constants";
-import { hatDaten } from "@/lib/auswertung";
+import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
+import { hatDaten, stufeRang } from "@/lib/auswertung";
 import { BeetZelle } from "@/components/BeetZelle";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,20 @@ export default async function BerichteSeite({
   if (!runde) notFound();
 
   // Nur tatsächlich begutachtete Parzellen (mit Inhalt), nicht bloß geöffnete.
-  const begutachtet = runde.befunde.filter(hatDaten);
+  // Kritische zuerst (Eskalation absteigend), dann Nummer + Index.
+  const begutachtet = runde.befunde.filter(hatDaten).sort(
+    (a, b) =>
+      stufeRang(b.stufe) - stufeRang(a.stufe) ||
+      a.parzelle.nummer - b.parzelle.nummer ||
+      a.parzelle.index.localeCompare(b.parzelle.index, "de")
+  );
+
+  // Zeilen-Tönung nur als Zustandssprache: Abmahnung/Kündigung stechen heraus.
+  const ZEILEN_TON: Record<string, string> = {
+    kuendigung: "border-red-300 bg-red-50 hover:border-red-400 hover:bg-red-100",
+    abmahnung_2: "border-amber-300 bg-amber-50 hover:border-amber-400 hover:bg-amber-100",
+    abmahnung_1: "border-amber-300 bg-amber-50 hover:border-amber-400 hover:bg-amber-100",
+  };
 
   return (
     <div className="space-y-4">
@@ -39,9 +52,17 @@ export default async function BerichteSeite({
           <h1 className="text-2xl font-semibold">Berichte</h1>
           <p className="text-base text-stone-500">{runde.bezeichnung}</p>
           {runde.teilnehmende && (
-            <p className="text-sm text-stone-400">Teilnehmer: {runde.teilnehmende}</p>
+            <p className="text-sm text-stone-600">Teilnehmer: {runde.teilnehmende}</p>
           )}
-          <p className="text-sm text-stone-400">Status: {runde.status}</p>
+          <p className="text-sm text-stone-600">
+            {runde.status === "abgeschlossen"
+              ? `Abgeschlossen${
+                  runde.abgeschlossenAm
+                    ? ` am ${runde.abgeschlossenAm.toLocaleDateString("de-DE")}`
+                    : ""
+                }`
+              : "Runde läuft noch — Berichte sind vorläufig"}
+          </p>
         </div>
         <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">
           Start
@@ -61,14 +82,23 @@ export default async function BerichteSeite({
         >
           🪄 KI-Textkorrektur
         </Link>
-        <span className="text-sm text-stone-500">
-          {begutachtet.length} begutachtete Parzellen · Balken öffnet die Ansicht (editierbar):
+        <span className="text-sm text-stone-600">
+          {begutachtet.length} begutachtete Parzellen, kritische zuerst — Antippen öffnet die
+          editierbare Ansicht.
         </span>
       </div>
 
       {begutachtet.length === 0 ? (
-        <p className="text-base text-stone-400">
-          In dieser Begehung wurden keine Parzellen mit Daten erfasst.
+        <p className="text-base text-stone-600">
+          In dieser Begehung wurden noch keine Parzellen mit Daten erfasst.
+          {runde.status !== "abgeschlossen" && (
+            <>
+              {" "}
+              <Link href="/begehung" className="text-emerald-700 hover:underline">
+                → zur Begehung
+              </Link>
+            </>
+          )}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -81,24 +111,38 @@ export default async function BerichteSeite({
               <li key={b.id} className="relative">
                 <Link
                   href={`/begehung/ansicht/${runde.id}/${b.parzelle.parzelleId}`}
-                  className="block rounded-lg border border-stone-200 bg-white p-3 pr-28 hover:border-emerald-400 hover:bg-stone-50"
+                  className={`block rounded-lg border p-3 pr-28 ${
+                    ZEILEN_TON[b.stufe] ??
+                    "border-stone-200 bg-white hover:border-emerald-400 hover:bg-stone-50"
+                  }`}
                 >
                   <span className="text-lg font-medium text-emerald-800">
                     {b.parzelle.parzelleId}
                   </span>
-                  <span className="ml-2 text-sm text-stone-500">
+                  <span
+                    className={`ml-2 text-sm font-medium ${
+                      STUFE_TEXTFARBE[b.stufe] ?? "text-stone-600"
+                    }`}
+                  >
                     {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
-                    {b.gutGemacht ? " · 👍" : ""}
-                    {" · Beet "}
+                  </span>
+                  <span className="ml-2 text-sm text-stone-600">
+                    {b.gutGemacht ? "👍 Plakette · " : ""}
+                    {"Beet "}
                     <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
-                    {b._count.maengel > 0 ? ` · ${b._count.maengel} Mangel` : ""}
-                    {b._count.fotos > 0 ? ` · ${b._count.fotos} Foto` : ""}
+                    {b._count.maengel > 0
+                      ? ` · ${b._count.maengel} ${b._count.maengel === 1 ? "Mangel" : "Mängel"}`
+                      : ""}
+                    {b._count.fotos > 0
+                      ? ` · ${b._count.fotos} ${b._count.fotos === 1 ? "Foto" : "Fotos"}`
+                      : ""}
                   </span>
                 </Link>
                 <a
                   href={`/api/parzelle/${b.parzelle.parzelleId}/pdf?rundeId=${runde.id}`}
                   target="_blank"
                   rel="noopener"
+                  aria-label={`PDF für ${b.parzelle.parzelleId}`}
                   className="absolute right-3 top-2.5 rounded border border-emerald-700 px-4 py-1.5 text-base font-medium text-emerald-700 hover:bg-emerald-50"
                 >
                   📄 PDF

@@ -106,7 +106,7 @@ export function DiktatTextarea({
         <button
           type="button"
           onClick={recording ? stop : start}
-          className={`rounded px-3 py-1.5 text-sm font-medium ${
+          className={`min-h-11 rounded px-4 py-2.5 text-sm font-medium ${
             recording
               ? "bg-red-600 text-white hover:bg-red-700"
               : "border border-stone-300 text-stone-700 hover:bg-stone-50"

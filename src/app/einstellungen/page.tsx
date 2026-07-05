@@ -56,7 +56,7 @@ async function ParzellenTab() {
       {anlagen.map((a) => (
         <section key={a.id} className={`${CARD} space-y-3`}>
           <h2 className="text-base font-medium">
-            {a.name} <span className="text-stone-400">· Kürzel {a.kuerzel} (fest — steckt in allen Parzellen-Nummern) · {a._count.parzellen} Parzellen</span>
+            {a.name} <span className="text-stone-500">· Kürzel {a.kuerzel} (fest — steckt in allen Parzellen-Nummern) · {a._count.parzellen} Parzellen</span>
           </h2>
           <AktionsForm
             action={anlageUmbenennen.bind(null, a.id)}
@@ -73,7 +73,7 @@ async function ParzellenTab() {
             <span className="text-sm text-stone-600">{a.kuerzel}</span>
             <input type="number" name="nummer" min="1" placeholder="Nummer" required className={`w-24 ${INP}`} />
             <input type="text" name="index" placeholder="Zusatz (a)" maxLength={2} className={`w-24 ${INP}`} />
-            <span className="text-xs text-stone-400">startet unverpachtet — Pächter in der Akte pflegen</span>
+            <span className="text-xs text-stone-600">startet unverpachtet — Pächter in der Akte pflegen</span>
           </AktionsForm>
         </section>
       ))}
@@ -133,7 +133,7 @@ async function VorstandTab() {
                     autoComplete="new-password"
                     className={`w-72 ${INP}`}
                   />
-                  <span className="text-xs text-stone-400">
+                  <span className="text-xs text-stone-600">
                     {v.passwortHash ? "🔑 Login eingerichtet" : "kein Login"}
                   </span>
                   {v.passwortHash && (

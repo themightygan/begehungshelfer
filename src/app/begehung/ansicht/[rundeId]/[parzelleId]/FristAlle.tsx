@@ -39,7 +39,7 @@ export function FristAlle({
         }}
         className="rounded border border-stone-300 px-2 py-1"
       />
-      {pending && <span className="text-stone-400">speichert…</span>}
+      {pending && <span className="text-stone-600">speichert…</span>}
     </label>
   );
 }

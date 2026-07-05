@@ -53,8 +53,8 @@ export default async function MaengelSeite({
         : komp || beetRatio > 0.8
           ? "text-emerald-700"
           : beetRatio >= 0.6
-            ? "text-amber-600"
-            : "text-red-600";
+            ? "text-amber-800"
+            : "text-red-700";
     const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
     const pfadHier = "/maengel";
 
@@ -102,7 +102,7 @@ export default async function MaengelSeite({
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-base font-medium text-stone-600">
                 Gemüsebeete{" "}
-                <span className="text-sm font-normal text-stone-400">
+                <span className="text-sm font-normal text-stone-500">
                   (Stand{" "}
                   <Link
                     href={`/begehung/ansicht/${beetBefund.runde.id}/${parzelleId}`}
@@ -115,7 +115,7 @@ export default async function MaengelSeite({
               </h2>
               <span className={`text-base font-semibold ${beetFarbe}`}>
                 {beetIst === 0 && !komp ? (
-                  <span className="font-normal text-stone-400">nicht erfasst</span>
+                  <span className="font-normal text-stone-600">nicht erfasst</span>
                 ) : (
                   <>IST {m2(beetIst)} m²{komp ? " · kompensiert" : ""}</>
                 )}
@@ -191,7 +191,7 @@ export default async function MaengelSeite({
         )}
 
         {maengel.length === 0 ? (
-          <p className="text-base text-stone-400">Keine Mängel.</p>
+          <p className="text-base text-stone-600">Keine Mängel.</p>
         ) : (
           <ul className="space-y-2">
             {maengel.map((m) => {
@@ -199,7 +199,7 @@ export default async function MaengelSeite({
               return (
                 <li key={m.id} className="flex items-start justify-between gap-3 rounded-lg border border-stone-200 bg-white p-3">
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</span>
+                    <span className="text-xs uppercase tracking-wide text-stone-600">{m.bereich}</span>
                     <p className="text-base font-medium">{m.punkt || "(ohne Bezeichnung)"}</p>
                     {m.notiz && (
                       <p className="whitespace-pre-line text-base text-stone-700">{m.notiz}</p>
@@ -209,7 +209,7 @@ export default async function MaengelSeite({
                         🎤 {m.diktatNachgereicht}
                       </p>
                     )}
-                    <p className="text-sm text-stone-400">
+                    <p className="text-sm text-stone-500">
                       <Link
                         href={`/begehung/ansicht/${m.befund.runde.id}/${parzelleId}`}
                         className="text-emerald-700 hover:underline"
@@ -229,7 +229,13 @@ export default async function MaengelSeite({
                     )}
                   </div>
                   <form action={toggleBehoben.bind(null, m.id)} className="shrink-0">
-                    <button className={`rounded px-3 py-1.5 text-sm font-medium ${m.status === "behoben" ? "border border-stone-300 text-stone-600 hover:bg-stone-50" : "bg-emerald-700 text-white hover:bg-emerald-800"}`}>
+                    <button
+                      className={
+                        m.status === "behoben"
+                          ? "rounded border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-50"
+                          : "rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
+                      }
+                    >
                       {m.status === "behoben" ? "↩ offen" : "✓ behoben"}
                     </button>
                   </form>
@@ -282,7 +288,7 @@ export default async function MaengelSeite({
       </div>
 
       {liste.length === 0 ? (
-        <p className="text-base text-stone-400">Keine offenen Mängel.</p>
+        <p className="text-base text-stone-600">Keine offenen Mängel.</p>
       ) : (
         <ul className="space-y-2">
           {liste.map((e) => (

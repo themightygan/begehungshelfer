@@ -112,20 +112,20 @@ export default async function ParzelleVerwaltung({
             Pächterwechsel speichern
           </button>
         </form>
-        <p className="mt-2 text-xs text-stone-400">Setzt neuen Pächter, leert Kontaktdaten, hält den Wechsel mit Datum in der Historie fest.</p>
+        <p className="mt-2 text-xs text-stone-600">Setzt neuen Pächter, leert Kontaktdaten, hält den Wechsel mit Datum in der Historie fest.</p>
       </details>
 
       {/* Änderungs-Historie + Ereignis hinzufügen */}
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Verwaltungs-Historie</h2>
         {p.aenderungen.length === 0 ? (
-          <p className="mt-1 text-sm text-stone-400">Noch keine Einträge.</p>
+          <p className="mt-1 text-sm text-stone-600">Noch keine Einträge.</p>
         ) : (
           <ul className="mt-2 space-y-1">
             {p.aenderungen.map((a) => (
               <li key={a.id} className="flex items-start justify-between gap-2 text-base">
                 <span>
-                  <span className="text-stone-400">{dstr(a.datum)}</span> ·{" "}
+                  <span className="text-stone-500">{dstr(a.datum)}</span> ·{" "}
                   <span className="font-medium">{AENDERUNG_LABEL[a.art] ?? a.art}</span>
                   {a.notiz ? ` — ${a.notiz}` : ""}
                 </span>
@@ -154,7 +154,7 @@ export default async function ParzelleVerwaltung({
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Begehungen (chronologisch)</h2>
         {p.befunde.length === 0 ? (
-          <p className="mt-1 text-sm text-stone-400">Noch keine Begehungsdaten.</p>
+          <p className="mt-1 text-sm text-stone-600">Noch keine Begehungsdaten.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {p.befunde.map((b) => {

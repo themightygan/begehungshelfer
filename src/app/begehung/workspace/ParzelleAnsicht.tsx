@@ -25,6 +25,18 @@ import { DiktatTextarea } from "./DiktatTextarea";
 // es gibt bewusst keine Speichern-Knöpfe mehr, die offline scheitern könnten.
 
 const CARD = "rounded-lg border border-stone-200 bg-white p-4";
+
+// Gewählte Eskalationsstufe: Beet-Tönung in der Ampel-Farbfamilie der Stufe
+// (Zustandssprache — die folgenreichste Eingabe der App trägt ihre Farbe).
+const STUFE_AKTIV: Record<string, string> = {
+  neutral: "border-stone-400 bg-stone-100 text-stone-800",
+  ok: "border-emerald-400 bg-emerald-50 text-emerald-900",
+  gespraech: "border-stone-400 bg-stone-100 text-stone-800",
+  mitteilung: "border-amber-400 bg-amber-50 text-amber-900",
+  abmahnung_1: "border-amber-400 bg-amber-50 text-amber-900",
+  abmahnung_2: "border-amber-400 bg-amber-50 text-amber-900",
+  kuendigung: "border-red-400 bg-red-50 text-red-900",
+};
 const INP = "rounded border border-stone-300 px-3 py-2 text-base";
 const BTN = "rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800";
 const BTN_SEC = "rounded border border-stone-300 px-4 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-50";
@@ -70,6 +82,9 @@ export function ParzelleAnsicht({
   const pid = p.parzelleId;
   const b = p.befund;
   const [lob, setLob] = useState(b?.gutGemacht ?? false);
+  // normalisieren: alter lokaler Snapshot kann noch "hinweis" enthalten —
+  // ohne Abbildung würde keine Stufe als gewählt markiert.
+  const [stufe, setStufe] = useState(normalisiereStufe(b?.stufe ?? "neutral"));
   const [neuBeetName, setNeuBeetName] = useState("");
   const [neuBeetFlaeche, setNeuBeetFlaeche] = useState("");
 
@@ -85,8 +100,8 @@ export function ParzelleAnsicht({
       : beetRatio > 0.8
         ? "text-emerald-700"
         : beetRatio >= 0.6
-          ? "text-amber-600"
-          : "text-red-600";
+          ? "text-amber-800"
+          : "text-red-700";
   const beetStatus =
     beetRatio === null ? "" : beetRatio > 0.8 ? "erfüllt" : beetRatio >= 0.6 ? "knapp" : "zu wenig";
   const beetUnterSoll = beetRatio !== null && beetRatio <= 0.8;
@@ -121,13 +136,13 @@ export function ParzelleAnsicht({
       {/* Kopf */}
       <div>
         <h1 className="text-2xl font-semibold">Parzelle {pid}</h1>
-        <p className="text-base text-stone-500">
+        <p className="text-base text-stone-600">
           {p.paechter}
           {p.neupaechter && (
             <span className="ml-1.5"><NeupaechterTag /></span>
           )}
           {p.groesseM2 ? ` · ${p.groesseM2} m²` : ""}
-          <span className="ml-2 text-sm text-stone-400">
+          <span className="ml-2 text-sm text-stone-500">
             · speichert automatisch
           </span>
         </p>
@@ -203,8 +218,8 @@ export function ParzelleAnsicht({
                     <p className={`text-base font-medium ${m.behoben ? "line-through" : ""}`}>
                       {m.punkt || "(ohne Bezeichnung)"}
                     </p>
-                    {m.notiz && <p className="text-sm text-stone-500">{m.notiz}</p>}
-                    <p className={`text-sm ${ueb && !m.behoben ? "font-medium text-red-600" : "text-stone-400"}`}>
+                    {m.notiz && <p className="text-sm text-stone-600">{m.notiz}</p>}
+                    <p className={`text-sm ${ueb && !m.behoben ? "font-medium text-red-700" : "text-stone-500"}`}>
                       Begehung {m.rundeDatum}
                       {m.frist ? ` · Frist ${fristAnzeige(m.frist)}` : ""}
                       {ueb && !m.behoben ? " · überfällig" : ""}
@@ -369,7 +384,7 @@ export function ParzelleAnsicht({
                   className={
                     anbauGesamt >= anbauSoll
                       ? "font-medium text-emerald-700"
-                      : "font-medium text-amber-600"
+                      : "font-medium text-amber-800"
                   }
                 >
                   {m2(anbauGesamt)} m²
@@ -450,7 +465,7 @@ export function ParzelleAnsicht({
       {/* Mängel-Menü */}
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Mangel hinzufügen</h2>
-        <p className="text-sm text-stone-400">
+        <p className="text-sm text-stone-600">
           Antippen wählt den Punkt aus.
           {p.vorjahr && (
             <>
@@ -463,7 +478,7 @@ export function ParzelleAnsicht({
         <div className="mt-3 space-y-3">
           {bereiche.map((g) => (
             <div key={g.name}>
-              <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-stone-400">
+              <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-stone-600">
                 {g.name}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -520,27 +535,27 @@ export function ParzelleAnsicht({
               <div key={m.uid} className={CARD}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</span>
+                    <span className="text-xs uppercase tracking-wide text-stone-600">{m.bereich}</span>
                     <h3 className="text-lg font-medium">
                       {m.punkt || (freitext ? "(Freitext-Mangel)" : "")}
                       {m.fotos.length === 0 && (
-                        <span className="ml-2 rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                        <span className="ml-2 rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                           ⚠ Foto fehlt
                         </span>
                       )}
                     </h3>
                     {katEintrag?.referenz && (
-                      <p className="text-sm text-stone-400">{katEintrag.referenz}</p>
+                      <p className="text-sm text-stone-600">{katEintrag.referenz}</p>
                     )}
                     {katEintrag?.hinweis && (
-                      <p className="text-sm text-stone-400">{katEintrag.hinweis}</p>
+                      <p className="text-sm text-stone-600">{katEintrag.hinweis}</p>
                     )}
                   </div>
                   <button
                     onClick={() => {
                       if (window.confirm("Mangel entfernen (inkl. Fotos)?")) mangelEntfernen(pid, m.uid);
                     }}
-                    className="shrink-0 rounded px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                    className="min-h-11 shrink-0 rounded px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50"
                   >
                     entfernen
                   </button>
@@ -626,22 +641,35 @@ export function ParzelleAnsicht({
       {/* Befund (Stufe + Bemerkung + Plakette) */}
       <section className={`${CARD} space-y-3`}>
         <h2 className="text-base font-medium text-stone-600">Befund</h2>
-        <label className="block text-base">
-          <span className="text-stone-600">Eskalationsstufe</span>
-          <select
-            // normalisieren: alter lokaler Snapshot kann noch "hinweis" enthalten —
-            // ohne Abbildung matcht keine Option und ein Edit würde "neutral" speichern.
-            defaultValue={normalisiereStufe(b?.stufe ?? "neutral")}
-            onChange={(e) => speichereBefund(pid, { stufe: e.target.value })}
-            className="mt-1 block w-full rounded border border-stone-300 px-3 py-2 text-base"
-          >
-            {STUFEN.map((s) => (
-              <option key={s.wert} value={s.wert}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset className="block text-base">
+          <legend className="text-stone-600">Eskalationsstufe</legend>
+          <div className="mt-1 flex flex-wrap gap-2" role="radiogroup" aria-label="Eskalationsstufe">
+            {STUFEN.map((s) => {
+              const aktiv = stufe === s.wert;
+              return (
+                <button
+                  key={s.wert}
+                  type="button"
+                  role="radio"
+                  aria-checked={aktiv}
+                  aria-label={s.wert === "neutral" ? "keine Stufe" : s.label}
+                  onClick={() => {
+                    setStufe(s.wert);
+                    speichereBefund(pid, { stufe: s.wert });
+                  }}
+                  className={`min-h-11 rounded border px-3.5 py-2 text-sm font-medium ${
+                    aktiv
+                      ? STUFE_AKTIV[s.wert]
+                      : "border-stone-300 bg-white text-stone-700 hover:border-emerald-400 hover:bg-stone-50"
+                  }`}
+                >
+                  {STUFE_SYMBOL[s.wert] ? `${STUFE_SYMBOL[s.wert]} ` : ""}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
         <div className="block text-base">
           <span className="text-stone-600">Allgemeine Bemerkung</span>
           <DiktatTextarea
@@ -691,7 +719,7 @@ export function ParzelleAnsicht({
       </section>
 
       {/* Akte (Dokumente/Archiv) ist Schreibtischarbeit -> Verwaltung (online) */}
-      <p className="text-sm text-stone-400">
+      <p className="text-sm text-stone-600">
         📁{" "}
         <Link href={`/parzellen/${pid}`} className="text-emerald-700 hover:underline">
           Akte & Dokumente (Verwaltung, online)

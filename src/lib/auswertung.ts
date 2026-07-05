@@ -1,4 +1,4 @@
-import { STUFEN } from "@/lib/constants";
+import { STUFEN, normalisiereStufe } from "@/lib/constants";
 
 // Geteilte Auswertungs-Helfer (Auswertung + Berichte).
 
@@ -37,10 +37,10 @@ export function summary(befunde: BefundLite[]) {
   return { begutachtet, mitMaengel, ohneMaengel, plaketten };
 }
 
-// Eskalations-Rang (Sortierung): Index in STUFEN; unbekannte Alt-Werte ans Ende
-// der bekannten Reihenfolge ihrer Bedeutung nach ist hier egal — kommt nicht vor.
+// Eskalations-Rang (Sortierung): Index in STUFEN. Alt-Wert "hinweis" wird auf
+// "mitteilung" normalisiert, damit er nicht als -1 vor "neutral" einsortiert.
 export function stufeRang(stufe: string): number {
-  return STUFEN.findIndex((s) => s.wert === stufe);
+  return STUFEN.findIndex((s) => s.wert === normalisiereStufe(stufe));
 }
 
 // Merge-Regel der kombinierten Jahres-Ansicht: eine Zeile je Parzelle, der

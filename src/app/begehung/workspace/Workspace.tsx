@@ -10,6 +10,11 @@ import {
   type WorkspaceZustand,
 } from "@/lib/workspaceStore";
 import {
+  subscribe as queueSubscribe,
+  getItems as queueItems,
+  type QueueItem,
+} from "@/lib/uploadQueue";
+import {
   begehungAbschliessen,
   begehungVerlassen,
   begehungAbbrechen,
@@ -29,6 +34,34 @@ import { ParzelleAnsicht } from "./ParzelleAnsicht";
 const INITIAL: WorkspaceZustand = { status: "laden", sicht: null, stand: null, veraltet: false };
 
 const AKTUALISIERE_MS = 5 * 60 * 1000; // Abgleich für Mehr-Geräte-Betrieb
+
+const KEINE_ITEMS: QueueItem[] = [];
+
+// Sticky Speicher-Status für die Erfassung: bestätigt jede lokale Sicherung
+// und zeigt, wie viele Einträge noch auf den Hintergrund-Sync warten.
+// Schwebt über der Seite -> darf laut Flach-mit-Rand-Regel Schatten tragen.
+function SaveStatus({ online }: { online: boolean }) {
+  const items = useSyncExternalStore(queueSubscribe, queueItems, () => KEINE_ITEMS);
+  const n = items.length;
+  const ton =
+    n === 0 || online
+      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+      : "border-amber-300 bg-amber-50 text-amber-900";
+  return (
+    <div className="pointer-events-none sticky bottom-3 z-10 flex justify-center">
+      <span
+        aria-live="polite"
+        className={`rounded-full border px-4 py-2 text-sm font-medium shadow-lg ${ton}`}
+      >
+        {n === 0
+          ? "✓ gespeichert"
+          : `✓ lokal gespeichert · ${n} ${n === 1 ? "Eintrag" : "Einträge"} ${
+              online ? "wird synchronisiert…" : "warten auf Verbindung"
+            }`}
+      </span>
+    </div>
+  );
+}
 
 function hashPid(): string | null {
   if (typeof location === "undefined") return null;
@@ -53,7 +86,7 @@ function TeilnehmerZeile({
 
   if (!bearbeite) {
     return (
-      <p className="text-xs text-stone-400">
+      <p className="text-sm text-stone-600">
         Teilnehmer: {teilnehmende || "—"}{" "}
         <button
           onClick={() => {
@@ -64,7 +97,7 @@ function TeilnehmerZeile({
             setWert(teilnehmende);
             setBearbeite(true);
           }}
-          className="ml-1 rounded px-1.5 py-0.5 text-emerald-700 hover:bg-emerald-50"
+          className="ml-1 rounded px-2.5 py-1.5 text-emerald-700 hover:bg-emerald-50"
           title="Teilnehmer ändern"
         >
           ✎ ändern
@@ -204,9 +237,9 @@ export function Workspace() {
       📡 {online ? "Server nicht erreichbar" : "Offline"} — Eingaben werden lokal
       gespeichert und automatisch synchronisiert.
       {sicht.stand && (
-        <span className="text-amber-700">
+        <span className="text-amber-800">
           {" "}
-          Datenstand: {new Date(sicht.stand).toLocaleString("de-DE", {
+          Serverdaten zuletzt geladen: {new Date(sicht.stand).toLocaleString("de-DE", {
             day: "2-digit",
             month: "2-digit",
             hour: "2-digit",
@@ -244,6 +277,7 @@ export function Workspace() {
           next={idx < sicht.parzellen.length - 1 ? sicht.parzellen[idx + 1].parzelleId : null}
           onNavigate={navigiere}
         />
+        <SaveStatus online={online} />
       </div>
     );
   }
@@ -267,7 +301,7 @@ export function Workspace() {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">{sicht.runde.bezeichnung}</h1>
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-stone-600">
             {sicht.parzellen.length} Parzellen · {bearbeitet} bearbeitet
           </p>
           <TeilnehmerZeile
@@ -295,7 +329,7 @@ export function Workspace() {
           />
         </details>
       ) : (
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-stone-600">
           Für {sicht.runde.anlageName} ist kein Plan hinterlegt.
         </p>
       )}
@@ -304,9 +338,9 @@ export function Workspace() {
       <section>
         <h2 className="mb-2 text-sm font-medium text-stone-600">Parzellen</h2>
         {istNach && (
-          <p className="mb-2 text-sm text-stone-500">
-            Nachbegehung: <span className="font-medium text-red-600">rot</span> = überfällige Mängel,{" "}
-            <span className="font-medium text-amber-600">gelb</span> = offene Mängel.
+          <p className="mb-2 text-sm text-stone-600">
+            Nachbegehung: <span className="font-medium text-red-700">rot (!)</span> = überfällige
+            Mängel, <span className="font-medium text-amber-800">gelb</span> = offene Mängel.
           </p>
         )}
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
@@ -342,11 +376,13 @@ export function Workspace() {
               >
                 {p.parzelleId}
                 {istNach && offen.length ? (
-                  <span className={`ml-1 text-xs ${ueberfaellig ? "text-red-600" : "text-amber-600"}`}>
+                  // "!" markiert Überfälliges zusätzlich zur Farbe (Ampel-Regel).
+                  <span className={`ml-1 text-xs font-semibold ${ueberfaellig ? "text-red-700" : "text-amber-800"}`}>
                     {offen.length}
+                    {ueberfaellig ? "!" : ""}
                   </span>
                 ) : b && b.maengel.length > 0 ? (
-                  <span className="ml-1 text-xs text-red-600">{b.maengel.length}</span>
+                  <span className="ml-1 text-xs font-semibold text-red-700">{b.maengel.length}</span>
                 ) : null}
               </button>
             );
@@ -355,9 +391,9 @@ export function Workspace() {
       </section>
 
       {/* Abschluss / Verlassen — brauchen Verbindung (Server-Aktionen) */}
-      <div className="space-y-2 border-t border-stone-200 pt-4">
+      <div className="space-y-3 border-t border-stone-200 pt-4">
         {!online && (
-          <p className="text-xs text-stone-400">
+          <p className="text-sm text-stone-600">
             Abschließen/Abbrechen braucht Verbindung — Erfassung funktioniert offline weiter.
           </p>
         )}
@@ -379,15 +415,17 @@ export function Workspace() {
             <AbschlussButton rundeId={sicht.runde.id} />
           </form>
         </details>
+        {/* Pausieren + Abbrechen als vollwertige Touch-Ziele (min. 44px) mit
+            deutlichem Abstand — Abbrechen ist der gefährlichste Klick der App. */}
         <form action={begehungVerlassen}>
-          <button className="text-xs text-stone-500 hover:underline">
+          <button className="min-h-11 rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Begehung pausieren (zurück zum Start, ohne Abschluss)
           </button>
         </form>
-        <form action={begehungAbbrechen.bind(null, sicht.runde.id)}>
+        <form action={begehungAbbrechen.bind(null, sicht.runde.id)} className="pt-3">
           <ConfirmButton
             message="Begehung wirklich ABBRECHEN? Alle in dieser Begehung erfassten Daten (Befunde, Mängel, Fotos, Beete) werden gelöscht. Archiv und frühere Begehungen bleiben erhalten."
-            className="text-xs text-red-600 hover:underline"
+            className="min-h-11 rounded border border-red-300 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50"
           >
             Begehung abbrechen (Daten verwerfen)
           </ConfirmButton>

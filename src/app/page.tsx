@@ -157,7 +157,7 @@ export default async function Home() {
       <section>
         <h2 className="mb-2 text-sm font-medium text-stone-600">Begehungen</h2>
         {runden.length === 0 ? (
-          <p className="text-sm text-stone-400">Noch keine Begehung.</p>
+          <p className="text-sm text-stone-600">Noch keine Begehung.</p>
         ) : (
           <ul className="space-y-2">
             {runden.map((r) => (

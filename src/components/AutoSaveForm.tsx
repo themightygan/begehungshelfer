@@ -56,7 +56,7 @@ export function AutoSaveForm({
       {children}
       <span
         className={`text-xs ${
-          status === "fehler" ? "font-medium text-red-600" : "text-stone-400"
+          status === "fehler" ? "font-medium text-red-600" : "text-stone-600"
         }`}
         aria-live="polite"
       >

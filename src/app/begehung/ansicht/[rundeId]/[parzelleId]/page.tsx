@@ -132,7 +132,7 @@ export default async function AnsichtSeite({
             )}
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}
           </p>
-          <p className="text-sm text-stone-400">
+          <p className="text-sm text-stone-600">
             {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} ·
             speichert automatisch beim Verlassen eines Felds · Fotos per Ziehen verschiebbar
           </p>
@@ -271,13 +271,13 @@ export default async function AnsichtSeite({
           )}
         </div>
         {befund.maengel.length === 0 ? (
-          <p className="mt-1 text-base text-stone-400">Keine Mängel erfasst.</p>
+          <p className="mt-1 text-base text-stone-600">Keine Mängel erfasst.</p>
         ) : (
           <ul className="mt-2 space-y-4">
             {befund.maengel.map((m) => (
               <li key={m.id} className="border-t border-stone-100 pt-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs uppercase tracking-wide text-stone-400">{m.bereich}</p>
+                  <p className="text-xs uppercase tracking-wide text-stone-600">{m.bereich}</p>
                   {/* Eigenes Formular (Geschwister der AutoSaveForm — die würde
                       einen Submit abfangen und stattdessen speichern). */}
                   <form action={loescheMangel.bind(null, m.id, pfad)}>
@@ -291,11 +291,11 @@ export default async function AnsichtSeite({
                 </div>
                 <p className="text-base font-medium">
                   {m.punkt || "(Freitext-Mangel)"}
-                  <span className="ml-2 text-sm font-normal text-stone-400">
+                  <span className="ml-2 text-sm font-normal text-stone-600">
                     Status: {m.status}
                   </span>
                 </p>
-                {m.katalog?.referenz && <p className="text-sm text-stone-400">{m.katalog.referenz}</p>}
+                {m.katalog?.referenz && <p className="text-sm text-stone-600">{m.katalog.referenz}</p>}
                 <AutoSaveForm action={aktualisiereMangel.bind(null, m.id, pfad)} className="mt-2 space-y-2">
                   {m.katalogId === null && (
                     <input type="text" name="punkt" defaultValue={m.punkt} placeholder="Bezeichnung des Mangels" className={`block w-full ${INP}`} />

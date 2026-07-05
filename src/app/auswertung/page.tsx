@@ -10,7 +10,7 @@ function Zusammenfassung({ s }: { s: ReturnType<typeof summary> }) {
   return (
     <p className="text-sm text-stone-600">
       {s.begutachtet} begutachtet · {s.mitMaengel} mit Mängeln · {s.ohneMaengel} ohne Mängel ·{" "}
-      {s.plaketten} Plakette(n)
+      {s.plaketten} {s.plaketten === 1 ? "Plakette" : "Plaketten"}
     </p>
   );
 }
@@ -90,7 +90,16 @@ export default async function AuswertungSeite({
       where: { id: rundeIdParam },
       include: { befunde: { include: inc, orderBy: { parzelle: { nummer: "asc" } } } },
     });
-    if (!runde) return <p className="text-stone-500">Begehung nicht gefunden.</p>;
+    if (!runde) {
+      return (
+        <div className="space-y-2">
+          <p className="text-stone-600">Begehung nicht gefunden.</p>
+          <Link href="/auswertung" className="text-base text-emerald-700 hover:underline">
+            ← Übersicht
+          </Link>
+        </div>
+      );
+    }
     const zeilen = runde.befunde.filter(hatDaten).map((b) => zeileAusBefund(b, runde.id));
     const s = summary(runde.befunde);
 
@@ -101,17 +110,24 @@ export default async function AuswertungSeite({
             <h1 className="text-2xl font-semibold">Auswertung</h1>
             <p className="text-base text-stone-500">{runde.bezeichnung}</p>
             {runde.teilnehmende && (
-              <p className="text-sm text-stone-400">Teilnehmer: {runde.teilnehmende}</p>
+              <p className="text-sm text-stone-600">Teilnehmer: {runde.teilnehmende}</p>
             )}
             <Zusammenfassung s={s} />
           </div>
-          <Link href="/auswertung" className="shrink-0 text-base text-emerald-700 hover:underline">
-            ← Übersicht
-          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <Link href="/auswertung" className="text-base text-emerald-700 hover:underline">
+              ← Übersicht
+            </Link>
+            <a
+              href={`/api/export/csv?rundeId=${runde.id}`}
+              className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+            >
+              ⬇ als CSV
+            </a>
+          </div>
         </div>
 
         <AuswertungsTabelle zeilen={zeilen} />
-        <a href={`/api/export/csv?rundeId=${runde.id}`} className="inline-block rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100">⬇ als CSV</a>
       </div>
     );
   }
@@ -154,18 +170,20 @@ export default async function AuswertungSeite({
             </p>
             <Zusammenfassung s={s} />
           </div>
-          <Link href="/auswertung" className="shrink-0 text-base text-emerald-700 hover:underline">
-            ← Übersicht
-          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <Link href="/auswertung" className="text-base text-emerald-700 hover:underline">
+              ← Übersicht
+            </Link>
+            <a
+              href={`/api/export/csv?jahr=${jahrParam}&anlage=${encodeURIComponent(anlageParam)}`}
+              className="rounded border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
+            >
+              ⬇ als CSV
+            </a>
+          </div>
         </div>
 
         <AuswertungsTabelle zeilen={zeilen} />
-        <a
-          href={`/api/export/csv?jahr=${jahrParam}&anlage=${encodeURIComponent(anlageParam)}`}
-          className="inline-block rounded border border-stone-300 px-3 py-1.5 text-base hover:bg-stone-100"
-        >
-          ⬇ als CSV
-        </a>
       </div>
     );
   }
@@ -207,7 +225,10 @@ export default async function AuswertungSeite({
             <h2 className="text-lg font-semibold">{jahr}</h2>
             <p className="text-sm font-medium text-stone-700">Jahr gesamt:</p>
             <Zusammenfassung s={s} />
-            <ul className="mt-3 space-y-1">
+            <p className="mt-3 text-sm font-medium text-stone-700">
+              Anlagen — Jahr kombiniert:
+            </p>
+            <ul className="space-y-1">
               {[...anlagen.entries()]
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([kuerzel, a]) => {
@@ -221,15 +242,17 @@ export default async function AuswertungSeite({
                         <span className="min-w-0 font-medium text-emerald-700">
                           Begehungen {a.name} {jahr}
                         </span>
-                        <span className="shrink-0 text-stone-500">
-                          {sa.begutachtet} begutachtet · {sa.mitMaengel} m. Mängeln · {sa.plaketten} Plakette(n)
+                        <span className="shrink-0 text-stone-600">
+                          {sa.begutachtet} begutachtet · {sa.mitMaengel} mit Mängeln ·{" "}
+                          {sa.plaketten} {sa.plaketten === 1 ? "Plakette" : "Plaketten"}
                         </span>
                       </Link>
                     </li>
                   );
                 })}
             </ul>
-            <ul className="mt-2 space-y-1">
+            <p className="mt-3 text-sm font-medium text-stone-700">Einzelne Begehungen:</p>
+            <ul className="space-y-1">
               {rs.map((r) => {
                 const rs2 = summary(r.befunde);
                 return (
@@ -241,11 +264,12 @@ export default async function AuswertungSeite({
                       <div className="min-w-0">
                         <span className="font-medium text-emerald-700">{r.bezeichnung}</span>
                         {r.teilnehmende && (
-                          <p className="text-stone-400">Teilnehmer: {r.teilnehmende}</p>
+                          <p className="text-stone-500">Teilnehmer: {r.teilnehmende}</p>
                         )}
                       </div>
-                      <span className="shrink-0 text-stone-500">
-                        {rs2.begutachtet} begutachtet · {rs2.mitMaengel} m. Mängeln · {rs2.plaketten} Plakette(n)
+                      <span className="shrink-0 text-stone-600">
+                        {rs2.begutachtet} begutachtet · {rs2.mitMaengel} mit Mängeln ·{" "}
+                        {rs2.plaketten} {rs2.plaketten === 1 ? "Plakette" : "Plaketten"}
                       </span>
                     </Link>
                   </li>
@@ -255,7 +279,7 @@ export default async function AuswertungSeite({
           </section>
         );
       })}
-      {jahre.size === 0 && <p className="text-base text-stone-400">Noch keine Begehungen.</p>}
+      {jahre.size === 0 && <p className="text-base text-stone-600">Noch keine Begehungen.</p>}
     </div>
   );
 }

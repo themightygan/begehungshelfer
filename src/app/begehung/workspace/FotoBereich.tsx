@@ -104,7 +104,7 @@ export function FotoBereich({
           <input type="file" accept="image/*" multiple className="hidden" onChange={pick} />
         </label>
         {meine.length > 0 && (
-          <span className="text-sm text-stone-500">{meine.length} gepuffert…</span>
+          <span className="text-sm text-stone-600">{meine.length} gepuffert…</span>
         )}
       </div>
 
@@ -113,12 +113,16 @@ export function FotoBereich({
           {fotos.map((f) => (
             <div key={f.id} className="relative">
               <Thumb src={`/api/datei/${f.pfad}`} />
+              {/* 44px-Hitbox (Touch), sichtbare Fläche bleibt klein. */}
               <button
                 onClick={() => del(f.id)}
-                className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-0.5 text-sm font-bold text-white shadow"
+                className="absolute -right-1 -top-1 flex h-11 w-11 items-start justify-end"
                 title="Foto löschen"
+                aria-label="Foto löschen"
               >
-                ✕
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white shadow">
+                  ✕
+                </span>
               </button>
             </div>
           ))}
