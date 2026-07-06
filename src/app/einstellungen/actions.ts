@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { passwortHashen } from "@/lib/passwort";
 import { logoSpeichern, dateiLoeschen } from "@/lib/storage";
+import { verschluesseln } from "@/lib/geheim";
 
 // Einstellungen: Anlagen/Parzellen anlegen, Vorstand pflegen (inkl. Logins).
 // Alle Actions liefern FormState für Fehlermeldungen via useActionState.
@@ -187,10 +188,17 @@ export async function vereinSpeichern(_prev: FormState, formData: FormData): Pro
     smtpServer: feld("smtpServer"),
     bezirksverbandEmail: feld("bezirksverbandEmail").toLowerCase(),
   };
-  // Passwort write-only: leer = unverändert; Checkbox löscht es.
+  // Passwort write-only: leer = unverändert; Checkbox löscht es. Verschlüsselt
+  // gespeichert (AES-GCM, Schlüssel in .env) — DB-Backups tragen kein Klartext.
   const passwortNeu = String(formData.get("passwortNeu") ?? "");
   if (formData.get("passwortEntfernen") === "1") daten.emailPasswort = "";
-  else if (passwortNeu) daten.emailPasswort = passwortNeu;
+  else if (passwortNeu) {
+    try {
+      daten.emailPasswort = verschluesseln(passwortNeu);
+    } catch (e) {
+      return { fehler: e instanceof Error ? e.message : String(e) };
+    }
+  }
 
   await prisma.verein.upsert({
     where: { id: 1 },

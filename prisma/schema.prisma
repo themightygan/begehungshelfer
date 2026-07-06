@@ -230,10 +230,10 @@ model Vorstand {
 }
 
 // Vereins-Stammdaten (Singleton, immer id = 1): für Briefkopf/Berichte und
-// späteren Mail-Versand. imap/smtpServer als "host" oder "host:port";
-// emailBenutzer = Postfach-Login (leer => email). emailPasswort liegt im
-// Klartext in der lokalen SQLite (nötig für SMTP/IMAP; DB bleibt auf dem
-// Mac Mini — Achtung: wandert mit ins Backup).
+// Mail-Versand. imap/smtpServer als "host" oder "host:port"; emailBenutzer =
+// Postfach-Login (leer => email). emailPasswort liegt AES-verschlüsselt in
+// der DB ("enc:v1:…", src/lib/geheim.ts) — Schlüssel MAIL_GEHEIM_SCHLUESSEL
+// in .env, damit DB-Backups keinen Klartext tragen.
 model Verein {
   id                  Int    @id @default(1)
   name                String @default("")

@@ -12,6 +12,7 @@
 import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db";
+import { entschluesseln } from "@/lib/geheim";
 
 export type MailAnhang = { dateiname: string; inhalt: Buffer };
 export type MailZiel = "vorstand" | "bezirksverband";
@@ -55,13 +56,18 @@ export async function mailKonfig(): Promise<Konfig | string> {
   if (!v.smtpServer) fehlt.push("SMTP-Server");
   if (fehlt.length) return `Mail-Zugang unvollständig: ${fehlt.join(", ")} fehlt (Einstellungen → Verein).`;
   if (!istEinzelAdresse(v.email)) return "E-Mail des Vereins ist keine einzelne gültige Adresse.";
+  // Passwort liegt AES-verschlüsselt in der DB (Schlüssel in .env).
+  const pass = entschluesseln(v.emailPasswort);
+  if (pass === null) {
+    return "Mail-Passwort kann nicht entschlüsselt werden (MAIL_GEHEIM_SCHLUESSEL fehlt oder wurde geändert) — bitte in den Einstellungen neu eintragen.";
+  }
   const imap = hostPort(v.imapServer, 993);
   const smtp = hostPort(v.smtpServer, 465);
   return {
     imapHost: imap.host, imapPort: imap.port,
     smtpHost: smtp.host, smtpPort: smtp.port,
     user: v.emailBenutzer || v.email,
-    pass: v.emailPasswort,
+    pass,
     absender: v.email,
     bezirksverband: v.bezirksverbandEmail,
   };
