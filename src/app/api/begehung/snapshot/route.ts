@@ -166,6 +166,8 @@ export async function GET() {
             frist: fristStr(m.frist),
             behoben: false,
             rundeDatum: datumStr(x.runde.datum),
+            // Fotos der damaligen Begehung — für den Abgleich vor Ort
+            fotos: m.fotos.map(foto),
           }))
       ),
       messHistorie: alt

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FolderOpen, History, ThumbsUp, TriangleAlert } from "lucide-react";
+import { ChevronRight, FolderOpen, History, ThumbsUp, TriangleAlert } from "lucide-react";
 import { Thumb } from "@/components/Thumb";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
 import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, normalisiereStufe } from "@/lib/constants";
@@ -230,32 +230,62 @@ export function ParzelleAnsicht({
           <ul className="mt-2 space-y-2">
             {p.offeneFruehere.map((m) => {
               const ueb = m.frist && new Date(m.frist + "T00:00:00") < heute;
+              const alteFotos = m.fotos ?? [];
               return (
-                <li
-                  key={m.uid}
-                  className="flex items-start justify-between gap-3 rounded border border-amber-200 bg-white p-2"
-                >
-                  <div className={`min-w-0 ${m.behoben ? "opacity-50" : ""}`}>
-                    <p className={`text-base font-medium ${m.behoben ? "line-through" : ""}`}>
-                      {m.punkt || "(ohne Bezeichnung)"}
-                    </p>
-                    {m.notiz && <p className="text-sm text-stone-600">{m.notiz}</p>}
-                    <p className={`text-sm ${ueb && !m.behoben ? "font-medium text-red-700" : "text-stone-500"}`}>
-                      Begehung {m.rundeDatum}
-                      {m.frist ? ` · Frist ${fristAnzeige(m.frist)}` : ""}
-                      {ueb && !m.behoben ? " · überfällig" : ""}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => behobenSetzen(pid, m.uid, !m.behoben)}
-                    className={
-                      m.behoben
-                        ? "shrink-0 rounded border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
-                        : "shrink-0 rounded bg-emerald-700 px-3 py-2 text-base font-medium text-white hover:bg-emerald-800"
-                    }
-                  >
-                    {m.behoben ? "rückgängig" : "✓ behoben"}
-                  </button>
+                // Zeile antippen = Details der damaligen Feststellung (voller
+                // Text + Fotos) zum Abgleich vor Ort; Beleg-Fotos direkt dazu.
+                <li key={m.uid}>
+                  <details className="group rounded border border-amber-200 bg-white">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-2 [&::-webkit-details-marker]:hidden">
+                      <div className={`min-w-0 ${m.behoben ? "opacity-50" : ""}`}>
+                        <p className={`text-base font-medium ${m.behoben ? "line-through" : ""}`}>
+                          <ChevronRight
+                            className="mr-1 inline h-4 w-4 align-text-bottom text-stone-500 transition-transform group-open:rotate-90"
+                            aria-hidden
+                          />
+                          {m.punkt || "(ohne Bezeichnung)"}
+                        </p>
+                        {m.notiz && <p className="text-sm text-stone-600 line-clamp-1 group-open:hidden">{m.notiz}</p>}
+                        <p className={`text-sm ${ueb && !m.behoben ? "font-medium text-red-700" : "text-stone-500"}`}>
+                          Begehung {m.rundeDatum}
+                          {m.frist ? ` · Frist ${fristAnzeige(m.frist)}` : ""}
+                          {ueb && !m.behoben ? " · überfällig" : ""}
+                          {alteFotos.length ? ` · ${alteFotos.length} Foto${alteFotos.length > 1 ? "s" : ""}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault(); // nicht auf-/zuklappen
+                          behobenSetzen(pid, m.uid, !m.behoben);
+                        }}
+                        className={
+                          m.behoben
+                            ? "shrink-0 rounded border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
+                            : "shrink-0 rounded bg-emerald-700 px-3 py-2 text-base font-medium text-white hover:bg-emerald-800"
+                        }
+                      >
+                        {m.behoben ? "rückgängig" : "✓ behoben"}
+                      </button>
+                    </summary>
+                    <div className="space-y-2 border-t border-amber-100 p-2">
+                      {m.notiz && <p className="whitespace-pre-line text-sm text-stone-700">{m.notiz}</p>}
+                      {alteFotos.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {alteFotos.map((f) => (
+                            <Thumb key={f.id} src={`/api/datei/${f.pfad}`} />
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-sm font-medium text-stone-600">Beleg-Foto aufnehmen (heutiger Zustand):</p>
+                      <FotoBereich
+                        rundeId={rundeId}
+                        parzelleId={pid}
+                        fotos={[]}
+                        kontext="mangel"
+                        mangelUid={m.uid}
+                      />
+                    </div>
+                  </details>
                 </li>
               );
             })}

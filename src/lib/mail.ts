@@ -169,14 +169,13 @@ export async function entwurfInPostfach(nachricht: {
       liste.find((o) => ENTWURF_NAMEN.includes(o.path.toLowerCase()));
     let ziel = drafts?.path ?? "Drafts";
     if (nachricht.ordner) {
-      // Eigener Ordner auf derselben Ebene wie der Entwürfe-Ordner
-      // (Namespace-Präfix wie "INBOX." vom Drafts-Pfad übernehmen).
+      // UNTERORDNER des Entwürfe-Ordners ("Entwürfe > Mitteilungen").
+      // Delimiter-Zeichen im Namen entschärfen: bei Strato ist "." der
+      // Hierarchie-Trenner — "Entwürfe 2. Abmahnungen" wurde sonst zu
+      // "Entwürfe 2" mit Unterordner "Abmahnungen" (Vorfall 2026-07-06).
       const delim = drafts?.delimiter ?? ".";
-      const praefix =
-        drafts && drafts.path.lastIndexOf(delim) > 0
-          ? drafts.path.slice(0, drafts.path.lastIndexOf(delim) + delim.length)
-          : "";
-      ziel = praefix + nachricht.ordner;
+      const name = nachricht.ordner.split(delim).join(" ").replace(/\s+/g, " ").trim();
+      ziel = `${drafts?.path ?? "Drafts"}${delim}${name}`;
       try { await client.mailboxCreate(ziel); } catch { /* existiert schon */ }
       // Immer abonnieren (idempotent) — sonst fehlt der Ordner in Clients,
       // die nur abonnierte Ordner anzeigen.

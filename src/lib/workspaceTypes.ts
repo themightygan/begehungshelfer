@@ -61,6 +61,9 @@ export type SnapOffenerMangel = {
   frist: string | null;
   behoben: boolean;
   rundeDatum: string; // "DD.MM.YYYY" (Anzeige)
+  // Fotos der damaligen Begehung + nachgereichte Beleg-Fotos.
+  // Optional: alte IndexedDB-Snapshots kennen das Feld noch nicht.
+  fotos?: SnapFoto[];
 };
 
 export type SnapParzelle = {

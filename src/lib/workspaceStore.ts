@@ -466,8 +466,14 @@ export async function verarbeiteAck(
     const foto = { id: antwort.id, pfad: antwort.dateipfad };
     const kontext = antwort.kontext ?? item.kontext;
     const mangel = item.mangelUid ? b.maengel.find((m) => m.uid === item.mangelUid) : undefined;
+    // Beleg-Foto zu einem offenen Mangel aus einer FRÜHEREN Begehung
+    // (Nachverfolgungs-Abgleich): dort einsortieren, nicht als Zustand.
+    const frueher = item.mangelUid && !mangel
+      ? p.offeneFruehere.find((m) => m.uid === item.mangelUid)
+      : undefined;
     const beet = item.beetUid ? b.beete.find((x) => x.uid === item.beetUid) : undefined;
     if (kontext === "mangel" && mangel) mangel.fotos.push(foto);
+    else if (kontext === "mangel" && frueher) (frueher.fotos ??= []).push(foto);
     else if (kontext === "beet" && beet) beet.fotos.push(foto);
     else if (kontext === "kompensation") b.kompFotos.push(foto);
     else b.zustandFotos.push(foto);
