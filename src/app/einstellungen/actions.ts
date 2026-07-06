@@ -234,7 +234,11 @@ export async function vereinLogoHochladen(_prev: FormState, formData: FormData):
 }
 
 // Mail-Zugang testen (SMTP-Login + IMAP-Login, ohne etwas zu senden).
-export type TestErgebnis = { ok?: boolean; bericht?: string };
+export type TestErgebnis = {
+  ok?: boolean;
+  bericht?: string;
+  links?: { href: string; label: string }[]; // z. B. "Fristen prüfen" je Parzelle
+};
 
 export async function mailVerbindungTesten(
   _prev: TestErgebnis,
@@ -303,5 +307,13 @@ export async function postfachAbgleich(
   const { gesendetAbgleich } = await import("@/lib/mail");
   const ergebnis = await gesendetAbgleich();
   revalidatePath("/einstellungen");
-  return ergebnis;
+  return {
+    ok: ergebnis.ok,
+    bericht: ergebnis.bericht,
+    // Direkt zur Begehungsansicht: dort Fristen setzen ("Frist für alle")
+    links: ergebnis.neue.map((n) => ({
+      href: n.rundeId ? `/begehung/ansicht/${n.rundeId}/${n.parzelleId}` : `/parzellen/${n.parzelleId}`,
+      label: `${n.parzelleId}: Fristen prüfen`,
+    })),
+  };
 }

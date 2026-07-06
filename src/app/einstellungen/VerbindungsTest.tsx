@@ -29,6 +29,15 @@ export function VerbindungsTest({
           {state.bericht}
         </span>
       )}
+      {!!state.links?.length && (
+        <span className="flex flex-wrap gap-2 text-sm">
+          {state.links.map((l) => (
+            <a key={l.href + l.label} href={l.href} className="text-emerald-700 underline hover:text-emerald-800">
+              {l.label}
+            </a>
+          ))}
+        </span>
+      )}
     </form>
   );
 }

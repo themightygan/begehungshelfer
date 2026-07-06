@@ -229,87 +229,130 @@ export async function mailSenden(
   }
 }
 
-// --- Gesendet-Abgleich: versandte Mitteilungen automatisch in die Akte ---
-// Durchsucht den Gesendet-Ordner nach App-Mails an Pächter (Betreff enthält
-// "Parzelle <ID>"), legt den PDF-Anhang als Dokument (typ "email") in die
-// Parzellen-Akte. Dedupe über die Message-ID in der Dokument-Notiz.
+// --- Postfach-Abgleich: versandte/empfangene Schreiben automatisch in die Akte ---
+// Durchsucht Gesendet-Ordner UND Posteingang (90 Tage) nach PDF-Anhängen, die
+// sich einer Parzelle zuordnen lassen:
+//   1. Anhang-DATEINAME beginnt mit der Parzellen-ID ("K52 Ludwig ....pdf") —
+//      so kommen auch Sammel-Mails mit mehreren BV-Abmahnungen richtig an, oder
+//   2. BETREFF enthält "Parzelle <ID>" (App-Mitteilungen; alle PDFs der Mail).
+// Typ: "Abmah…" im Dateinamen/Betreff (tippfehlertolerant) -> schreiben, sonst
+// email. App-eigene ENTWURF-Mails werden übersprungen; Dedupe je Anhang über
+// Message-ID + Part in der Dokument-Notiz.
 const GESENDET_NAMEN = ["sent", "sent items", "gesendet", "gesendete objekte", "gesendete elemente", "inbox.sent", "inbox.gesendet"];
 
-export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string }> {
+export type AbgleichTreffer = { parzelleId: string; rundeId: number | null; datei: string };
+
+export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string; neue: AbgleichTreffer[] }> {
   const k = await mailKonfig();
-  if (typeof k === "string") return { ok: false, bericht: k };
+  if (typeof k === "string") return { ok: false, bericht: k, neue: [] };
   const { dokumentSpeichern } = await import("@/lib/storage");
 
+  const kuerzel = (await prisma.anlage.findMany({ select: { kuerzel: true } })).map((a) => a.kuerzel);
+  const dateiRe = new RegExp(`^\\s*(${kuerzel.join("|")})\\s*(\\d+)\\s*([a-z])?\\b`, "i");
+  const betreffRe = new RegExp(`Parzelle\\s+(${kuerzel.join("|")})\\s*(\\d+)\\s*([a-z])?\\b`, "i");
+
   const client = imapClient(k);
-  let neu = 0, gesehen = 0;
+  const neue: AbgleichTreffer[] = [];
+  let gesehen = 0;
   try {
     await client.connect();
-    const ordner = await client.list();
-    const ziel =
-      ordner.find((o) => o.specialUse === "\\Sent")?.path ??
-      ordner.find((o) => GESENDET_NAMEN.includes(o.path.toLowerCase()))?.path;
-    if (!ziel) { await client.logout(); return { ok: false, bericht: "Gesendet-Ordner nicht gefunden." }; }
+    const liste = await client.list();
+    const quellen = [
+      liste.find((o) => o.specialUse === "\\Sent")?.path ??
+        liste.find((o) => GESENDET_NAMEN.includes(o.path.toLowerCase()))?.path,
+      "INBOX",
+    ].filter((q): q is string => !!q);
 
-    const lock = await client.getMailboxLock(ziel);
-    try {
-      const seit = new Date(Date.now() - 90 * 86400000); // 90 Tage zurück
-      for await (const msg of client.fetch(
-        { since: seit },
-        { envelope: true, bodyStructure: true, uid: true }
-      )) {
-        const betreff = msg.envelope?.subject ?? "";
-        const m = betreff.match(/Parzelle\s+([A-Z]{1,3}\d+[a-z]?)/i);
-        if (!m) continue;
-        const empfaenger = (msg.envelope?.to ?? []).map((a) => a.address ?? "").filter(Boolean);
-        // Nur Mails an Externe (Pächter) — Entwürfe an Verein/BV sind keine Zustellung.
-        if (!empfaenger.length || empfaenger.every((a) => a === k.absender || a === k.bezirksverband)) continue;
-        gesehen++;
+    type Teil = { part?: string; type?: string; dispositionParameters?: Record<string, string>; parameters?: Record<string, string>; childNodes?: Teil[] };
+    for (const quelle of quellen) {
+      const lock = await client.getMailboxLock(quelle);
+      try {
+        const seit = new Date(Date.now() - 90 * 86400000);
+        // Erst sammeln, dann laden — download() WÄHREND des fetch-Iterators
+        // blockiert die IMAP-Pipeline (Socket-Timeout).
+        const jobs: { uid: number; part: string; name: string; betreff: string; messageId: string; datum: Date }[] = [];
+        for await (const msg of client.fetch({ since: seit }, { envelope: true, bodyStructure: true, uid: true })) {
+          const betreff = msg.envelope?.subject ?? "";
+          if (/^\s*(ENTWURF|Fwd?:\s*ENTWURF)/i.test(betreff)) continue; // App-Entwürfe
+          const teile: Teil[] = [];
+          const sammle = (t?: Teil) => {
+            if (!t) return;
+            if (t.type === "application/pdf" && t.part) teile.push(t);
+            (t.childNodes ?? []).forEach(sammle);
+          };
+          sammle(msg.bodyStructure as Teil);
+          if (!teile.length) continue;
+          gesehen++;
+          for (const t of teile) {
+            jobs.push({
+              uid: msg.uid,
+              part: t.part!,
+              name: t.dispositionParameters?.filename ?? t.parameters?.name ?? "anhang.pdf",
+              betreff,
+              messageId: msg.envelope?.messageId ?? `uid:${msg.uid}`,
+              datum: msg.envelope?.date ?? new Date(),
+            });
+          }
+        }
 
-        const parzelle = await prisma.parzelle.findUnique({ where: { parzelleId: m[1].toUpperCase() } });
-        if (!parzelle) continue;
-        const messageId = msg.envelope?.messageId ?? `uid:${msg.uid}`;
-        const marke = `[Mail ${messageId}]`;
-        const schonDa = await prisma.dokument.findFirst({
-          where: { parzelleId: parzelle.id, notiz: { contains: marke } },
-        });
-        if (schonDa) continue;
+        for (const j of jobs) {
+          const m = j.name.match(dateiRe) ?? j.betreff.match(betreffRe);
+          if (!m) continue;
+          const pid = `${m[1].toUpperCase()}${Number(m[2])}${(m[3] ?? "").toLowerCase()}`;
+          const parzelle = await prisma.parzelle.findUnique({ where: { parzelleId: pid } });
+          if (!parzelle) continue;
+          const marke = `[Mail ${j.messageId}#${j.part}]`;
+          // Dedupe: gleicher Anhang derselben Mail ODER gleicher Dateiname
+          // bereits übernommen (dieselbe Datei steckt oft in mehreren Mails —
+          // gesendet + Eingang; Vorfall K49 doppelt, 2026-07-06).
+          const schonDa = await prisma.dokument.findFirst({
+            where: {
+              parzelleId: parzelle.id,
+              OR: [
+                { notiz: { contains: marke } },
+                { notiz: { startsWith: `${j.name} — aus Postfach übernommen` } },
+              ],
+            },
+          });
+          if (schonDa) continue;
 
-        // PDF-Anhänge im Body-Baum suchen und herunterladen
-        type Teil = { part?: string; type?: string; disposition?: string; dispositionParameters?: Record<string, string>; parameters?: Record<string, string>; childNodes?: Teil[] };
-        const teile: Teil[] = [];
-        const sammle = (t?: Teil) => {
-          if (!t) return;
-          if (t.type === "application/pdf") teile.push(t);
-          (t.childNodes ?? []).forEach(sammle);
-        };
-        sammle(msg.bodyStructure as Teil);
-        for (const teil of teile) {
-          if (!teil.part) continue;
-          const dl = await client.download(String(msg.uid), teil.part, { uid: true });
+          const dl = await client.download(String(j.uid), j.part, { uid: true });
           const stuecke: Buffer[] = [];
           for await (const chunk of dl.content) stuecke.push(chunk as Buffer);
-          const name =
-            teil.dispositionParameters?.filename ?? teil.parameters?.name ?? `Mitteilung_${parzelle.parzelleId}.pdf`;
-          const pfad = await dokumentSpeichern(parzelle.parzelleId, Buffer.concat(stuecke), name);
+          const typ = /abmah/i.test(j.name) || /abmah/i.test(j.betreff)
+            ? "schreiben"
+            : /endstand|wertermittl/i.test(j.name)
+              ? "wertermittlung"
+              : "email";
+          const pfad = await dokumentSpeichern(pid, Buffer.concat(stuecke), j.name);
           await prisma.dokument.create({
             data: {
               parzelleId: parzelle.id,
-              typ: "email",
+              typ,
               dateipfad: pfad,
-              datum: msg.envelope?.date ?? new Date(),
-              notiz: `Per E-Mail versandt an ${empfaenger.join(", ")} — „${kopfzeile(betreff)}" ${marke}`,
+              datum: j.datum,
+              notiz: `${j.name} — aus Postfach übernommen („${kopfzeile(j.betreff)}") ${marke}`,
             },
           });
-          neu++;
+          const befund = await prisma.befund.findFirst({
+            where: { parzelleId: parzelle.id },
+            orderBy: { runde: { datum: "desc" } },
+            select: { rundeId: true },
+          });
+          neue.push({ parzelleId: pid, rundeId: befund?.rundeId ?? null, datei: j.name });
         }
+      } finally {
+        lock.release();
       }
-    } finally {
-      lock.release();
     }
     await client.logout();
-    return { ok: true, bericht: `Gesendet-Abgleich: ${gesehen} App-Mails gefunden, ${neu} neu in Akten abgelegt.` };
+    return {
+      ok: true,
+      neue,
+      bericht: `Abgleich: ${gesehen} Mails mit PDF geprüft, ${neue.length} Dokument${neue.length === 1 ? "" : "e"} neu abgelegt${neue.length ? ` (${neue.map((n) => n.parzelleId).join(", ")})` : ""}.`,
+    };
   } catch (e) {
     try { await client.logout(); } catch { /* Verbindung eh tot */ }
-    return { ok: false, bericht: `Abgleich fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}` };
+    return { ok: false, bericht: `Abgleich fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`, neue };
   }
 }
