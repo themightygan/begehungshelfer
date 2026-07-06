@@ -103,6 +103,14 @@ export default async function AnsichtSeite({
     orderBy: { datum: "asc" },
     select: { typ: true, datum: true, notiz: true },
   });
+  // Schreiben zu DIESER Begehung schon in der Akte? (Gesendet-Abgleich bzw.
+  // manueller Upload ab dem Begehungstag) -> Hinweis statt Doppelversand.
+  const begehungsTag = new Date(runde.datum);
+  begehungsTag.setHours(0, 0, 0, 0);
+  const bereitsInAkte =
+    dokumente.find(
+      (d) => (d.typ === "schreiben" || d.typ === "email") && d.datum >= begehungsTag
+    )?.datum.toLocaleDateString("de-DE") ?? null;
 
   // Katalog fürs nachträgliche Ergänzen von Mängeln.
   const katalog = await prisma.katalog.findMany({
@@ -409,6 +417,7 @@ export default async function AnsichtSeite({
             historieVorschlag={historieVorschlag(dokumente)}
             paechterEmail={parzelle.email}
             bvEmail={konfig.bezirksverband}
+            bereitsInAkte={bereitsInAkte}
           />
         )}
       </section>

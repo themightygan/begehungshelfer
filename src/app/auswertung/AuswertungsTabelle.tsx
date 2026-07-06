@@ -28,6 +28,9 @@ export type Zeile = {
   maengel: number;
   ansichtHref: string; // Zeilenziel (inkl. evtl. ?von=…)
   pdfHref: string;
+  // "TT.MM.JJJJ" wenn seit dem Begehungstag ein Schreiben/eine E-Mail in der
+  // Akte liegt -> von der Sammel-Erstellung ausgenommen (kein Doppelversand)
+  schreibenErledigt: string | null;
 };
 
 type SortKey =
@@ -107,7 +110,7 @@ export function AuswertungsTabelle({
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
 
   // --- Sammel-Schreiben: Auswahl + sequenzieller Lauf über die Server-Action ---
-  const waehlbar = sortiert.filter((z) => SCHREIBEN_STUFEN.has(z.stufe));
+  const waehlbar = sortiert.filter((z) => SCHREIBEN_STUFEN.has(z.stufe) && !z.schreibenErledigt);
   const alleGewaehlt = waehlbar.length > 0 && waehlbar.every((z) => auswahl.has(z.parzelleId));
   const umschalten = (id: string) =>
     setAuswahl((s) => {
@@ -120,7 +123,7 @@ export function AuswertungsTabelle({
 
   async function schreibenLauf() {
     if (!schreibenAction || laufend) return;
-    const ziele = zeilen.filter((z) => auswahl.has(z.parzelleId) && SCHREIBEN_STUFEN.has(z.stufe));
+    const ziele = zeilen.filter((z) => auswahl.has(z.parzelleId) && SCHREIBEN_STUFEN.has(z.stufe) && !z.schreibenErledigt);
     if (!ziele.length) return;
     const frage =
       `${ziele.length} Schreiben erstellen?\n\n` +
@@ -271,6 +274,15 @@ export function AuswertungsTabelle({
                           </span>
                         );
                       if (st?.sym === "fehler") return <span className="text-sm font-medium text-red-700" title={st.text}>✗</span>;
+                      if (SCHREIBEN_STUFEN.has(z.stufe) && z.schreibenErledigt)
+                        return (
+                          <span
+                            className="text-sm text-emerald-700"
+                            title={`Schreiben liegt seit ${z.schreibenErledigt} in der Akte — erneutes Erstellen nur einzeln über die Begehungsansicht`}
+                          >
+                            ✓✉
+                          </span>
+                        );
                       return SCHREIBEN_STUFEN.has(z.stufe) ? (
                         <input
                           type="checkbox"

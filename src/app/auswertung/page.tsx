@@ -57,7 +57,38 @@ function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
     maengel: b._count.maengel,
     ansichtHref: `/begehung/ansicht/${rundeId}/${p.parzelleId}${vonSuffix}`,
     pdfHref: `/api/parzelle/${p.parzelleId}/pdf?rundeId=${rundeId}`,
+    schreibenErledigt: null,
   };
+}
+
+// "Schreiben erledigt" = in der Akte liegt ein Schreiben/eine E-Mail mit Datum
+// ab dem Begehungstag (Gesendet-Abgleich bzw. manueller Abmahnungs-Upload).
+// Solche Zeilen sind von der Sammel-Erstellung ausgenommen (Doppelversand).
+async function markiereSchreibenErledigt(zeilen: Zeile[], datumVonRunde: Map<number, Date>) {
+  if (zeilen.length === 0) return;
+  const doks = await prisma.dokument.findMany({
+    where: {
+      typ: { in: ["schreiben", "email"] },
+      parzelle: { parzelleId: { in: zeilen.map((z) => z.parzelleId) } },
+    },
+    select: { datum: true, parzelle: { select: { parzelleId: true } } },
+  });
+  const proParzelle = new Map<string, Date[]>();
+  for (const d of doks) {
+    const liste = proParzelle.get(d.parzelle.parzelleId) ?? [];
+    liste.push(d.datum);
+    proParzelle.set(d.parzelle.parzelleId, liste);
+  }
+  for (const z of zeilen) {
+    const rd = datumVonRunde.get(z.rundeId);
+    if (!rd) continue;
+    const tag = new Date(rd);
+    tag.setHours(0, 0, 0, 0);
+    const treffer = (proParzelle.get(z.parzelleId) ?? [])
+      .filter((d) => d.getTime() >= tag.getTime())
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    if (treffer) z.schreibenErledigt = treffer.toLocaleDateString("de-DE");
+  }
 }
 
 export default async function AuswertungSeite({
@@ -104,6 +135,7 @@ export default async function AuswertungSeite({
       );
     }
     const zeilen = runde.befunde.filter(hatDaten).map((b) => zeileAusBefund(b, runde.id));
+    await markiereSchreibenErledigt(zeilen, new Map([[runde.id, runde.datum]]));
     const s = summary(runde.befunde);
 
     return (
@@ -157,6 +189,7 @@ export default async function AuswertungSeite({
     const von = `jahr=${jahrParam}&anlage=${anlageParam}`;
     const gemergt = neuesteBefundeJeParzelle(runden);
     const zeilen = gemergt.map((e) => zeileAusBefund(e.befund, e.rundeId, von));
+    await markiereSchreibenErledigt(zeilen, new Map(runden.map((r) => [r.id, r.datum])));
     const s = summary(gemergt.map((e) => e.befund));
 
     return (
@@ -240,12 +273,12 @@ export default async function AuswertungSeite({
                     <li key={kuerzel} className="border-t border-stone-100">
                       <Link
                         href={`/auswertung?jahr=${jahr}&anlage=${kuerzel}`}
-                        className="flex items-start justify-between gap-3 py-2 text-sm hover:bg-stone-50"
+                        className="flex flex-col gap-0.5 py-2 text-sm hover:bg-stone-50 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                       >
                         <span className="min-w-0 font-medium text-emerald-700">
                           Begehungen {a.name} {jahr}
                         </span>
-                        <span className="shrink-0 text-stone-600">
+                        <span className="text-stone-600 sm:shrink-0">
                           {sa.begutachtet} begutachtet · {sa.mitMaengel} mit Mängeln ·{" "}
                           {sa.plaketten} {sa.plaketten === 1 ? "Plakette" : "Plaketten"}
                         </span>
@@ -262,7 +295,7 @@ export default async function AuswertungSeite({
                   <li key={r.id} className="border-t border-stone-100">
                     <Link
                       href={`/auswertung?rundeId=${r.id}`}
-                      className="flex items-start justify-between gap-3 py-2 text-sm hover:bg-stone-50"
+                      className="flex flex-col gap-0.5 py-2 text-sm hover:bg-stone-50 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                     >
                       <div className="min-w-0">
                         <span className="font-medium text-emerald-700">{r.bezeichnung}</span>
@@ -270,7 +303,7 @@ export default async function AuswertungSeite({
                           <p className="text-stone-500">Teilnehmer: {r.teilnehmende}</p>
                         )}
                       </div>
-                      <span className="shrink-0 text-stone-600">
+                      <span className="text-stone-600 sm:shrink-0">
                         {rs2.begutachtet} begutachtet · {rs2.mitMaengel} mit Mängeln ·{" "}
                         {rs2.plaketten} {rs2.plaketten === 1 ? "Plakette" : "Plaketten"}
                       </span>

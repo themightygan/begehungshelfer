@@ -3,8 +3,15 @@
 import { useEffect, useState } from "react";
 import { ZoomIn } from "lucide-react";
 
-// Zoom/Textgröße für die ganze App (per CSS-zoom auf <body>), in localStorage gemerkt.
+// Zoom/Textgröße für die ganze App: skaliert die Root-Schriftgröße (rem-Basis
+// von Tailwind) statt CSS-zoom — zoom auf <body> rendert auf iOS-Safari
+// fehlerhaft (Texte überlappen Nachbarelemente, Vorfall 2026-07-06).
 const STUFEN = [75, 100, 125, 150];
+
+function anwenden(v: number) {
+  document.documentElement.style.fontSize = v === 100 ? "" : `${v}%`;
+  document.body.style.zoom = ""; // Altlast vom früheren zoom-Ansatz entfernen
+}
 
 export function ZoomControl() {
   const [zoom, setZoom] = useState(100);
@@ -12,13 +19,13 @@ export function ZoomControl() {
   useEffect(() => {
     const gespeichert = Number(localStorage.getItem("zoom")) || 100;
     setZoom(gespeichert);
-    document.body.style.zoom = String(gespeichert / 100);
+    anwenden(gespeichert);
   }, []);
 
   function aendern(v: number) {
     setZoom(v);
     localStorage.setItem("zoom", String(v));
-    document.body.style.zoom = String(v / 100);
+    anwenden(v);
   }
 
   return (

@@ -31,7 +31,9 @@ export default async function RootLayout({
     <html lang="de">
       <body className="min-h-screen">
         <header className="border-b border-stone-200 bg-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          {/* flex-wrap: auf schmalen Screens/großem Zoom bricht die rechte
+              Gruppe in eine zweite Zeile statt den Titel zu überlagern. */}
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-y-2 px-4 py-3">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-emerald-800">
               {HAT_LOGO ? (
                 /* eslint-disable-next-line @next/next/no-img-element */

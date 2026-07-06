@@ -15,6 +15,7 @@ export function SchreibenErstellen({
   historieVorschlag,
   paechterEmail,
   bvEmail,
+  bereitsInAkte,
 }: {
   action: (prev: SchreibenFormErgebnis, formData: FormData) => Promise<SchreibenFormErgebnis>;
   stufe: string;
@@ -22,6 +23,7 @@ export function SchreibenErstellen({
   historieVorschlag: { seit: string; hinweise: string; datum1Abmahnung: string } | null;
   paechterEmail: string;
   bvEmail: string;
+  bereitsInAkte: string | null; // "TT.MM.JJJJ" — Schreiben liegt schon in der Akte
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const INP = "rounded border border-stone-300 px-3 py-1.5 text-sm";
@@ -52,6 +54,14 @@ export function SchreibenErstellen({
 
   return (
     <form action={formAction} className="space-y-3">
+      {bereitsInAkte && (
+        <p className="flex items-start gap-1.5 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          Zu dieser Begehung liegt bereits ein versendetes Schreiben in der Akte (seit{" "}
+          {bereitsInAkte}) — die Parzelle ist deshalb von der Sammel-Erstellung ausgenommen.
+          Hier kannst du bewusst trotzdem ein (weiteres) Schreiben erstellen.
+        </p>
+      )}
       <div className="flex flex-wrap items-end gap-3">
         <p className="text-sm">
           Typ (aus der Stufe): <span className="font-medium">{typLabel}</span>
