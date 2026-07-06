@@ -132,12 +132,16 @@ const ENTWURF_NAMEN = ["drafts", "entwürfe", "inbox.drafts", "inbox.entwürfe",
 
 // E-Mail als Entwurf ins Postfach legen (wird NICHT versendet). `an` ist nur
 // der vorbefüllte Empfänger des Entwurfs (Pächter) — senden tut ein Mensch.
+// `ordner`: eigener Zielordner (z. B. "Entwürfe Mitteilungen") — wird auf
+// Ebene des Entwürfe-Ordners angelegt und ABONNIERT (sonst blenden andere
+// IMAP-Clients ihn aus — Ursache des "Entwurf fehlt am anderen Rechner").
 // Rückgabe: null = ok, sonst Fehlertext.
 export async function entwurfInPostfach(nachricht: {
   an: string;
   betreff: string;
   text: string;
   anhaenge?: MailAnhang[];
+  ordner?: string;
 }): Promise<string | null> {
   const k = await mailKonfig();
   if (typeof k === "string") return k;
@@ -159,11 +163,25 @@ export async function entwurfInPostfach(nachricht: {
   const client = imapClient(k);
   try {
     await client.connect();
-    const ordner = await client.list();
-    const ziel =
-      ordner.find((o) => o.specialUse === "\\Drafts")?.path ??
-      ordner.find((o) => ENTWURF_NAMEN.includes(o.path.toLowerCase()))?.path ??
-      "Drafts";
+    const liste = await client.list();
+    const drafts =
+      liste.find((o) => o.specialUse === "\\Drafts") ??
+      liste.find((o) => ENTWURF_NAMEN.includes(o.path.toLowerCase()));
+    let ziel = drafts?.path ?? "Drafts";
+    if (nachricht.ordner) {
+      // Eigener Ordner auf derselben Ebene wie der Entwürfe-Ordner
+      // (Namespace-Präfix wie "INBOX." vom Drafts-Pfad übernehmen).
+      const delim = drafts?.delimiter ?? ".";
+      const praefix =
+        drafts && drafts.path.lastIndexOf(delim) > 0
+          ? drafts.path.slice(0, drafts.path.lastIndexOf(delim) + delim.length)
+          : "";
+      ziel = praefix + nachricht.ordner;
+      try { await client.mailboxCreate(ziel); } catch { /* existiert schon */ }
+      // Immer abonnieren (idempotent) — sonst fehlt der Ordner in Clients,
+      // die nur abonnierte Ordner anzeigen.
+      try { await client.mailboxSubscribe(ziel); } catch { /* Server ohne SUBSCRIBE */ }
+    }
     // \Seen dazu: sonst zählt der eigene Entwurf im Client als "ungelesen".
     await client.append(ziel, gebaut.message as Buffer, ["\\Draft", "\\Seen"]);
     await client.logout();

@@ -225,12 +225,13 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
           { dateiname: `${basisName}.pdf`, inhalt: pdf },
           { dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME },
         ],
+        ordner: "Entwürfe Mitteilungen",
       });
       if (fehler) return { fehler, warnungen };
       return {
         ok: anGueltig
-          ? `Mitteilungs-Entwurf (PDF + docx) liegt im Postfach (An: ${parzelle.email}).`
-          : "Mitteilungs-Entwurf liegt im Postfach — keine gültige Pächter-E-Mail, Empfänger im Mail-Programm ergänzen.",
+          ? `Mitteilungs-Entwurf (PDF + docx) liegt im Ordner 'Entwürfe Mitteilungen' (An: ${parzelle.email}).`
+          : "Mitteilungs-Entwurf liegt im Ordner 'Entwürfe Mitteilungen' — keine gültige Pächter-E-Mail, Empfänger im Mail-Programm ergänzen.",
         warnungen,
       };
     }
@@ -291,12 +292,13 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
         "",
       ].join("\n"),
       anhaenge,
+      ordner: "Entwürfe 2. Abmahnungen",
     });
     if (fehler) return { fehler, warnungen };
     return {
       ok: istEinzelAdresse(bvAdresse)
-        ? `Entwurf an den Bezirksverband (${bvAdresse}) liegt im Postfach — prüfen und selbst senden.`
-        : "Entwurf liegt im Postfach — BV-E-Mail fehlt/ungültig, Empfänger im Mail-Programm ergänzen.",
+        ? `Entwurf an den Bezirksverband (${bvAdresse}) liegt im Ordner 'Entwürfe 2. Abmahnungen' — prüfen und selbst senden.`
+        : "Entwurf liegt im Ordner 'Entwürfe 2. Abmahnungen' — BV-E-Mail fehlt/ungültig, Empfänger im Mail-Programm ergänzen.",
       warnungen,
     };
   } catch (e) {
