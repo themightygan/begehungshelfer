@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { FileText, TriangleAlert } from "lucide-react";
 import type { SchreibenFormErgebnis } from "./actions";
 
-// „Schreiben erstellen": voller Prozess auf Knopfdruck — Typ ist aus der
-// Befund-Stufe vorbelegt; fehlende Anrede wird hier nachgetragen (1x anfassen);
-// Historie (nur 2. Abmahnung) kommt vorbefüllt aus der Dokumenten-Akte.
+// „Schreiben erstellen": voller Prozess auf Knopfdruck. Der Typ folgt der
+// oben gewählten Befund-Stufe (Mitteilung/1./2. Abmahnung) — keine eigene
+// Auswahl; ändert sich die Stufe, ändert sich hier der Typ. Fehlende Anrede
+// wird inline nachgetragen; Historie (2. Abm.) kommt vorbefüllt aus der Akte.
 export function SchreibenErstellen({
   action,
   stufe,
@@ -23,28 +24,38 @@ export function SchreibenErstellen({
   bvEmail: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
-  const vorbelegt = ["mitteilung", "abmahnung_1", "abmahnung_2"].includes(stufe) ? stufe : "mitteilung";
-  const [typ, setTyp] = useState(vorbelegt);
-
   const INP = "rounded border border-stone-300 px-3 py-1.5 text-sm";
+
+  const typ =
+    stufe === "mitteilung" || stufe === "abmahnung_1" || stufe === "abmahnung_2" ? stufe : null;
+  if (!typ) {
+    return (
+      <p className="text-sm text-stone-600">
+        Für die gewählte Stufe ist kein Schreiben vorgesehen — oben die Stufe auf
+        „Mitteilung", „1. Abmahnung" oder „2. Abmahnung" stellen.
+      </p>
+    );
+  }
+
+  const typLabel =
+    typ === "mitteilung"
+      ? "Mitteilung"
+      : typ === "abmahnung_1"
+        ? "1. Abmahnung (Verein)"
+        : "2. Abmahnung (Bezirksverband)";
   const zielText =
     typ === "mitteilung"
-      ? `E-Mail-Entwurf mit PDF ins Postfach (An: ${paechterEmail || "— keine Pächter-E-Mail —"}), Versand durch dich im Mail-Programm.`
+      ? `E-Mail-Entwurf mit PDF + docx ins Postfach (An: ${paechterEmail || "— keine Pächter-E-Mail —"}) — prüfen und selbst senden; bei Änderungen PDF löschen, docx überarbeiten, neu als PDF anhängen.`
       : typ === "abmahnung_1"
         ? "Word-Datei (docx) an die Vereinsadresse — Feinschliff in Word, Versand per Post."
-        : `Word-Datei (docx) an den Bezirksverband (${bvEmail || "BV-E-Mail fehlt!"}) mit Bitte um Übernahme, Kopie an den Verein.`;
+        : `E-Mail-Entwurf an den Bezirksverband (${bvEmail || "BV-E-Mail fehlt!"}) mit Bitte um Abmahnung, docx-Entwurf anbei — prüfen und selbst senden.`;
 
   return (
     <form action={formAction} className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-sm">
-          Schreiben-Typ
-          <select name="typ" value={typ} onChange={(e) => setTyp(e.target.value)} className={`mt-1 block ${INP}`}>
-            <option value="mitteilung">Mitteilung (E-Mail + PDF)</option>
-            <option value="abmahnung_1">1. Abmahnung (Verein, docx)</option>
-            <option value="abmahnung_2">2. Abmahnung (Bezirksverband, docx)</option>
-          </select>
-        </label>
+        <p className="text-sm">
+          Typ (aus der Stufe): <span className="font-medium">{typLabel}</span>
+        </p>
         {anredeFehlt && (
           <label className="text-sm">
             Anrede des Pächters
@@ -98,7 +109,7 @@ export function SchreibenErstellen({
           className="inline-flex min-h-11 items-center gap-1.5 rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
         >
           <FileText className="h-4 w-4 shrink-0" aria-hidden />
-          {pending ? "erzeuge…" : "Schreiben erstellen + senden"}
+          {pending ? "erzeuge…" : "Schreiben erstellen"}
         </button>
         {state.ok && !pending && <span className="text-sm text-emerald-700">✓ {state.ok}</span>}
         {state.fehler && <span className="text-sm text-red-700">{state.fehler}</span>}

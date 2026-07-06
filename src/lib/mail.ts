@@ -137,7 +137,7 @@ export async function entwurfInPostfach(nachricht: {
   an: string;
   betreff: string;
   text: string;
-  anhang?: MailAnhang;
+  anhaenge?: MailAnhang[];
 }): Promise<string | null> {
   const k = await mailKonfig();
   if (typeof k === "string") return k;
@@ -149,9 +149,11 @@ export async function entwurfInPostfach(nachricht: {
     to: nachricht.an && istEinzelAdresse(nachricht.an) ? { name: "", address: nachricht.an } : undefined,
     subject: kopfzeile(nachricht.betreff),
     text: nachricht.text,
-    attachments: nachricht.anhang
-      ? [{ filename: nachricht.anhang.dateiname, content: nachricht.anhang.inhalt, contentType: nachricht.anhang.contentType ?? "application/pdf" }]
-      : [],
+    attachments: (nachricht.anhaenge ?? []).map((a) => ({
+      filename: a.dateiname,
+      content: a.inhalt,
+      contentType: a.contentType ?? "application/pdf",
+    })),
   });
 
   const client = imapClient(k);

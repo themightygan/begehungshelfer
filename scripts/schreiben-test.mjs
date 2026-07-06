@@ -120,6 +120,8 @@ for (const auftrag of auftraege) {
     },
     gemuese: gemueseMangel ? { vorhanden: true, istM2 } : null,
     maengel,
+    plakette: b.gutGemacht,
+    neupaechterLob: false, // App-Pfad leitet das aus Eintritt + Plakette ab
     verein,
     logoPfad: auftrag.typ === "abmahnung_2" ? null : join(WURZEL, "public/img/logo.png"),
     historie,

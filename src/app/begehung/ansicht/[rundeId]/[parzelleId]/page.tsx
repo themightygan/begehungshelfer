@@ -16,11 +16,8 @@ import {
   setzeFristAlle,
   loescheMangel,
   mangelHinzufuegenNachtraeglich,
-  mitteilungsEntwurf,
-  abmahnungsEntwurfSenden,
   schreibenErstellen,
 } from "./actions";
-import { MailAktionen } from "./MailAktionen";
 import { SchreibenErstellen } from "./SchreibenErstellen";
 import { historieVorschlag } from "@/lib/schreibenErzeugen";
 import { mailKonfig } from "@/lib/mail";
@@ -412,29 +409,6 @@ export default async function AnsichtSeite({
             historieVorschlag={historieVorschlag(dokumente)}
             paechterEmail={parzelle.email}
             bvEmail={konfig.bezirksverband}
-          />
-        )}
-      </section>
-
-      {/* E-Mail (HITL): Mitteilungs-ENTWURF ins Postfach; Abmahnungs-Entwurf
-          nur an Vorstand/Bezirksverband — Empfänger serverseitig erzwungen. */}
-      <section className={CARD}>
-        <h2 className="mb-2 text-base font-medium">E-Mail (Begehungsbericht)</h2>
-        {typeof konfig === "string" ? (
-          <p className="text-sm text-stone-600">
-            {konfig}{" "}
-            <Link href="/einstellungen?tab=verein" className="text-emerald-700 hover:underline">
-              Zu den Einstellungen
-            </Link>
-          </p>
-        ) : (
-          <MailAktionen
-            mitteilungAction={mitteilungsEntwurf.bind(null, rundeId, parzelle.parzelleId)}
-            vorstandAction={abmahnungsEntwurfSenden.bind(null, rundeId, parzelle.parzelleId, "vorstand")}
-            bezirksverbandAction={abmahnungsEntwurfSenden.bind(null, rundeId, parzelle.parzelleId, "bezirksverband")}
-            paechterEmail={parzelle.email}
-            vereinEmail={konfig.absender}
-            bezirksverbandEmail={konfig.bezirksverband}
           />
         )}
       </section>

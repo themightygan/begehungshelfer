@@ -33,6 +33,9 @@ export type SchreibenEingabe = {
   };
   gemuese: { vorhanden: boolean; istM2: number | null } | null; // null = kein Gemüse-Mangel
   maengel: MangelEingabe[];
+  // Nur Mitteilung: freundlicher Rahmen ("Gut gemacht"-Plakette, Neupächter-Lob)
+  plakette?: boolean;
+  neupaechterLob?: boolean;
   verein: {
     name: string; adresse: string; email: string; telefon: string; ort: string;
     bvName: string; bvStrasse: string; bvPlzOrt: string; bezirksverbandEmail: string;
@@ -67,6 +70,25 @@ const aufzaehlung = (teile: string[], letztes: string) =>
   teile.length <= 1
     ? (teile[0] ?? "")
     : `${teile.slice(0, -1).join(", ")} ${letztes} ${teile.at(-1)}`;
+
+// Namen aus dem Import sind GROSSBUCHSTABEN ("THEIßEN", "SINGH-KAUR") ->
+// für Anrede/Adressfeld in normale Schreibung wandeln (wortweise, Bindestrich).
+export function nameSchoen(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/(^|[\s-])(\S)/g, (_, davor: string, buchst: string) => davor + buchst.toUpperCase());
+}
+
+// Akademischer Titel steckt im Vornamen-Feld ("Dr. Sascha") — gehört in die
+// Anrede ("Sehr geehrter Herr Dr. Theißen"), nicht in die Du-Form.
+const TITEL_RE = /^((?:Dr\.|Prof\.|Prof\. Dr\.)\s+)/;
+export function vornameTitel(vorname: string): { titel: string; rufname: string } {
+  const m = vorname.match(TITEL_RE);
+  return {
+    titel: m ? m[1].trim() : "",
+    rufname: vorname.replace(TITEL_RE, "").trim().split(/\s+/)[0] ?? "",
+  };
+}
 
 // Standard-Frist eines Bausteins als Datum (inkl. BNatSchG-Sperrzeit 01.03.–30.09.:
 // Gehölz-Fristen werden auf den 01.10. geschoben statt in die Sperrzeit zu fallen).
@@ -236,12 +258,17 @@ export function baueSchreiben(e: SchreibenEingabe): {
   const anredeZeile = p.anrede === "herr" ? "Herrn" : p.anrede === "frau" ? "Frau" : "";
   if (!anredeZeile) w.push("Anrede (Herr/Frau) fehlt an der Parzelle — bitte in der Verwaltung setzen.");
   const du = e.typ === "mitteilung" && p.anredeStil === "du";
+  // "THEIßEN" -> "Theißen"; Titel ("Dr.") wandert aus dem Vornamen in die
+  // förmliche Anrede, die Du-Form nutzt den Rufnamen ohne Titel.
+  const nachnameSchoen = nameSchoen(p.nachname);
+  const { titel, rufname } = vornameTitel(p.vorname);
+  const titelTeil = titel ? `${titel} ` : "";
   const gruss = du
-    ? `${p.anrede === "frau" ? "Liebe" : "Lieber"} ${p.vorname}`.trim()
+    ? `${p.anrede === "frau" ? "Liebe" : "Lieber"} ${rufname}`.trim()
     : p.anrede === "frau"
-      ? `Sehr geehrte Frau ${p.nachname}`
+      ? `Sehr geehrte Frau ${titelTeil}${nachnameSchoen}`
       : p.anrede === "herr"
-        ? `Sehr geehrter Herr ${p.nachname}`
+        ? `Sehr geehrter Herr ${titelTeil}${nachnameSchoen}`
         : "Sehr geehrte Damen und Herren";
   if (!p.strasse || !p.plz) w.push("Empfänger-Adresse unvollständig — bitte Stammdaten prüfen.");
 
@@ -263,7 +290,7 @@ export function baueSchreiben(e: SchreibenEingabe): {
     ort: e.verein.ort,
     heute_datum: datumDe(new Date()),
     empf_anrede_zeile: anredeZeile,
-    empf_name: `${p.vorname} ${p.nachname}`.trim(),
+    empf_name: `${p.vorname} ${nachnameSchoen}`.trim(),
     empf_strasse: p.strasse,
     empf_plz_ort: `${p.plz} ${p.ort}`.trim(),
     anrede: gruss,
@@ -285,6 +312,12 @@ export function baueSchreiben(e: SchreibenEingabe): {
         erlaeuterung: true,
         hinweis_wiederholung: true,
         fotos_beigefuegt: false, // Fotos sind direkt eingebettet
+        // Freundlicher Rahmen: Plakette-Lob + Neupächter-Ermutigung
+        plakette: !!e.plakette,
+        plakette_jahr: String(e.begehungDatum.getFullYear()),
+        hinweis_anzahl_text:
+          beanstandungen.length === 1 ? "den folgenden Hinweis" : "die folgenden Hinweise",
+        neupaechter_lob: !!e.neupaechterLob && !e.plakette, // nicht doppelt loben
       },
       warnungen: w,
     };

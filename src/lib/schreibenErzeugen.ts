@@ -1,10 +1,12 @@
 // Kompletter Schreiben-Prozess für EINE Parzelle/Runde — gemeinsamer Kern für
 // die Einzel-Karte in der Begehungsansicht und die Sammel-Erstellung aus der
 // Auswertung. Typ folgt der Befund-Stufe:
-//   mitteilung   -> docx -> PDF -> E-Mail-ENTWURF an Pächter (IMAP, HITL)
+//   mitteilung   -> docx -> PDF -> E-Mail-ENTWURF an Pächter (IMAP, HITL;
+//                   docx UND PDF hängen an — bei Änderungen: PDF löschen,
+//                   docx überarbeiten, neu als PDF exportieren)
 //   abmahnung_1  -> docx -> per Mail an die VEREINSADRESSE (Word-Feinschliff)
-//   abmahnung_2  -> docx -> per Mail an den BEZIRKSVERBAND (Bitte um Übernahme,
-//                   CC an Verein als Nachweis — mailSenden erzwingt die Ziele)
+//   abmahnung_2  -> docx -> E-Mail-ENTWURF an den BEZIRKSVERBAND (IMAP —
+//                   nichts geht raus, der Verein kann Text + docx noch anpassen)
 // LLM (qwen3:14b) NUR für Freitext->Baustein; alles Rechtliche ist Code.
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -15,7 +17,8 @@ import { promisify } from "node:util";
 
 import { prisma } from "./db";
 import { BAUSTEINE, KATALOG_ZU_BAUSTEIN } from "./bausteine";
-import { baueSchreiben, type SchreibenTyp } from "./schreiben";
+import { istNeupaechter } from "./paechter";
+import { baueSchreiben, nameSchoen, type SchreibenTyp } from "./schreiben";
 import { rendereDocx, VORLAGEN } from "./docx";
 import { entwurfInPostfach, istEinzelAdresse, mailSenden } from "./mail";
 import { STORAGE_DIR } from "./storage";
@@ -162,6 +165,10 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
     },
     gemuese: gemueseMangel ? { vorhanden: true, istM2 } : null,
     maengel,
+    plakette: befund.gutGemacht,
+    neupaechterLob:
+      istNeupaechter(parzelle.eintritt, parzelle.status) &&
+      (befund.gutGemacht || befund.plakettenNotiz.trim() !== ""),
     verein,
     logoPfad,
     historie: typ === "abmahnung_2" ? (a.historie ?? historieVorschlag(parzelle.dokumente)) : null,
@@ -199,42 +206,46 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
       const text = [
         `${gruss},`,
         "",
-        `im Anhang finden Sie unsere Mitteilung zur diesjährigen Gartenbegehung vom ${begehungDatum}`,
-        `mit einigen Hinweisen zu Ihrer Parzelle ${parzelle.parzelleId}.`,
+        `im Anhang finden Sie unsere Mitteilung zur diesjährigen Gartenbegehung vom ${begehungDatum} mit einigen Hinweisen zu Ihrer Parzelle ${parzelle.parzelleId}.`,
         "",
-        "Wir gehen davon aus, dass sich die genannten Punkte gut umsetzen lassen, und stehen Ihnen bei",
-        "Rückfragen gerne zur Verfügung.",
+        "Wir gehen davon aus, dass sich die genannten Punkte gut umsetzen lassen, und stehen Ihnen bei Rückfragen gerne zur Verfügung.",
         "",
         "Mit freundlichen Grüßen",
+        "Der Vorstand",
         verein.name,
-        verein.email,
+        "", // Leerzeile vor den Anhängen
       ].join("\n");
       const fehler = await entwurfInPostfach({
         an: anGueltig ? parzelle.email : "",
         betreff: `Mitteilung zur Gartenbegehung – Parzelle ${parzelle.parzelleId} ${parzelle.anlage.name}`,
         text,
-        anhang: { dateiname: `${basisName}.pdf`, inhalt: pdf },
+        // PDF = Versandfassung; docx dazu, damit Änderungen möglich bleiben
+        // (dann: PDF-Anhang löschen, docx überarbeiten, neu als PDF anhängen).
+        anhaenge: [
+          { dateiname: `${basisName}.pdf`, inhalt: pdf },
+          { dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME },
+        ],
       });
       if (fehler) return { fehler, warnungen };
       return {
         ok: anGueltig
-          ? `Mitteilungs-Entwurf mit PDF liegt im Postfach (An: ${parzelle.email}).`
+          ? `Mitteilungs-Entwurf (PDF + docx) liegt im Postfach (An: ${parzelle.email}).`
           : "Mitteilungs-Entwurf liegt im Postfach — keine gültige Pächter-E-Mail, Empfänger im Mail-Programm ergänzen.",
         warnungen,
       };
     }
 
-    // Abmahnungen: docx als Entwurf per Mail — 1. an Verein, 2. an BV
-    const paechter = [parzelle.nachname, parzelle.vorname].filter(Boolean).join(", ");
+    const paechter = [nameSchoen(parzelle.nachname), parzelle.vorname].filter(Boolean).join(", ");
     if (typ === "abmahnung_1") {
+      // 1. Abmahnung: docx an die eigene Vereinsadresse (Word-Feinschliff, Postversand)
       const fehler = await mailSenden("vorstand", {
         betreff: `ENTWURF 1. Abmahnung – Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""}`,
         text: [
           `ENTWURF zur Prüfung — 1. Abmahnung betreffend Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""}, Begehung vom ${begehungDatum}.`,
           "",
           "Das Schreiben liegt als Word-Datei bei: bitte prüfen, bei Bedarf in Word anpassen,",
-          "drucken und per Einwurf-Einschreiben versenden. Das versandte Schreiben danach in der",
-          "Parzellen-Akte ablegen.",
+          "drucken und per Post oder ggf. als (Einwurf-)Einschreiben versenden. Das versandte",
+          "Schreiben danach in der Parzellen-Akte ablegen.",
           warnungen.length ? "\nHinweise der App:\n- " + warnungen.join("\n- ") : "",
         ].join("\n"),
         anhang: { dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME },
@@ -243,22 +254,36 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
       return { ok: "1. Abmahnung (docx) an die Vereinsadresse gesendet — Feinschliff in Word.", warnungen };
     }
 
-    const fehler = await mailSenden("bezirksverband", {
-      betreff: `2. Abmahnung – Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""} — Bitte um Übernahme`,
+    // 2. Abmahnung: ENTWURF im Postfach, an den BV adressiert — es geht nichts
+    // raus, der Verein kann Anschreiben und docx noch anpassen und sendet selbst.
+    const verein2 = await prisma.verein.findUnique({ where: { id: 1 } });
+    const bvAdresse = verein2?.bezirksverbandEmail ?? "";
+    const fehler = await entwurfInPostfach({
+      an: istEinzelAdresse(bvAdresse) ? bvAdresse : "",
+      betreff: `Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""} — Bitte um 2. Abmahnung durch den Bezirksverband`,
       text: [
         "Sehr geehrte Damen und Herren,",
         "",
-        `bei der Gartenbegehung vom ${begehungDatum} wurden auf der Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""} erneut die im beiliegenden Entwurf dokumentierten Mängel festgestellt.`,
-        "Eine Abmahnung durch den Verein ist bereits erfolgt. Wir bitten Sie als Verpächter um Übernahme",
-        "der Angelegenheit und um Prüfung und Versand der beiliegenden 2. Abmahnung.",
+        `bei der Gartenbegehung vom ${begehungDatum} wurden auf der Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""} erneut erhebliche Mängel festgestellt. Eine Abmahnung durch den Verein ist bereits erfolgt.`,
+        "",
+        "Wir bitten Sie als Verpächter, die Angelegenheit zu übernehmen und die Abmahnung",
+        "auszusprechen. Einen Entwurf des Abmahnschreibens mit dem dokumentierten Sachverhalt",
+        "und der Fotodokumentation fügen wir als Word-Datei bei.",
         "",
         "Mit freundlichen Grüßen",
+        "Der Vorstand",
         verein.name,
+        "",
       ].join("\n"),
-      anhang: { dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME },
+      anhaenge: [{ dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME }],
     });
     if (fehler) return { fehler, warnungen };
-    return { ok: "2. Abmahnung (docx) an den Bezirksverband gesendet (Kopie an Verein).", warnungen };
+    return {
+      ok: istEinzelAdresse(bvAdresse)
+        ? `Entwurf an den Bezirksverband (${bvAdresse}) liegt im Postfach — prüfen und selbst senden.`
+        : "Entwurf liegt im Postfach — BV-E-Mail fehlt/ungültig, Empfänger im Mail-Programm ergänzen.",
+      warnungen,
+    };
   } catch (e) {
     return {
       fehler: `Schreiben-Erzeugung fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`,
