@@ -1,0 +1,9 @@
+# docx-Rendering (Mitteilungen/Abmahnungen) — scripts/render_docx.py.
+# Versionen gepinnt, damit Whisper-/sonstige venv-Updates das Rendering
+# nicht unbemerkt zerschießen. Install: data/.venv/bin/pip install -r scripts/requirements-render.txt
+docxtpl==0.20.2
+python-docx==1.2.0
+lxml==6.1.1
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+Pillow==12.3.0
