@@ -20,6 +20,8 @@ export async function updateStammdaten(parzelleId: string, formData: FormData) {
       plz: s("plz"),
       ort: s("ort"),
       eintritt: s("eintritt"),
+      anrede: ["herr", "frau"].includes(s("anrede")) ? s("anrede") : "",
+      anredeStil: s("anredeStil") === "du" ? "du" : "sie",
       status: s("status") || "verpachtet",
       groesseM2: Number.isFinite(groesse) ? groesse : parzelle.groesseM2,
     },
@@ -46,6 +48,8 @@ export async function paechterwechsel(parzelleId: string, formData: FormData) {
       email: "",
       telefon: "",
       eintritt: datumRaw || parzelle.eintritt,
+      anrede: "", // neuer Pächter -> Anrede unbekannt, wird nachgefragt
+      anredeStil: "sie",
       status: "verpachtet",
     },
   });

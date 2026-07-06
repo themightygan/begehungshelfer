@@ -228,6 +228,33 @@ async function VereinTab() {
             </label>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={FELD}>
+              <span className={LABEL}>Telefon (Briefkopf)</span>
+              <input type="text" name="telefon" defaultValue={verein?.telefon ?? ""} className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>Ort (Datumszeile, z. B. „Stuttgart")</span>
+              <input type="text" name="ort" defaultValue={verein?.ort ?? ""} className={`w-full ${INP}`} />
+            </label>
+          </div>
+
+          <h3 className="border-t border-stone-100 pt-3 text-sm font-medium">Bezirksverband (Verpächter — für Abmahnungen)</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={`${FELD} sm:col-span-2`}>
+              <span className={LABEL}>Name des Bezirksverbands</span>
+              <input type="text" name="bvName" defaultValue={verein?.bvName ?? ""} className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>Straße</span>
+              <input type="text" name="bvStrasse" defaultValue={verein?.bvStrasse ?? ""} className={`w-full ${INP}`} />
+            </label>
+            <label className={FELD}>
+              <span className={LABEL}>PLZ und Ort</span>
+              <input type="text" name="bvPlzOrt" defaultValue={verein?.bvPlzOrt ?? ""} className={`w-full ${INP}`} />
+            </label>
+          </div>
+
           <h3 className="border-t border-stone-100 pt-3 text-sm font-medium">Mail-Zugang (IMAP/SMTP)</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={FELD}>

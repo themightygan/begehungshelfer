@@ -4,6 +4,8 @@ import { Camera } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   PARZELLE_STATUS,
+  PARZELLE_ANREDE,
+  ANREDE_STIL,
   STUFE_LABEL,
   STUFE_SYMBOL,
   AENDERUNG_LABEL,
@@ -82,6 +84,18 @@ export default async function ParzelleVerwaltung({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Nachname<input name="nachname" defaultValue={p.nachname} className={`mt-1 block w-full ${INP}`} /></label>
           <label className="text-sm">Vorname<input name="vorname" defaultValue={p.vorname} className={`mt-1 block w-full ${INP}`} /></label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm">Anrede (Briefe)
+              <select name="anrede" defaultValue={p.anrede} className={`mt-1 block w-full ${INP}`}>
+                {PARZELLE_ANREDE.map((a) => <option key={a.wert} value={a.wert}>{a.label}</option>)}
+              </select>
+            </label>
+            <label className="text-sm">Anrede-Stil
+              <select name="anredeStil" defaultValue={p.anredeStil} className={`mt-1 block w-full ${INP}`}>
+                {ANREDE_STIL.map((a) => <option key={a.wert} value={a.wert}>{a.label}</option>)}
+              </select>
+            </label>
+          </div>
           <label className="text-sm">E-Mail<input name="email" defaultValue={p.email} className={`mt-1 block w-full ${INP}`} /></label>
           <label className="text-sm">Telefon<input name="telefon" defaultValue={p.telefon} className={`mt-1 block w-full ${INP}`} /></label>
           <label className="text-sm">Straße<input name="strasse" defaultValue={p.strasse} className={`mt-1 block w-full ${INP}`} /></label>

@@ -39,6 +39,10 @@ model Parzelle {
   plz        String @default("")
   ort        String @default("")
   eintritt   String @default("") // ISO-Datum als Text (Import-tolerant)
+  // Brief-Anrede (erlaubt: herr | frau | "" = unbekannt/nachfragen) und
+  // Anrede-Stil für Mitteilungen (erlaubt: sie | du). Abmahnungen immer "Sie".
+  anrede     String @default("")
+  anredeStil String @default("sie")
   groesseM2  Int? // Parzellenfläche
   // erlaubt: verpachtet | neupaechter | gekuendigt | nicht_verpachtet
   status     String @default("verpachtet")
@@ -246,6 +250,12 @@ model Verein {
   smtpServer          String @default("")
   logoPfad            String? // relativ zu STORAGE_DIR (verein/…)
   bezirksverbandEmail String @default("")
+  // Briefkopf-Daten für Schreiben (docx): Verein + Bezirksverband (Verpächter)
+  telefon             String @default("")
+  ort                 String @default("") // Orts-Zeile "Stuttgart, den …"
+  bvName              String @default("")
+  bvStrasse           String @default("")
+  bvPlzOrt            String @default("")
 }
 
 // Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular

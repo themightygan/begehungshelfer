@@ -91,6 +91,19 @@ export const PARZELLE_STATUS = [
   { wert: "nicht_verpachtet", label: "nicht verpachtet" },
 ] as const;
 
+// Brief-Anrede des Pächters ("" = unbekannt -> vor Schreiben-Erstellung nachfragen)
+export const PARZELLE_ANREDE = [
+  { wert: "", label: "— unbekannt —" },
+  { wert: "herr", label: "Herr" },
+  { wert: "frau", label: "Frau" },
+] as const;
+
+// Anrede-Stil für Mitteilungen (Abmahnungen sind immer förmlich "Sie")
+export const ANREDE_STIL = [
+  { wert: "sie", label: "Sie (förmlich)" },
+  { wert: "du", label: "Du (persönlich)" },
+] as const;
+
 export const RUNDE_STATUS = [
   { wert: "offen", label: "offen" },
   { wert: "abgeschlossen", label: "abgeschlossen" },

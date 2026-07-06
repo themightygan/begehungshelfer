@@ -187,6 +187,12 @@ export async function vereinSpeichern(_prev: FormState, formData: FormData): Pro
     imapServer: feld("imapServer"),
     smtpServer: feld("smtpServer"),
     bezirksverbandEmail: feld("bezirksverbandEmail").toLowerCase(),
+    // Briefkopf-Daten für Schreiben (docx)
+    telefon: feld("telefon"),
+    ort: feld("ort"),
+    bvName: feld("bvName"),
+    bvStrasse: feld("bvStrasse"),
+    bvPlzOrt: feld("bvPlzOrt"),
   };
   // Passwort write-only: leer = unverändert; Checkbox löscht es. Verschlüsselt
   // gespeichert (AES-GCM, Schlüssel in .env) — DB-Backups tragen kein Klartext.
