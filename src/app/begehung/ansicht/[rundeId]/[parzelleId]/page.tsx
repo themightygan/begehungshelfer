@@ -16,7 +16,11 @@ import {
   setzeFristAlle,
   loescheMangel,
   mangelHinzufuegenNachtraeglich,
+  mitteilungsEntwurf,
+  abmahnungsEntwurfSenden,
 } from "./actions";
+import { MailAktionen } from "./MailAktionen";
+import { mailKonfig } from "@/lib/mail";
 import { FotoZone } from "./FotoZone";
 import { FristAlle } from "./FristAlle";
 import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
@@ -89,6 +93,9 @@ export default async function AnsichtSeite({
     },
   });
   if (!runde || !befund) notFound();
+
+  // Mail-Konfiguration (Verein-Tab); string = Hinweistext statt Buttons.
+  const konfig = await mailKonfig();
 
   // Katalog fürs nachträgliche Ergänzen von Mängeln.
   const katalog = await prisma.katalog.findMany({
@@ -375,6 +382,29 @@ export default async function AnsichtSeite({
       >
         <FileText className="h-4 w-4 shrink-0" aria-hidden /> Bericht-PDF
       </a>
+
+      {/* E-Mail (HITL): Mitteilungs-ENTWURF ins Postfach; Abmahnungs-Entwurf
+          nur an Vorstand/Bezirksverband — Empfänger serverseitig erzwungen. */}
+      <section className={CARD}>
+        <h2 className="mb-2 text-base font-medium">E-Mail</h2>
+        {typeof konfig === "string" ? (
+          <p className="text-sm text-stone-600">
+            {konfig}{" "}
+            <Link href="/einstellungen?tab=verein" className="text-emerald-700 hover:underline">
+              Zu den Einstellungen
+            </Link>
+          </p>
+        ) : (
+          <MailAktionen
+            mitteilungAction={mitteilungsEntwurf.bind(null, rundeId, parzelle.parzelleId)}
+            vorstandAction={abmahnungsEntwurfSenden.bind(null, rundeId, parzelle.parzelleId, "vorstand")}
+            bezirksverbandAction={abmahnungsEntwurfSenden.bind(null, rundeId, parzelle.parzelleId, "bezirksverband")}
+            paechterEmail={parzelle.email}
+            vereinEmail={konfig.absender}
+            bezirksverbandEmail={konfig.bezirksverband}
+          />
+        )}
+      </section>
 
       {/* Andere Begehungen dieser Parzelle (Kurzzeile + Sprunglink) */}
       {andereBefunde.length > 0 && (

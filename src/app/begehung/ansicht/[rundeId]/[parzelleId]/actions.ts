@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { fotoVerarbeitenUndSpeichern, dateiLoeschen } from "@/lib/storage";
 import { FOTO_MAX_PRO_BEFUND, normalisiereStufe, BEFUND_STATUS_LABEL } from "@/lib/constants";
+import { parzellenBericht } from "@/lib/bericht";
+import { entwurfInPostfach, mailSenden, istEinzelAdresse, type MailZiel } from "@/lib/mail";
 
 // Nachträgliche Bearbeitung einer Begehung (Entscheidung 2026-06-11: kein
 // hartes Einfrieren — Texte müssen korrigierbar, Fotos löschbar/ergänzbar
@@ -243,4 +245,100 @@ export async function fotosNachtraeglich(
     frei--;
   }
   revalidatePath(pfad);
+}
+
+// --- E-Mail-Aktionen (HITL — siehe src/lib/mail.ts) ---
+// Mitteilung = ENTWURF im Postfach (App sendet nie an Pächter);
+// Abmahnungs-Entwurf = Versand NUR an Vorstand selbst oder Bezirksverband.
+// Befund.status wird bewusst NICHT automatisch geändert (Schreibtisch-Entscheidung).
+
+export type MailErgebnis = { ok?: string; fehler?: string };
+
+async function mailGrundlagen(rundeId: number, parzelleId: string) {
+  const [parzelle, runde, verein, bericht] = await Promise.all([
+    prisma.parzelle.findUnique({ where: { parzelleId } }),
+    prisma.begehungsrunde.findUnique({ where: { id: rundeId } }),
+    prisma.verein.findUnique({ where: { id: 1 } }),
+    parzellenBericht(parzelleId, rundeId),
+  ]);
+  if (!parzelle || !runde) return "Parzelle oder Runde nicht gefunden.";
+  if (!bericht?.hatBefund) return "Kein Befund in dieser Runde — es gibt nichts zu berichten.";
+  const datum = new Date(runde.datum).toLocaleDateString("de-DE");
+  return { parzelle, runde, verein, bericht, datum };
+}
+
+export async function mitteilungsEntwurf(
+  rundeId: number,
+  parzelleId: string,
+  _prev: MailErgebnis,
+  _formData: FormData
+): Promise<MailErgebnis> {
+  const g = await mailGrundlagen(rundeId, parzelleId);
+  if (typeof g === "string") return { fehler: g };
+  const { parzelle, verein, bericht, datum } = g;
+
+  const anrede = [parzelle.vorname, parzelle.nachname].filter(Boolean).join(" ");
+  const text = [
+    anrede ? `Sehr geehrte/r ${anrede},` : "Sehr geehrte Pächterin, sehr geehrter Pächter,",
+    "",
+    `anbei erhalten Sie den Bericht der Gartenbegehung vom ${datum} zu Ihrer Parzelle ${parzelle.parzelleId}.`,
+    "Bitte beachten Sie die im Bericht genannten Punkte und gegebenenfalls gesetzte Fristen.",
+    "",
+    "Mit freundlichen Grüßen",
+    verein?.vorsitzender ?? "",
+    verein?.name ?? "",
+  ].filter((z, i, a) => z !== "" || a[i - 1] !== "").join("\n");
+
+  // Nur eine einzelne gültige Pächter-Adresse vorbefüllen — sonst leerer
+  // Empfänger + ehrlicher Hinweis (entwurfInPostfach verwirft Ungültiges eh).
+  const anGueltig = parzelle.email !== "" && istEinzelAdresse(parzelle.email);
+  const fehler = await entwurfInPostfach({
+    an: anGueltig ? parzelle.email : "",
+    betreff: `Gartenbegehung ${datum} – Parzelle ${parzelle.parzelleId}`,
+    text,
+    anhang: { dateiname: bericht.dateiname, inhalt: bericht.pdf },
+  });
+  if (fehler) return { fehler };
+  return {
+    ok: anGueltig
+      ? `Entwurf liegt im Postfach (An: ${parzelle.email}) — bitte im Mail-Programm prüfen und selbst senden.`
+      : parzelle.email
+        ? `Entwurf liegt im Postfach — Achtung: Pächter-E-Mail „${parzelle.email}" ist keine einzelne gültige Adresse, Empfänger im Mail-Programm ergänzen.`
+        : "Entwurf liegt im Postfach — Achtung: keine Pächter-E-Mail hinterlegt, Empfänger im Mail-Programm ergänzen.",
+  };
+}
+
+export async function abmahnungsEntwurfSenden(
+  rundeId: number,
+  parzelleId: string,
+  ziel: MailZiel,
+  _prev: MailErgebnis,
+  _formData: FormData
+): Promise<MailErgebnis> {
+  if (ziel !== "vorstand" && ziel !== "bezirksverband") return { fehler: "Unbekanntes Ziel." };
+  const g = await mailGrundlagen(rundeId, parzelleId);
+  if (typeof g === "string") return { fehler: g };
+  const { parzelle, bericht, datum } = g;
+
+  const paechter = [parzelle.nachname, parzelle.vorname].filter(Boolean).join(", ");
+  const text = [
+    `ENTWURF zur Prüfung — Abmahnung betreffend Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""}.`,
+    "",
+    `Der Begehungsbericht vom ${datum} liegt als PDF bei.`,
+    "",
+    "Diese Nachricht wurde vom Begehungshelfer erstellt und nur an Vereins-/Verbandsadressen versendet.",
+  ].join("\n");
+
+  const fehler = await mailSenden(ziel, {
+    betreff: `ENTWURF Abmahnung – Parzelle ${parzelle.parzelleId} (Begehung ${datum})`,
+    text,
+    anhang: { dateiname: bericht.dateiname, inhalt: bericht.pdf },
+  });
+  if (fehler) return { fehler };
+  return {
+    ok:
+      ziel === "vorstand"
+        ? "Entwurf an die Vereinsadresse gesendet (zur Prüfung im eigenen Postfach)."
+        : "Entwurf an den Bezirksverband gesendet (Kopie an die Vereinsadresse).",
+  };
 }

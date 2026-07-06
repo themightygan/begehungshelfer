@@ -219,6 +219,18 @@ export async function vereinLogoHochladen(_prev: FormState, formData: FormData):
   return { ok: true };
 }
 
+// Mail-Zugang testen (SMTP-Login + IMAP-Login, ohne etwas zu senden).
+export type TestErgebnis = { ok?: boolean; bericht?: string };
+
+export async function mailVerbindungTesten(
+  _prev: TestErgebnis,
+  _formData: FormData
+): Promise<TestErgebnis> {
+  const { verbindungTesten } = await import("@/lib/mail");
+  const r = await verbindungTesten();
+  return { ok: r.ok, bericht: r.bericht };
+}
+
 export async function vereinLogoEntfernen(_prev: FormState, _formData: FormData): Promise<FormState> {
   const verein = await prisma.verein.findUnique({ where: { id: 1 } });
   if (!verein?.logoPfad) return { fehler: "Kein Logo vorhanden." };

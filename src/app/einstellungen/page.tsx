@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { AktionsForm } from "./AktionsForm";
 import { AnlageLoeschen } from "./AnlageLoeschen";
 import { VorstandLoeschen } from "./VorstandLoeschen";
+import { VerbindungsTest } from "./VerbindungsTest";
 import {
   anlageAnlegen,
   anlageUmbenennen,
@@ -15,6 +16,7 @@ import {
   vereinSpeichern,
   vereinLogoHochladen,
   vereinLogoEntfernen,
+  mailVerbindungTesten,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -254,6 +256,9 @@ async function VereinTab() {
             </label>
           ) : null}
         </AktionsForm>
+        <div className="border-t border-stone-100 pt-3">
+          <VerbindungsTest action={mailVerbindungTesten} />
+        </div>
       </section>
 
       <section className={`${CARD} space-y-2`}>
