@@ -76,6 +76,13 @@ export type SnapParzelle = {
     notiz: string;
     maengel: SnapVorMangel[];
   } | null;
+  // Letzte Abmahnung/Kündigung aus früheren Begehungen (Nachbegehung hebt
+  // hervor). Optional: alte IndexedDB-Snapshots kennen das Feld noch nicht.
+  eskalation?: {
+    stufe: string; // abmahnung_1 | abmahnung_2 | kuendigung
+    datum: string; // "DD.MM.YYYY"
+    fristen: string[]; // ISO-Daten der gesetzten Mangel-Fristen
+  } | null;
   plakettenJahre: number[];
   offeneFruehere: SnapOffenerMangel[];
   messHistorie: {

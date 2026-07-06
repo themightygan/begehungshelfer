@@ -104,6 +104,25 @@ export async function GET() {
       };
     }
 
+    // Letzte Eskalation (Abmahnung/Kündigung) aus früheren Begehungen —
+    // Nachbegehung hebt diese Parzellen hervor (Stufe + gesetzte Fristen).
+    const eskBefund = alt.find((x) =>
+      ["abmahnung_1", "abmahnung_2", "kuendigung"].includes(x.stufe)
+    );
+    const eskalation = eskBefund
+      ? {
+          stufe: eskBefund.stufe,
+          datum: datumStr(eskBefund.runde.datum),
+          fristen: [
+            ...new Set(
+              eskBefund.maengel
+                .map((m) => fristStr(m.frist))
+                .filter((f): f is string => f !== null)
+            ),
+          ].sort(),
+        }
+      : null;
+
     const vor = alt[0];
     const vorjahr = vor
       ? {
@@ -131,6 +150,7 @@ export async function GET() {
       groesseM2: p.groesseM2,
       befund,
       vorjahr,
+      eskalation,
       plakettenJahre: [
         ...new Set(
           alt.filter((x) => x.gutGemacht).map((x) => new Date(x.runde.datum).getFullYear())

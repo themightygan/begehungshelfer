@@ -21,9 +21,20 @@ import {
   begehungAbbrechen,
   teilnehmerAendern,
 } from "../actions";
+import { STUFE_LABEL } from "@/lib/constants";
 import { AbschlussButton } from "../AbschlussButton";
 import { ConfirmButton } from "../ConfirmButton";
 import { ParzelleAnsicht } from "./ParzelleAnsicht";
+
+// Kachel-Kurzformen für ausgesprochene Eskalationen (Nachbegehung)
+const ESKALATION_LABEL = STUFE_LABEL;
+const ESKALATION_KURZ: Record<string, string> = {
+  abmahnung_1: "1. Abm.",
+  abmahnung_2: "2. Abm.",
+  kuendigung: "Künd.",
+};
+// "2026-08-17" -> "17.08.26" (kompakt für die Kachel)
+const fristKurz = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(2, 4)}`;
 
 // Offline-first Begehungsmodus (Stufe 2): EINE Client-Seite für Plan-Raster und
 // Parzellen-Erfassung. Daten kommen aus dem lokalen Workspace-Store (IndexedDB-
@@ -342,8 +353,10 @@ export function Workspace() {
         <h2 className="mb-2 text-sm font-medium text-stone-600">Parzellen</h2>
         {istNach && (
           <p className="mb-2 text-sm text-stone-600">
-            Nachbegehung: <span className="font-medium text-red-700">rot (!)</span> = überfällige
-            Mängel, <span className="font-medium text-amber-800">gelb</span> = offene Mängel.
+            Nachbegehung: <span className="font-semibold text-red-700">dicker roter Rahmen</span> ={" "}
+            Abmahnung/Kündigung ausgesprochen (Stufe + nächste Frist auf der Kachel),{" "}
+            <span className="font-medium text-red-700">rot (!)</span> = überfällige Mängel,{" "}
+            <span className="font-medium text-amber-800">gelb</span> = offene Mängel.
           </p>
         )}
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
@@ -353,15 +366,18 @@ export function Workspace() {
             const ueberfaellig = offen.filter(
               (m) => m.frist && new Date(m.frist + "T00:00:00") < heute
             ).length;
+            const esk = istNach ? p.eskalation : null;
             let farbe: string;
             if (istNach) {
-              farbe = ueberfaellig
-                ? "border-red-400 bg-red-50"
-                : offen.length
-                  ? "border-amber-400 bg-amber-50"
-                  : b
-                    ? "border-emerald-400 bg-emerald-50"
-                    : "border-stone-200 bg-white";
+              farbe = esk
+                ? "border-2 border-red-600 bg-red-50"
+                : ueberfaellig
+                  ? "border-red-400 bg-red-50"
+                  : offen.length
+                    ? "border-amber-400 bg-amber-50"
+                    : b
+                      ? "border-emerald-400 bg-emerald-50"
+                      : "border-stone-200 bg-white";
             } else {
               const aktiv = b && (b.stufe !== "neutral" || b.maengel.length > 0);
               farbe = aktiv
@@ -370,12 +386,20 @@ export function Workspace() {
                   ? "border-stone-300 bg-stone-50"
                   : "border-stone-200 bg-white";
             }
+            const eskTitel = esk
+              ? `${ESKALATION_LABEL[esk.stufe] ?? esk.stufe} vom ${esk.datum}` +
+                (esk.fristen.length ? ` — Fristen: ${esk.fristen.map(fristKurz).join(", ")}` : "")
+              : undefined;
             return (
               <button
                 key={p.parzelleId}
                 onClick={() => navigiere(p.parzelleId)}
                 className={`rounded border px-2 py-3 text-center text-base font-medium ${farbe} hover:border-emerald-400`}
-                title={istNach && offen.length ? `${offen.length} offen, ${ueberfaellig} überfällig` : undefined}
+                title={
+                  [eskTitel, istNach && offen.length ? `${offen.length} offen, ${ueberfaellig} überfällig` : null]
+                    .filter(Boolean)
+                    .join(" · ") || undefined
+                }
               >
                 {p.parzelleId}
                 {istNach && offen.length ? (
@@ -387,6 +411,13 @@ export function Workspace() {
                 ) : b && b.maengel.length > 0 ? (
                   <span className="ml-1 text-xs font-semibold text-red-700">{b.maengel.length}</span>
                 ) : null}
+                {esk && (
+                  // Stufe + nächste Frist direkt auf der Kachel (Nachbegehung)
+                  <span className="block text-xs font-semibold text-red-700">
+                    {ESKALATION_KURZ[esk.stufe] ?? esk.stufe}
+                    {esk.fristen[0] ? ` · ${fristKurz(esk.fristen[0])}` : ""}
+                  </span>
+                )}
               </button>
             );
           })}

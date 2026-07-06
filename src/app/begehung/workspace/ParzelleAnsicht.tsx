@@ -173,6 +173,24 @@ export function ParzelleAnsicht({
         )}
       </div>
 
+      {/* Ausgesprochene Abmahnung/Kündigung — bei der Nachbegehung zuerst prüfen */}
+      {p.eskalation && (
+        <section className="rounded-lg border-2 border-red-600 bg-red-50 p-3 text-base">
+          <p className="font-semibold text-red-700">
+            {STUFE_SYMBOL[p.eskalation.stufe]} {STUFE_LABEL[p.eskalation.stufe] ?? p.eskalation.stufe}{" "}
+            ausgesprochen (Begehung {p.eskalation.datum})
+          </p>
+          {p.eskalation.fristen.length > 0 && (
+            <p className="mt-1 text-red-700">
+              Gesetzte {p.eskalation.fristen.length === 1 ? "Frist" : "Fristen"}:{" "}
+              {p.eskalation.fristen
+                .map((f) => new Date(f + "T00:00:00").toLocaleDateString("de-DE"))
+                .join(", ")}
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Details der letzten Begehung */}
       {p.vorjahr &&
         (p.vorjahr.notiz.trim() !== "" ||
