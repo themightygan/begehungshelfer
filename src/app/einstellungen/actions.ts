@@ -253,3 +253,43 @@ export async function vereinLogoEntfernen(_prev: FormState, _formData: FormData)
   revalidatePath("/einstellungen");
   return { ok: true };
 }
+
+// --- Textbausteine für Schreiben (Overrides; Defaults in src/lib/bausteine.ts) ---
+
+export async function textbausteinSpeichern(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { BAUSTEIN_MAP } = await import("@/lib/bausteine");
+  const id = String(formData.get("id") ?? "");
+  const def = BAUSTEIN_MAP[id];
+  if (!def) return { fehler: "Unbekannter Baustein." };
+  const feld = (n: string) => String(formData.get(n) ?? "").trim();
+  const feststellung = feld("feststellung");
+  const aufforderung = feld("aufforderung");
+  const norm = feld("norm");
+  if (feststellung && !feststellung.includes("{befund}") && def.feststellung.includes("{befund}")) {
+    return { fehler: "Die Feststellung muss den Platzhalter {befund} enthalten." };
+  }
+  // Nur echte Abweichungen speichern; alles auf Default => Zeile löschen.
+  const daten = {
+    feststellung: feststellung === def.feststellung ? "" : feststellung,
+    aufforderung: aufforderung === def.aufforderung ? "" : aufforderung,
+    norm: norm === def.norm ? "" : norm,
+  };
+  if (!daten.feststellung && !daten.aufforderung && !daten.norm) {
+    await prisma.textbausteinOverride.deleteMany({ where: { id } });
+  } else {
+    await prisma.textbausteinOverride.upsert({
+      where: { id },
+      update: daten,
+      create: { id, ...daten },
+    });
+  }
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}
+
+export async function textbausteinZuruecksetzen(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  await prisma.textbausteinOverride.deleteMany({ where: { id } });
+  revalidatePath("/einstellungen");
+  return { ok: true };
+}

@@ -258,6 +258,17 @@ model Verein {
   bvPlzOrt            String @default("")
 }
 
+// Textbaustein-Overrides für Schreiben: die Standard-Texte stehen als
+// Code-Konstante in src/lib/bausteine.ts; eine Zeile hier überschreibt
+// Feststellung/Aufforderung/Normzitat je Baustein-ID (leeres Feld = Default).
+// Pflege in /einstellungen → Textbausteine; "Zurücksetzen" löscht die Zeile.
+model TextbausteinOverride {
+  id           String @id // Baustein-ID, z. B. "G02"
+  feststellung String @default("")
+  aufforderung String @default("")
+  norm         String @default("")
+}
+
 // Mängelkatalog als Daten (anpassbar) — aus dem Vereins-Formular
 model Katalog {
   id         Int      @id @default(autoincrement())

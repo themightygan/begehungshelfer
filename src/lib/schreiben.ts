@@ -3,7 +3,13 @@
 // von Freitexten passiert vorher (Aufrufer), alles Rechtliche ist Code.
 // Pure Functions ohne DB/IO: testbar, vom Test-Skript und später von den
 // Server-Actions gleich benutzbar.
-import { BAUSTEIN_MAP, type Baustein } from "./bausteine";
+import {
+  BAUSTEIN_MAP,
+  effektiverBaustein,
+  feststellungBauen,
+  type Baustein,
+  type BausteinOverride,
+} from "./bausteine";
 
 export type SchreibenTyp = "mitteilung" | "abmahnung_1" | "abmahnung_2";
 
@@ -32,11 +38,10 @@ export type SchreibenEingabe = {
     bvName: string; bvStrasse: string; bvPlzOrt: string; bezirksverbandEmail: string;
   };
   logoPfad: string | null;
-  unterzeichner: { name: string; funktion: string };
-  unterzeichnerBv?: { name: string; funktion: string };
   historie?: { seit: string; hinweise: string; datum1Abmahnung: string } | null;
   wiederholung?: boolean;
   ersatzvornahme?: boolean;
+  overrides?: Record<string, BausteinOverride>; // Text-Overrides aus /einstellungen
   heute?: Date; // testbar; default = jetzt
 };
 
@@ -44,8 +49,9 @@ type Beanstandung = {
   text: string;
   frist: string | null;
   bilder: string[];
-  // intern für Sortierung/Fristen
-  _bereich: number; _id: string; _datum: Date | null; _einzel: boolean;
+  // intern für Sortierung/Fristen: _eigen = Frist wird je Position ausgewiesen
+  // (Gefahr/Eilfall oder Saisonziel) und zählt NICHT für die zentrale Brieffrist
+  _bereich: number; _id: string; _datum: Date | null; _eigen: boolean;
 };
 
 const datumDe = (d: Date) =>
@@ -64,19 +70,26 @@ const aufzaehlung = (teile: string[], letztes: string) =>
 
 // Standard-Frist eines Bausteins als Datum (inkl. BNatSchG-Sperrzeit 01.03.–30.09.:
 // Gehölz-Fristen werden auf den 01.10. geschoben statt in die Sperrzeit zu fallen).
-function bausteinFrist(b: Baustein, begehung: Date): Date {
+// saisonal = Frist ist ein Saisonziel (30.10. bzw. BNatSchG-verschoben) und wird
+// je Position ausgewiesen statt die zentrale Brieffrist nach hinten zu ziehen.
+function bausteinFrist(b: Baustein, basis: Date): { datum: Date; saisonal: boolean } {
   let f: Date;
+  let saisonal = false;
   if ("bis" in b.frist) {
-    f = new Date(begehung.getFullYear(), 9, 30); // 30.10.
-    if (f.getTime() < plusTage(begehung, 14).getTime()) f = new Date(begehung.getFullYear() + 1, 9, 30);
+    f = new Date(basis.getFullYear(), 9, 30); // 30.10.
+    if (f.getTime() < plusTage(basis, 14).getTime()) f = new Date(basis.getFullYear() + 1, 9, 30);
+    saisonal = true;
   } else {
-    f = plusTage(begehung, b.frist.tage);
+    f = plusTage(basis, b.frist.tage);
   }
   if (b.bnatschg) {
     const m = f.getMonth(); // 0-basiert: März=2 … September=8
-    if (m >= 2 && m <= 8) f = new Date(f.getFullYear(), 9, 1); // 01.10.
+    if (m >= 2 && m <= 8) {
+      f = new Date(f.getFullYear(), 9, 1); // 01.10.
+      saisonal = true;
+    }
   }
-  return f;
+  return { datum: f, saisonal };
 }
 
 // Adress-Zeilen aus der mehrzeiligen Vereins-Adresse ("c/o …\nStraße\nPLZ Ort"
@@ -101,6 +114,7 @@ export function baueSchreiben(e: SchreibenEingabe): {
   const fristBasis = heute.getTime() > e.begehungDatum.getTime() ? heute : e.begehungDatum;
   const positionen: Beanstandung[] = [];
   let hatBew = false, hatGO = false, hatNutzung = false;
+  let gemueseZentraleFrist = false; // Beet-Neuanlage über die Brieffrist (mind. 28 Tage)
 
   // --- Gemüse (G01): SOLL/IST deterministisch, § 12-Weiche nach Vertragsdatum ---
   if (e.gemuese) {
@@ -130,14 +144,29 @@ export function baueSchreiben(e: SchreibenEingabe): {
             ? `Zum Zeitpunkt der Begehung war keine für einjährige Gemüsekulturen bestellte Fläche erkennbar. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`
             : `Die für einjährige Gemüsekulturen bestellte Fläche ist mit derzeit ca. ${ist} m² zu klein. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`;
         if (ist === null) w.push("Gemüse: keine Beete erfasst — Variante 'nicht bestellt' verwendet, bitte bestätigen.");
-        const aufforderung = abmahnung
-          ? `Vergrößern Sie die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² und bepflanzen Sie sie im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen.`
-          : `Wir bitten Sie, die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² zu vergrößern und im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen zu bepflanzen.`;
+        // Mitteilung: Beetvergrößerung ist Regelfall fürs Folgejahr (30.04.).
+        // Abmahnung: bis Ende Juli ist die Fläche noch DIESES Jahr herzustellen
+        // (zentrale Frist, mind. 4 Wochen) und mit späten Kulturen/Gründüngung
+        // zu bepflanzen; ab August greift auch hier die Folgejahrs-Frist.
+        const nochDiesesJahr = abmahnung && fristBasis.getMonth() <= 6; // Jan–Jul
+        let aufforderung: string;
+        let posFrist: Date | null;
+        if (!abmahnung) {
+          aufforderung = `Wir bitten Sie, die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² zu vergrößern und im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen zu bepflanzen.`;
+          posFrist = frist2;
+        } else if (nochDiesesJahr) {
+          aufforderung = `Legen Sie die Gemüseanbaufläche innerhalb der genannten Frist auf mindestens ${soll} m² an und bepflanzen Sie sie noch in dieser Saison mit späten Kulturen (z. B. Buschbohnen, Herbstlauch) oder einer Gründüngung (z. B. Phacelia). Ab der Gartensaison ${folgejahr} ist die Fläche vollständig mit einjährigen Gemüsekulturen zu bestellen.`;
+          posFrist = null; // zentrale Brieffrist gilt (mind. 4 Wochen, s. u.)
+        } else {
+          aufforderung = `Vergrößern Sie die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² und bepflanzen Sie sie im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen.`;
+          posFrist = frist2;
+        }
         positionen.push({
           text: `${feststellung} ${aufforderung}`,
-          frist: datumDe(frist2), bilder: [],
-          _bereich: 0, _id: "G01", _datum: null, _einzel: true,
+          frist: posFrist ? datumDe(posFrist) : null, bilder: [],
+          _bereich: 0, _id: "G01", _datum: null, _eigen: true,
         });
+        if (nochDiesesJahr) gemueseZentraleFrist = true;
         hatBew = true; hatNutzung = true;
       }
     }
@@ -153,21 +182,23 @@ export function baueSchreiben(e: SchreibenEingabe): {
       w.push(`Ohne Baustein/Normverweis übernommen (bitte prüfen): „${befund.slice(0, 50)}…"`);
       positionen.push({
         text: satz(befund), frist: null, bilder: m.fotoPfade,
-        _bereich: 4, _id: "ZZZ", _datum: null, _einzel: false,
+        _bereich: 4, _id: "ZZZ", _datum: null, _eigen: false,
       });
       hatGO = true;
       continue;
     }
-    if (b.befundPflicht && !befund && abmahnung) {
-      w.push(`${b.id} (${m.punkt}): Pflicht-Befund fehlt (§ 9 BKleingG Bestimmtheit) — Standardtext verwendet, bitte konkretisieren.`);
+    const eff = effektiverBaustein(b, e.overrides?.[b.id]);
+    if (eff.befundPflicht && !befund && abmahnung) {
+      w.push(`${eff.id} (${m.punkt}): Pflicht-Befund fehlt (§ 9 BKleingG Bestimmtheit) — Standardtext verwendet, bitte konkretisieren.`);
     }
-    const datum = bausteinFrist(b, fristBasis);
+    const { datum, saisonal } = bausteinFrist(eff, fristBasis);
     positionen.push({
-      text: `${satz(b.feststellung(befund.replace(/[\s.]+$/, "")))} ${b.aufforderung} (${b.norm})`,
+      text: `${satz(feststellungBauen(eff.feststellung, befund))} ${eff.aufforderung} (${eff.norm})`,
       frist: null, bilder: m.fotoPfade,
-      _bereich: b.bereich, _id: b.id, _datum: datum, _einzel: !!b.einzelfrist,
+      _bereich: eff.bereich, _id: eff.id, _datum: datum,
+      _eigen: !!eff.einzelfrist || saisonal,
     });
-    if (b.art === "bew") hatBew = true; else hatGO = true;
+    if (eff.art === "bew") hatBew = true; else hatGO = true;
   }
 
   if (positionen.length === 0) w.push("KEINE Beanstandungen — Schreiben kann nicht erzeugt werden.");
@@ -175,15 +206,17 @@ export function baueSchreiben(e: SchreibenEingabe): {
   // Reihenfolge: Gemüse -> Garten -> Baulichkeiten -> Sonstiges -> ohne Baustein
   positionen.sort((a, z) => a._bereich - z._bereich || a._id.localeCompare(z._id));
 
-  // Brieffrist = späteste Standard-Frist; abweichende Einzel-/Eilfristen je Position
-  const standard = positionen.filter((p) => p._datum && !p._einzel).map((p) => p._datum!.getTime());
+  // ZENTRALE Brieffrist = späteste der regulären Tages-Fristen (Sascha-Modell:
+  // eine Frist für alles). Saisonziele (30.10./BNatSchG) und Gefahr-Eilfristen
+  // werden je Position gesondert ausgewiesen und ziehen die Brieffrist NICHT.
+  // Beet-Neuanlage in der Abmahnung braucht mind. 4 Wochen (angemessene Frist).
+  const standard = positionen.filter((p) => p._datum && !p._eigen).map((p) => p._datum!.getTime());
+  if (gemueseZentraleFrist) standard.push(plusTage(fristBasis, 28).getTime());
   const brieffrist = standard.length
     ? new Date(Math.max(...standard))
     : plusTage(fristBasis, 28);
   for (const p of positionen) {
-    if (p._datum && (p._einzel || p._datum.getTime() !== brieffrist.getTime())) {
-      p.frist = datumDe(p._datum);
-    }
+    if (p._datum && p._eigen) p.frist = datumDe(p._datum);
   }
 
   // --- Betreff + Abmahn-Grund (deterministisch aus den Verstoß-Arten) ---
@@ -252,8 +285,6 @@ export function baueSchreiben(e: SchreibenEingabe): {
         erlaeuterung: true,
         hinweis_wiederholung: true,
         fotos_beigefuegt: false, // Fotos sind direkt eingebettet
-        unterzeichner_name: e.unterzeichner.name,
-        unterzeichner_funktion: e.unterzeichner.funktion,
       },
       warnungen: w,
     };
@@ -268,15 +299,12 @@ export function baueSchreiben(e: SchreibenEingabe): {
         wiederholung: !!e.wiederholung,
         ersatzvornahme: !!e.ersatzvornahme,
         lageplan: false,
-        unterzeichner_name: e.unterzeichner.name,
-        unterzeichner_funktion: e.unterzeichner.funktion,
       },
       warnungen: w,
     };
   }
   // 2. Abmahnung (Bezirksverband)
   if (!e.historie) w.push("Abmahnung 2 ohne Historie (seit/Hinweise/Datum 1. Abmahnung) — bitte ergänzen.");
-  if (!e.unterzeichnerBv) w.push("Unterzeichner des Bezirksverbands fehlt — Platzhalter verwendet.");
   return {
     vorlage: "abmahnung_bv",
     kontext: {
@@ -290,8 +318,6 @@ export function baueSchreiben(e: SchreibenEingabe): {
       datum_1_abmahnung: e.historie?.datum1Abmahnung ?? "",
       ersatzvornahme: !!e.ersatzvornahme,
       lageplan: false,
-      unterzeichner_name_bv: e.unterzeichnerBv?.name ?? "N. N.",
-      unterzeichner_funktion_bv: e.unterzeichnerBv?.funktion ?? "Vorstand",
     },
     warnungen: w,
   };

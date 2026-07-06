@@ -28,24 +28,7 @@ const { KATALOG_ZU_BAUSTEIN, BAUSTEINE } = require(join(LIB, "bausteine.js"));
 const prisma = new PrismaClient();
 
 // --- Freitext -> Baustein via lokalem Ollama (qwen3:14b), striktes JSON ---
-const KATALOG_TEXT = BAUSTEINE.map((b) => {
-  const kurz = {
-    G02: "Staudenrabatten vernachlässigt", G03: "Grenzabstand Anpflanzung", G04: "Zaunfreiheit (0,5 m) nicht eingehalten",
-    G05: "Anpflanzung entgegen GO (unzulässige Art/Sorte/Standort/Hochstamm)", G06: "Vernachlässigter Pflegezustand",
-    G07: "Obstbäume vernachlässigt", G08: "Beerensträucher vernachlässigt", G09: "Ziergehölze vernachlässigt / über 3 m",
-    G10: "Wildlinge / großkronige Laubbäume", G11: "Nadelgehölze/Koniferen", G12: "Formhecken unzulässig/zu hoch",
-    G13: "Rasen ungemäht mit Samenflug (Eilfall)", G14: "Invasiver Neophyt",
-    B01: "Grenzabstand Baulichkeit", B02: "Laube falsche Farbe", B03: "Laube unerlaubte bauliche Veränderung",
-    B04: "Laube Unfallgefahr", B05: "Terrassen-/Sitzplatzfläche überschritten", B06: "Gerätekiste",
-    B07: "Pergola", B08: "Beton/Stellplatten/Ortbeton", B09: "Grill", B10: "Kompostplatz Zustand/Inhalt",
-    B11: "Hochbeet", B12: "Tomatenüberdachung/Foliengewächshaus", B13: "Sonstige unerlaubte Baulichkeit",
-    S01: "Müll/Sperrmüll/Altholz", S02: "Kunststoff/Mikroplastik im Boden", S03: "Tierkadaver/Speisereste",
-    S04: "Gemeinschaftswege/Außenrand ungepflegt", S05: "Pachtvertrag/Wertermittlung nicht umgesetzt",
-    S06: "Wasserschacht Unfallgefahr", S07: "Gartenteich", S08: "Unterverpachtung/fremde Hilfe",
-    S09: "Unfallgefahr (allgemein)",
-  }[b.id];
-  return `${b.id} ${kurz}`;
-}).join("\n");
+const KATALOG_TEXT = BAUSTEINE.map((b) => `${b.id} ${b.label}`).join("\n");
 
 async function zuordnen(punkt, notiz) {
   const prompt = `Du ordnest einen Freitext-Mangel aus einer Kleingarten-Begehung GENAU EINEM Baustein zu.
@@ -90,6 +73,8 @@ for (const auftrag of auftraege) {
     },
   });
   const verein = await prisma.verein.findUniqueOrThrow({ where: { id: 1 } });
+  const overrideZeilen = await prisma.textbausteinOverride.findMany();
+  const overrides = Object.fromEntries(overrideZeilen.map((o) => [o.id, o]));
   const p = b.parzelle;
 
   // Gemüse-Mangel abtrennen (wird deterministisch aus Beeten gebaut)
@@ -137,11 +122,10 @@ for (const auftrag of auftraege) {
     maengel,
     verein,
     logoPfad: auftrag.typ === "abmahnung_2" ? null : join(WURZEL, "public/img/logo.png"),
-    unterzeichner: { name: "Sascha Theißen", funktion: "stv. Vorsitzender" },
-    unterzeichnerBv: { name: "N. N.", funktion: "Vorstand" },
     historie,
     wiederholung: auftrag.typ !== "mitteilung",
     ersatzvornahme: false,
+    overrides,
   });
 
   const name = `${auftrag.typ}_${p.parzelleId}`;

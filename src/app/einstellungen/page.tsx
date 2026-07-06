@@ -17,7 +17,10 @@ import {
   vereinLogoHochladen,
   vereinLogoEntfernen,
   mailVerbindungTesten,
+  textbausteinSpeichern,
+  textbausteinZuruecksetzen,
 } from "./actions";
+import { BAUSTEINE } from "@/lib/bausteine";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +37,10 @@ export default async function EinstellungenSeite({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const tabParam = (await searchParams).tab;
-  const tab = tabParam === "vorstand" || tabParam === "verein" ? tabParam : "parzellen";
+  const tab =
+    tabParam === "vorstand" || tabParam === "verein" || tabParam === "textbausteine"
+      ? tabParam
+      : "parzellen";
   const tabKlasse = (aktiv: boolean) =>
     `rounded px-3 py-1.5 text-sm font-medium ${
       aktiv ? "bg-emerald-700 text-white" : "border border-stone-300 hover:bg-stone-100"
@@ -47,13 +53,22 @@ export default async function EinstellungenSeite({
         <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">Start</Link>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Link href="/einstellungen" className={tabKlasse(tab === "parzellen")}>Parzellen</Link>
         <Link href="/einstellungen?tab=vorstand" className={tabKlasse(tab === "vorstand")}>Vorstand</Link>
         <Link href="/einstellungen?tab=verein" className={tabKlasse(tab === "verein")}>Verein</Link>
+        <Link href="/einstellungen?tab=textbausteine" className={tabKlasse(tab === "textbausteine")}>Textbausteine</Link>
       </div>
 
-      {tab === "parzellen" ? <ParzellenTab /> : tab === "vorstand" ? <VorstandTab /> : <VereinTab />}
+      {tab === "parzellen" ? (
+        <ParzellenTab />
+      ) : tab === "vorstand" ? (
+        <VorstandTab />
+      ) : tab === "verein" ? (
+        <VereinTab />
+      ) : (
+        <TextbausteineTab />
+      )}
     </div>
   );
 }
@@ -314,6 +329,94 @@ async function VereinTab() {
           <span className="text-xs text-stone-600">PNG, JPEG oder WebP, max. 2 MB</span>
         </AktionsForm>
       </section>
+    </div>
+  );
+}
+
+async function TextbausteineTab() {
+  const overrides = await prisma.textbausteinOverride.findMany();
+  const overrideMap = new Map(overrides.map((o) => [o.id, o]));
+  const BEREICHE: { nr: 1 | 2 | 3; titel: string }[] = [
+    { nr: 1, titel: "Garten" },
+    { nr: 2, titel: "Baulichkeiten und Nebenanlagen" },
+    { nr: 3, titel: "Sonstiges" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <section className={`${CARD} space-y-1`}>
+        <h2 className="text-base font-medium">Textbausteine für Schreiben</h2>
+        <p className="text-sm text-stone-600">
+          Feststellung, Aufforderung und Normzitat je Mangel-Baustein — verwendet in
+          Mitteilungen und Abmahnungen. <code className="rounded bg-stone-100 px-1">{"{befund}"}</code>{" "}
+          ist der Platzhalter für den konkreten Befund; ohne Befund wird das Segment
+          automatisch weggelassen. Die Standardtexte sind juristisch geprüft —
+          Änderungen wirken auf alle künftigen Schreiben.
+        </p>
+        <p className="text-sm text-stone-500">
+          Die Gemüse-Texte (SOLL/IST, § 12/§ 1-Weiche) werden aus den Beet-Daten
+          gebaut und sind hier nicht editierbar.
+        </p>
+      </section>
+
+      {BEREICHE.map((bereich) => (
+        <section key={bereich.nr} className={`${CARD} space-y-4`}>
+          <h2 className="text-base font-medium">{bereich.titel}</h2>
+          {BAUSTEINE.filter((b) => b.bereich === bereich.nr).map((b) => {
+            const o = overrideMap.get(b.id);
+            const angepasst = !!o && !!(o.feststellung || o.aufforderung || o.norm);
+            return (
+              <div key={b.id} className="border-t border-stone-100 pt-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-sm font-medium">{b.id} · {b.label}</span>
+                  {angepasst && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">angepasst</span>
+                  )}
+                </div>
+                <AktionsForm action={textbausteinSpeichern} className="space-y-2">
+                  <input type="hidden" name="id" value={b.id} />
+                  <label className="block text-sm">
+                    <span className="text-stone-600">Feststellung</span>
+                    <textarea
+                      name="feststellung"
+                      rows={2}
+                      defaultValue={o?.feststellung || b.feststellung}
+                      className={`mt-1 w-full ${INP}`}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-stone-600">Aufforderung</span>
+                    <textarea
+                      name="aufforderung"
+                      rows={2}
+                      defaultValue={o?.aufforderung || b.aufforderung}
+                      className={`mt-1 w-full ${INP}`}
+                    />
+                  </label>
+                  <label className="block text-sm sm:max-w-md">
+                    <span className="text-stone-600">Normzitat</span>
+                    <input
+                      type="text"
+                      name="norm"
+                      defaultValue={o?.norm || b.norm}
+                      className={`mt-1 w-full ${INP}`}
+                    />
+                  </label>
+                </AktionsForm>
+                {angepasst && (
+                  <AktionsForm
+                    action={textbausteinZuruecksetzen}
+                    submitLabel="Auf Standard zurücksetzen"
+                    className="mt-2"
+                  >
+                    <input type="hidden" name="id" value={b.id} />
+                  </AktionsForm>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      ))}
     </div>
   );
 }
