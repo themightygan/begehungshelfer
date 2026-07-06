@@ -122,12 +122,12 @@ export function AuswertungsTabelle({
     if (!schreibenAction || laufend) return;
     const ziele = zeilen.filter((z) => auswahl.has(z.parzelleId) && SCHREIBEN_STUFEN.has(z.stufe));
     if (!ziele.length) return;
-    const anzahlBv = ziele.filter((z) => z.stufe === "abmahnung_2").length;
     const frage =
-      `${ziele.length} Schreiben erstellen und versenden?\n\n` +
-      `${ziele.filter((z) => z.stufe === "mitteilung").length}× Mitteilung (E-Mail-Entwurf im Postfach)\n` +
-      `${ziele.filter((z) => z.stufe === "abmahnung_1").length}× 1. Abmahnung (docx an Vereinsadresse)\n` +
-      `${anzahlBv}× 2. Abmahnung (docx DIREKT an den Bezirksverband!)`;
+      `${ziele.length} Schreiben erstellen?\n\n` +
+      `${ziele.filter((z) => z.stufe === "mitteilung").length}× Mitteilung (E-Mail-Entwurf mit PDF + docx im Postfach)\n` +
+      `${ziele.filter((z) => z.stufe === "abmahnung_1").length}× 1. Abmahnung (docx an die Vereinsadresse)\n` +
+      `${ziele.filter((z) => z.stufe === "abmahnung_2").length}× 2. Abmahnung (Entwurf im Postfach, an den BV adressiert)\n\n` +
+      `Es wird nichts an Pächter oder BV versendet — Versand erst nach eurer Prüfung im Mail-Programm.`;
     if (!window.confirm(frage)) return;
     setLaufend(true);
     for (const z of ziele) {
