@@ -14,7 +14,8 @@ import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db";
 import { entschluesseln } from "@/lib/geheim";
 
-export type MailAnhang = { dateiname: string; inhalt: Buffer };
+// contentType optional — Standard PDF; Schreiben-Entwürfe hängen docx an.
+export type MailAnhang = { dateiname: string; inhalt: Buffer; contentType?: string };
 export type MailZiel = "vorstand" | "bezirksverband";
 
 // Genau EINE Mail-Adresse — kein Whitespace, kein Trennzeichen, keine <>,
@@ -149,7 +150,7 @@ export async function entwurfInPostfach(nachricht: {
     subject: kopfzeile(nachricht.betreff),
     text: nachricht.text,
     attachments: nachricht.anhang
-      ? [{ filename: nachricht.anhang.dateiname, content: nachricht.anhang.inhalt, contentType: "application/pdf" }]
+      ? [{ filename: nachricht.anhang.dateiname, content: nachricht.anhang.inhalt, contentType: nachricht.anhang.contentType ?? "application/pdf" }]
       : [],
   });
 
@@ -198,7 +199,7 @@ export async function mailSenden(
       subject: kopfzeile(nachricht.betreff),
       text: nachricht.text,
       attachments: nachricht.anhang
-        ? [{ filename: nachricht.anhang.dateiname, content: nachricht.anhang.inhalt, contentType: "application/pdf" }]
+        ? [{ filename: nachricht.anhang.dateiname, content: nachricht.anhang.inhalt, contentType: nachricht.anhang.contentType ?? "application/pdf" }]
         : [],
       // Envelope explizit pinnen: RCPT TO ist die Wahrheit, nicht der Header.
       envelope: { from: k.absender, to: kopie ? [empfaenger, kopie] : [empfaenger] },
@@ -206,5 +207,90 @@ export async function mailSenden(
     return null;
   } catch (e) {
     return `Versand fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+// --- Gesendet-Abgleich: versandte Mitteilungen automatisch in die Akte ---
+// Durchsucht den Gesendet-Ordner nach App-Mails an Pächter (Betreff enthält
+// "Parzelle <ID>"), legt den PDF-Anhang als Dokument (typ "email") in die
+// Parzellen-Akte. Dedupe über die Message-ID in der Dokument-Notiz.
+const GESENDET_NAMEN = ["sent", "sent items", "gesendet", "gesendete objekte", "gesendete elemente", "inbox.sent", "inbox.gesendet"];
+
+export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string }> {
+  const k = await mailKonfig();
+  if (typeof k === "string") return { ok: false, bericht: k };
+  const { dokumentSpeichern } = await import("@/lib/storage");
+
+  const client = imapClient(k);
+  let neu = 0, gesehen = 0;
+  try {
+    await client.connect();
+    const ordner = await client.list();
+    const ziel =
+      ordner.find((o) => o.specialUse === "\\Sent")?.path ??
+      ordner.find((o) => GESENDET_NAMEN.includes(o.path.toLowerCase()))?.path;
+    if (!ziel) { await client.logout(); return { ok: false, bericht: "Gesendet-Ordner nicht gefunden." }; }
+
+    const lock = await client.getMailboxLock(ziel);
+    try {
+      const seit = new Date(Date.now() - 90 * 86400000); // 90 Tage zurück
+      for await (const msg of client.fetch(
+        { since: seit },
+        { envelope: true, bodyStructure: true, uid: true }
+      )) {
+        const betreff = msg.envelope?.subject ?? "";
+        const m = betreff.match(/Parzelle\s+([A-Z]{1,3}\d+[a-z]?)/i);
+        if (!m) continue;
+        const empfaenger = (msg.envelope?.to ?? []).map((a) => a.address ?? "").filter(Boolean);
+        // Nur Mails an Externe (Pächter) — Entwürfe an Verein/BV sind keine Zustellung.
+        if (!empfaenger.length || empfaenger.every((a) => a === k.absender || a === k.bezirksverband)) continue;
+        gesehen++;
+
+        const parzelle = await prisma.parzelle.findUnique({ where: { parzelleId: m[1].toUpperCase() } });
+        if (!parzelle) continue;
+        const messageId = msg.envelope?.messageId ?? `uid:${msg.uid}`;
+        const marke = `[Mail ${messageId}]`;
+        const schonDa = await prisma.dokument.findFirst({
+          where: { parzelleId: parzelle.id, notiz: { contains: marke } },
+        });
+        if (schonDa) continue;
+
+        // PDF-Anhänge im Body-Baum suchen und herunterladen
+        type Teil = { part?: string; type?: string; disposition?: string; dispositionParameters?: Record<string, string>; parameters?: Record<string, string>; childNodes?: Teil[] };
+        const teile: Teil[] = [];
+        const sammle = (t?: Teil) => {
+          if (!t) return;
+          if (t.type === "application/pdf") teile.push(t);
+          (t.childNodes ?? []).forEach(sammle);
+        };
+        sammle(msg.bodyStructure as Teil);
+        for (const teil of teile) {
+          if (!teil.part) continue;
+          const dl = await client.download(String(msg.uid), teil.part, { uid: true });
+          const stuecke: Buffer[] = [];
+          for await (const chunk of dl.content) stuecke.push(chunk as Buffer);
+          const name =
+            teil.dispositionParameters?.filename ?? teil.parameters?.name ?? `Mitteilung_${parzelle.parzelleId}.pdf`;
+          const pfad = await dokumentSpeichern(parzelle.parzelleId, Buffer.concat(stuecke), name);
+          await prisma.dokument.create({
+            data: {
+              parzelleId: parzelle.id,
+              typ: "email",
+              dateipfad: pfad,
+              datum: msg.envelope?.date ?? new Date(),
+              notiz: `Per E-Mail versandt an ${empfaenger.join(", ")} — „${kopfzeile(betreff)}" ${marke}`,
+            },
+          });
+          neu++;
+        }
+      }
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+    return { ok: true, bericht: `Gesendet-Abgleich: ${gesehen} App-Mails gefunden, ${neu} neu in Akten abgelegt.` };
+  } catch (e) {
+    try { await client.logout(); } catch { /* Verbindung eh tot */ }
+    return { ok: false, bericht: `Abgleich fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}` };
   }
 }

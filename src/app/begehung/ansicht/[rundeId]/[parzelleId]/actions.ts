@@ -342,3 +342,51 @@ export async function abmahnungsEntwurfSenden(
         : "Entwurf an den Bezirksverband gesendet (Kopie an die Vereinsadresse).",
   };
 }
+
+// --- Schreiben erzeugen (docx aus Vorlagen + Bausteinen) und versenden ---
+// Voller Prozess je Typ (siehe src/lib/schreibenErzeugen.ts). HITL bleibt:
+// Mitteilung = Entwurf im Postfach, Abmahnungen = docx an Verein/BV.
+
+export type SchreibenFormErgebnis = { ok?: string; fehler?: string; warnungen?: string[] };
+
+export async function schreibenErstellen(
+  rundeId: number,
+  parzelleId: string,
+  _prev: SchreibenFormErgebnis,
+  formData: FormData
+): Promise<SchreibenFormErgebnis> {
+  const { erzeugeUndSendeSchreiben } = await import("@/lib/schreibenErzeugen");
+  const feld = (n: string) => String(formData.get(n) ?? "").trim();
+
+  const typ = feld("typ");
+  if (typ !== "mitteilung" && typ !== "abmahnung_1" && typ !== "abmahnung_2") {
+    return { fehler: "Unbekannter Schreiben-Typ." };
+  }
+
+  // Fehlende Anrede kann direkt im Formular nachgetragen werden (1x anfassen).
+  const anrede = feld("anrede");
+  if (anrede === "herr" || anrede === "frau") {
+    await prisma.parzelle.update({ where: { parzelleId }, data: { anrede } });
+  }
+
+  const historieSeit = feld("historie_seit");
+  const historie =
+    typ === "abmahnung_2" && historieSeit
+      ? {
+          seit: historieSeit,
+          hinweise: feld("historie_hinweise"),
+          datum1Abmahnung: feld("historie_datum1"),
+        }
+      : undefined;
+
+  const ergebnis = await erzeugeUndSendeSchreiben({
+    rundeId,
+    parzelleId,
+    typ,
+    historie,
+    wiederholung: formData.get("wiederholung") === "1",
+    ersatzvornahme: formData.get("ersatzvornahme") === "1",
+  });
+  revalidatePath(`/begehung/ansicht/${rundeId}/${parzelleId}`);
+  return ergebnis;
+}

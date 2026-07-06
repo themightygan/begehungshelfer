@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { FileText, ThumbsUp } from "lucide-react";
+import { FileText, Mail, ThumbsUp, TriangleAlert } from "lucide-react";
 import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
 import { KlickZeile } from "@/components/KlickZeile";
 import { BeetZelle } from "@/components/BeetZelle";
@@ -13,6 +13,7 @@ import { NeupaechterTag } from "@/components/NeupaechterTag";
 
 export type Zeile = {
   parzelleId: string; // "S35" — auch Anker-Id der Zeile (p-S35)
+  rundeId: number; // Runde des (neuesten) Befunds — für die Sammel-Schreiben
   nummer: number;
   index: string; // "", "a", …
   nachname: string;
@@ -65,12 +66,30 @@ function vergleich(a: Zeile, b: Zeile, key: SortKey): number {
 // Tabelle horizontal im Container, dort kann der Kopf nicht kleben).
 const TH = "sticky top-0 z-10 border-b border-stone-300 bg-white py-2 pr-3";
 
-export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
+// Stufen, für die ein Schreiben vorgesehen ist (voller Prozess je Typ).
+const SCHREIBEN_STUFEN = new Set(["mitteilung", "abmahnung_1", "abmahnung_2"]);
+type SchreibenStatus = { sym: "läuft" | "ok" | "warn" | "fehler"; text: string };
+
+export function AuswertungsTabelle({
+  zeilen,
+  schreibenAction,
+}: {
+  zeilen: Zeile[];
+  // Server-Action: erzeugt + versendet das Schreiben einer Parzelle
+  // (Typ aus der Befund-Stufe). Optional — ohne Action keine Auswahl-Spalte.
+  schreibenAction?: (
+    rundeId: number,
+    parzelleId: string
+  ) => Promise<{ ok?: string; fehler?: string; warnungen?: string[] }>;
+}) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
     key: "nummer",
     dir: 1,
   });
   const [filter, setFilter] = useState("");
+  const [auswahl, setAuswahl] = useState<Set<string>>(new Set());
+  const [status, setStatus] = useState<Map<string, SchreibenStatus>>(new Map());
+  const [laufend, setLaufend] = useState(false);
 
   const f = filter.trim().toLowerCase();
   const gefiltert = f
@@ -86,6 +105,52 @@ export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
 
   const klick = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
+
+  // --- Sammel-Schreiben: Auswahl + sequenzieller Lauf über die Server-Action ---
+  const waehlbar = sortiert.filter((z) => SCHREIBEN_STUFEN.has(z.stufe));
+  const alleGewaehlt = waehlbar.length > 0 && waehlbar.every((z) => auswahl.has(z.parzelleId));
+  const umschalten = (id: string) =>
+    setAuswahl((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  const alleUmschalten = () =>
+    setAuswahl(alleGewaehlt ? new Set() : new Set(waehlbar.map((z) => z.parzelleId)));
+
+  async function schreibenLauf() {
+    if (!schreibenAction || laufend) return;
+    const ziele = zeilen.filter((z) => auswahl.has(z.parzelleId) && SCHREIBEN_STUFEN.has(z.stufe));
+    if (!ziele.length) return;
+    const anzahlBv = ziele.filter((z) => z.stufe === "abmahnung_2").length;
+    const frage =
+      `${ziele.length} Schreiben erstellen und versenden?\n\n` +
+      `${ziele.filter((z) => z.stufe === "mitteilung").length}× Mitteilung (E-Mail-Entwurf im Postfach)\n` +
+      `${ziele.filter((z) => z.stufe === "abmahnung_1").length}× 1. Abmahnung (docx an Vereinsadresse)\n` +
+      `${anzahlBv}× 2. Abmahnung (docx DIREKT an den Bezirksverband!)`;
+    if (!window.confirm(frage)) return;
+    setLaufend(true);
+    for (const z of ziele) {
+      setStatus((s) => new Map(s).set(z.parzelleId, { sym: "läuft", text: "wird erstellt…" }));
+      try {
+        const r = await schreibenAction(z.rundeId, z.parzelleId);
+        const st: SchreibenStatus = r.fehler
+          ? { sym: "fehler", text: r.fehler }
+          : r.warnungen?.length
+            ? { sym: "warn", text: `${r.ok ?? "OK"} — Hinweise: ${r.warnungen.join(" · ")}` }
+            : { sym: "ok", text: r.ok ?? "OK" };
+        setStatus((s) => new Map(s).set(z.parzelleId, st));
+      } catch (e) {
+        setStatus((s) =>
+          new Map(s).set(z.parzelleId, { sym: "fehler", text: e instanceof Error ? e.message : String(e) })
+        );
+      }
+    }
+    setLaufend(false);
+  }
+
+  const fertigOk = [...status.values()].filter((s) => s.sym === "ok" || s.sym === "warn").length;
+  const fertigFehler = [...status.values()].filter((s) => s.sym === "fehler").length;
 
   const ariaSort = (k: SortKey) =>
     sort.key === k ? (sort.dir === 1 ? ("ascending" as const) : ("descending" as const)) : undefined;
@@ -121,11 +186,41 @@ export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
             {gefiltert.length} von {zeilen.length} Zeilen
           </span>
         )}
+        {schreibenAction && (
+          <button
+            type="button"
+            onClick={schreibenLauf}
+            disabled={laufend || auswahl.size === 0}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+          >
+            <Mail className="h-4 w-4 shrink-0" aria-hidden />
+            {laufend
+              ? `erstelle… (${fertigOk + fertigFehler}/${auswahl.size})`
+              : `Schreiben erstellen (${auswahl.size} gewählt)`}
+          </button>
+        )}
+        {status.size > 0 && !laufend && (
+          <span className="text-sm text-stone-600" aria-live="polite">
+            {fertigOk} erstellt{fertigFehler > 0 ? `, ${fertigFehler} Fehler` : ""}
+          </span>
+        )}
       </div>
       <div className="overflow-x-auto md:overflow-visible">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="text-left text-stone-600">
+              {schreibenAction && (
+                <th scope="col" className={TH}>
+                  <input
+                    type="checkbox"
+                    checked={alleGewaehlt}
+                    onChange={alleUmschalten}
+                    disabled={laufend || waehlbar.length === 0}
+                    aria-label="Alle Parzellen mit Schreiben-Stufe auswählen"
+                    className="h-5 w-5"
+                  />
+                </th>
+              )}
               <th scope="col" aria-sort={ariaSort("nummer")} className={TH}>
                 <SortKnopf k="nummer">Garten</SortKnopf>
               </th>
@@ -163,6 +258,32 @@ export function AuswertungsTabelle({ zeilen }: { zeilen: Zeile[] }) {
                 href={z.ansichtHref}
                 className="border-b border-stone-100 hover:bg-stone-50"
               >
+                {schreibenAction && (
+                  <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                    {(() => {
+                      const st = status.get(z.parzelleId);
+                      if (st?.sym === "läuft") return <span className="text-sm text-stone-600" title={st.text}>…</span>;
+                      if (st?.sym === "ok") return <span className="text-sm text-emerald-700" title={st.text}>✓</span>;
+                      if (st?.sym === "warn")
+                        return (
+                          <span title={st.text}>
+                            <TriangleAlert className="h-4 w-4 text-amber-800" aria-label={st.text} />
+                          </span>
+                        );
+                      if (st?.sym === "fehler") return <span className="text-sm font-medium text-red-700" title={st.text}>✗</span>;
+                      return SCHREIBEN_STUFEN.has(z.stufe) ? (
+                        <input
+                          type="checkbox"
+                          checked={auswahl.has(z.parzelleId)}
+                          onChange={() => umschalten(z.parzelleId)}
+                          disabled={laufend}
+                          aria-label={`Schreiben für ${z.parzelleId} auswählen`}
+                          className="h-5 w-5"
+                        />
+                      ) : null;
+                    })()}
+                  </td>
+                )}
                 <td className="py-2 pr-3 font-medium">
                   <Link href={z.ansichtHref} className="text-emerald-700 hover:underline">
                     {z.parzelleId}

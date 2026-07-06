@@ -18,8 +18,11 @@ import {
   mangelHinzufuegenNachtraeglich,
   mitteilungsEntwurf,
   abmahnungsEntwurfSenden,
+  schreibenErstellen,
 } from "./actions";
 import { MailAktionen } from "./MailAktionen";
+import { SchreibenErstellen } from "./SchreibenErstellen";
+import { historieVorschlag } from "@/lib/schreibenErzeugen";
 import { mailKonfig } from "@/lib/mail";
 import { FotoZone } from "./FotoZone";
 import { FristAlle } from "./FristAlle";
@@ -96,6 +99,13 @@ export default async function AnsichtSeite({
 
   // Mail-Konfiguration (Verein-Tab); string = Hinweistext statt Buttons.
   const konfig = await mailKonfig();
+
+  // Dokumenten-Akte für den Historie-Vorschlag der 2. Abmahnung.
+  const dokumente = await prisma.dokument.findMany({
+    where: { parzelleId: parzelle.id },
+    orderBy: { datum: "asc" },
+    select: { typ: true, datum: true, notiz: true },
+  });
 
   // Katalog fürs nachträgliche Ergänzen von Mängeln.
   const katalog = await prisma.katalog.findMany({
@@ -383,10 +393,33 @@ export default async function AnsichtSeite({
         <FileText className="h-4 w-4 shrink-0" aria-hidden /> Bericht-PDF
       </a>
 
+      {/* Schreiben erstellen: voller Prozess (docx aus Vorlagen + Bausteinen,
+          Versand als Entwurf) — Typ aus der Befund-Stufe vorbelegt. */}
+      <section className={CARD}>
+        <h2 className="mb-2 text-base font-medium">Schreiben erstellen</h2>
+        {typeof konfig === "string" ? (
+          <p className="text-sm text-stone-600">
+            {konfig}{" "}
+            <Link href="/einstellungen?tab=verein" className="text-emerald-700 hover:underline">
+              Zu den Einstellungen
+            </Link>
+          </p>
+        ) : (
+          <SchreibenErstellen
+            action={schreibenErstellen.bind(null, rundeId, parzelle.parzelleId)}
+            stufe={befund.stufe}
+            anredeFehlt={parzelle.anrede !== "herr" && parzelle.anrede !== "frau"}
+            historieVorschlag={historieVorschlag(dokumente)}
+            paechterEmail={parzelle.email}
+            bvEmail={konfig.bezirksverband}
+          />
+        )}
+      </section>
+
       {/* E-Mail (HITL): Mitteilungs-ENTWURF ins Postfach; Abmahnungs-Entwurf
           nur an Vorstand/Bezirksverband — Empfänger serverseitig erzwungen. */}
       <section className={CARD}>
-        <h2 className="mb-2 text-base font-medium">E-Mail</h2>
+        <h2 className="mb-2 text-base font-medium">E-Mail (Begehungsbericht)</h2>
         {typeof konfig === "string" ? (
           <p className="text-sm text-stone-600">
             {konfig}{" "}

@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { istNeupaechter } from "@/lib/paechter";
 import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
+import { sammelSchreiben } from "./actions";
 import { AuswertungsTabelle, type Zeile } from "./AuswertungsTabelle";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
   const vonSuffix = von ? `?von=${encodeURIComponent(von)}` : "";
   return {
     parzelleId: p.parzelleId,
+    rundeId,
     nummer: p.nummer,
     index: p.index,
     nachname: p.nachname,
@@ -128,7 +130,7 @@ export default async function AuswertungSeite({
           </div>
         </div>
 
-        <AuswertungsTabelle zeilen={zeilen} />
+        <AuswertungsTabelle zeilen={zeilen} schreibenAction={sammelSchreiben} />
       </div>
     );
   }
@@ -184,7 +186,7 @@ export default async function AuswertungSeite({
           </div>
         </div>
 
-        <AuswertungsTabelle zeilen={zeilen} />
+        <AuswertungsTabelle zeilen={zeilen} schreibenAction={sammelSchreiben} />
       </div>
     );
   }

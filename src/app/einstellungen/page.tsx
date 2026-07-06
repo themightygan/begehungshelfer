@@ -17,6 +17,7 @@ import {
   vereinLogoHochladen,
   vereinLogoEntfernen,
   mailVerbindungTesten,
+  postfachAbgleich,
   textbausteinSpeichern,
   textbausteinZuruecksetzen,
 } from "./actions";
@@ -298,8 +299,13 @@ async function VereinTab() {
             </label>
           ) : null}
         </AktionsForm>
-        <div className="border-t border-stone-100 pt-3">
+        <div className="flex flex-wrap gap-4 border-t border-stone-100 pt-3">
           <VerbindungsTest action={mailVerbindungTesten} />
+          <VerbindungsTest
+            action={postfachAbgleich}
+            label="Gesendet-Abgleich (Mitteilungen in Akten ablegen)"
+            pendingLabel="gleiche ab…"
+          />
         </div>
       </section>
 

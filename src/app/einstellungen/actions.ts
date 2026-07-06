@@ -293,3 +293,15 @@ export async function textbausteinZuruecksetzen(_prev: FormState, formData: Form
   revalidatePath("/einstellungen");
   return { ok: true };
 }
+
+// Gesendet-Abgleich: versandte Mitteilungen (Betreff "… Parzelle X") aus dem
+// Gesendet-Ordner als Dokument in die jeweilige Parzellen-Akte übernehmen.
+export async function postfachAbgleich(
+  _prev: TestErgebnis,
+  _formData: FormData
+): Promise<TestErgebnis> {
+  const { gesendetAbgleich } = await import("@/lib/mail");
+  const ergebnis = await gesendetAbgleich();
+  revalidatePath("/einstellungen");
+  return ergebnis;
+}
