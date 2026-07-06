@@ -213,7 +213,16 @@ export function baueSchreiben(e: SchreibenEingabe): {
     if (eff.befundPflicht && !befund && abmahnung) {
       w.push(`${eff.id} (${m.punkt}): Pflicht-Befund fehlt (§ 9 BKleingG Bestimmtheit) — Standardtext verwendet, bitte konkretisieren.`);
     }
-    const { datum, saisonal } = bausteinFrist(eff, fristBasis);
+    let { datum, saisonal } = bausteinFrist(eff, fristBasis);
+    // Obstbaumschnitt in MITTEILUNGEN: Ziel ist der Winterschnitt — Frist
+    // stets der 31.03. (Sascha 2026-07-06). Abmahnungen behalten den 30.10.
+    if (!abmahnung && eff.id === "G07") {
+      datum = new Date(fristBasis.getFullYear(), 2, 31);
+      if (datum.getTime() < plusTage(fristBasis, 14).getTime()) {
+        datum = new Date(fristBasis.getFullYear() + 1, 2, 31);
+      }
+      saisonal = true;
+    }
     positionen.push({
       text: `${satz(feststellungBauen(eff.feststellung, befund))} ${eff.aufforderung} (${eff.norm})`,
       frist: null, bilder: m.fotoPfade,
