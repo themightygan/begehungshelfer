@@ -256,8 +256,20 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
 
     // 2. Abmahnung: ENTWURF im Postfach, an den BV adressiert — es geht nichts
     // raus, der Verein kann Anschreiben und docx noch anpassen und sendet selbst.
-    const verein2 = await prisma.verein.findUnique({ where: { id: 1 } });
-    const bvAdresse = verein2?.bezirksverbandEmail ?? "";
+    // Liegt die 1. Abmahnung des Vereins in der Akte, geht sie zur Kenntnis mit.
+    const bvAdresse = verein.bezirksverbandEmail;
+    const anhaenge = [{ dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME }];
+    const ersteAbmahnung = parzelle.dokumente
+      .filter((d) => d.typ === "schreiben" && /abmahnung/i.test(d.notiz))
+      .at(-1);
+    if (ersteAbmahnung && existsSync(join(STORAGE_DIR, ersteAbmahnung.dateipfad))) {
+      const ext = ersteAbmahnung.dateipfad.split(".").pop() ?? "pdf";
+      anhaenge.push({
+        dateiname: `Abmahnung_Verein_${ersteAbmahnung.datum.toISOString().slice(0, 10)}.${ext}`,
+        inhalt: await readFile(join(STORAGE_DIR, ersteAbmahnung.dateipfad)),
+        contentType: ext === "pdf" ? "application/pdf" : "application/octet-stream",
+      });
+    }
     const fehler = await entwurfInPostfach({
       an: istEinzelAdresse(bvAdresse) ? bvAdresse : "",
       betreff: `Parzelle ${parzelle.parzelleId}${paechter ? ` (${paechter})` : ""} — Bitte um 2. Abmahnung durch den Bezirksverband`,
@@ -269,13 +281,16 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
         "Wir bitten Sie als Verpächter, die Angelegenheit zu übernehmen und die Abmahnung",
         "auszusprechen. Einen Entwurf des Abmahnschreibens mit dem dokumentierten Sachverhalt",
         "und der Fotodokumentation fügen wir als Word-Datei bei.",
+        ...(ersteAbmahnung
+          ? ["", "Die vom Verein ausgesprochene Abmahnung fügen wir zu Ihrer Kenntnis ebenfalls bei."]
+          : []),
         "",
         "Mit freundlichen Grüßen",
         "Der Vorstand",
         verein.name,
         "",
       ].join("\n"),
-      anhaenge: [{ dateiname: `${basisName}.docx`, inhalt: docx, contentType: DOCX_MIME }],
+      anhaenge,
     });
     if (fehler) return { fehler, warnungen };
     return {
