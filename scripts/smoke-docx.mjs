@@ -45,7 +45,8 @@ const faelle = [
     vorlage: `${WURZEL}/vorlagen/mitteilung.docx`,
     kontext: {
       ...org,
-      logo: LOGO,
+      logo: null, // Briefkopf-Vorlage trägt das Logo in der Kopfzeile
+      vorsitzender: "Sabine Metzger",
       anlage: "Kühwasen",
       erlaeuterung: true,
       hinweis_wiederholung: true,
@@ -62,7 +63,10 @@ const faelle = [
           text: "Ihre derzeitige Gemüseanbaufläche ist mit etwa 8 m² noch zu klein. Vertraglich sind bei Ihrer Parzelle von 320 m² rund 53 m² vereinbart (§ 12 des Unterpachtvertrages). Wir bitten Sie, die Fläche entsprechend zu vergrößern.",
           frist: "30. April 2027",
         },
-        { text: "Sonderzeichen-Test: Hecke > 3 m & \"Efeu\" <überwuchert> den Zaun.", foto: "1–2" },
+        {
+          text: "Sonderzeichen-Test: Hecke > 3 m & \"Efeu\" <überwuchert> den Zaun.",
+          bilder: [FOTO, FOTO2], // Mitteilung bettet Fotos ein (Pillow-Reencode-Test)
+        },
       ],
     },
   },
@@ -71,20 +75,19 @@ const faelle = [
     vorlage: `${WURZEL}/vorlagen/abmahnung_verein.docx`,
     kontext: {
       ...org,
-      logo: LOGO,
+      logo: null, // Briefkopf-Vorlage trägt das Logo; 1. Abmahnung ohne Fotos
+      vorsitzender: "Sabine Metzger",
+      verstoss_arten: "Bewirtschaftungsmängel",
+      vorjahre: true,
+      gemuese_schluss: "Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen mit derzeit ca. 20 m² zu klein ist.",
       wiederholung: true,
       ersatzvornahme: true,
       lageplan: false,
       betreff_grund: "mangelhafter Bewirtschaftung der Parzelle",
       abmahn_grund: "mangelhafter Bewirtschaftung der Parzelle (§ 4 Ziff. 1 des Unterpachtvertrages)",
-      unterzeichner_name: "Sascha Theißen",
-      unterzeichner_funktion: "stv. Vorsitzender",
       beanstandungen: [
-        {
-          text: "Die Parzelle weist erhebliche Pflegerückstände auf: Beete verunkrautet, Rasen ungemäht. Stellen Sie einen ordnungsgemäßen Kulturzustand her. (§ 4 Ziff. 1 UPV)",
-          bilder: [FOTO, FOTO2], // echte EXIF-gestrippte App-Fotos (identische dedupliziert docx!)
-        },
-        { text: "Auf der Parzelle wird Müll gelagert. Entsorgen Sie ihn fachgerecht. (§ 4 Ziff. 1 UPV)", foto: "3" },
+        { text: "Die Parzelle weist erhebliche Pflegerückstände auf: Beete verunkrautet, Rasen ungemäht. Stellen Sie einen ordnungsgemäßen Kulturzustand her. (§ 4 Ziff. 1 UPV)" },
+        { text: "Auf der Parzelle wird Müll gelagert. Entsorgen Sie ihn fachgerecht. (§ 4 Ziff. 1 UPV)" },
       ],
     },
   },

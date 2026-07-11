@@ -123,6 +123,9 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
   const istM2 = befund.beete.length
     ? befund.beete.reduce((s, t) => s + t.flaecheM2, 0)
     : null;
+  // 1. Abmahnung geht OHNE Fotos raus (Sascha 2026-07-11) — reiner Text.
+  // Mitteilung + 2. Abmahnung (BV) betten die Fotos weiter ein.
+  const mitFotos = typ !== "abmahnung_1";
   const maengel = [];
   for (const m of befund.maengel) {
     if (m === gemueseMangel) continue;
@@ -136,7 +139,9 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
       notiz: m.notiz.trim(),
       istKatalog,
       bausteinId,
-      fotoPfade: m.fotos.map((f) => join(STORAGE_DIR, f.dateipfad)).filter((p) => existsSync(p)),
+      fotoPfade: mitFotos
+        ? m.fotos.map((f) => join(STORAGE_DIR, f.dateipfad)).filter((p) => existsSync(p))
+        : [],
     });
   }
 
@@ -173,6 +178,13 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
     logoPfad,
     historie: typ === "abmahnung_2" ? (a.historie ?? historieVorschlag(parzelle.dokumente)) : null,
     wiederholung: a.wiederholung ?? typ !== "mitteilung",
+    // "wie bereits in den Vorjahren" nur, wenn die Akte einen Beleg aus einem
+    // früheren Jahr trägt (Mitteilung/Abmahnung/E-Mail). Sonst weglassen.
+    vorjahre: parzelle.dokumente.some(
+      (d) =>
+        (d.typ === "schreiben" || d.typ === "email") &&
+        d.datum.getFullYear() < new Date(befund.runde.datum).getFullYear()
+    ),
     ersatzvornahme: a.ersatzvornahme ?? false,
     overrides,
   });

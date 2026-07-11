@@ -52,7 +52,7 @@ export const BAUSTEINE: readonly Baustein[] = [
     id: "G04", bereich: 1, label: "Zaunfreiheit (0,5 m) nicht eingehalten",
     norm: "UPV § 4 Ziff. 2 / GO 1 Abs. 2", art: "go", frist: { tage: 21 },
     feststellung: "Der vereinseigene Zaun ist innen bzw. außen nicht im vorgeschriebenen Abstand von 0,5 m von Bewuchs freigehalten: {befund}.",
-    aufforderung: "Halten Sie den vereinseigenen Zaun innerhalb und außerhalb der Parzelle in einem Abstand von ca. 0,5 m von jeglichem Bewuchs frei, auch von Kletter- und Rankpflanzen.",
+    aufforderung: "Stellen Sie die vorgeschriebene Zaunfreiheit her, indem Sie den vereinseigenen Zaun innerhalb und außerhalb der Parzelle in einem Abstand von ca. 0,5 m von jeglichem Bewuchs frei halten, auch von Kletter- und Rankpflanzen.",
   },
   {
     id: "G05", bereich: 1, label: "Anpflanzung entgegen der Gartenordnung",
@@ -184,8 +184,8 @@ export const BAUSTEINE: readonly Baustein[] = [
   {
     id: "B12", bereich: 2, label: "Tomatenüberdachung / Foliengewächshaus",
     norm: "UPV § 4 Ziff. 2 / GO 4.15, 4.16", art: "go", frist: { tage: 14 },
-    feststellung: "Die Tomatenüberdachung/das Foliengewächshaus entspricht nicht den Vorgaben der Gartenordnung (Grundfläche/Material/Zeitraum): {befund}.",
-    aufforderung: "Bauen Sie die Überdachung auf das zulässige Maß zurück bzw. verwenden Sie ein zulässiges Material; außerhalb des zulässigen Zeitraums ist das Foliengewächshaus abzubauen.",
+    feststellung: "Die Tomatenüberdachung entspricht in ihrer Bauausführung nicht den Vorgaben der Gartenordnung: {befund}.",
+    aufforderung: "Entfernen Sie die unzulässigen Materialien (z. B. Kunststoff-Wellplatten oder Doppelstegplatten). Soweit Sie an dem Gewächshaus festhalten wollen, verwenden Sie stattdessen ausschließlich UV-stabilisierte und gewebeverstärkte Folien.",
   },
   {
     id: "B13", bereich: 2, label: "Sonstige unerlaubte Baulichkeit",
@@ -198,7 +198,7 @@ export const BAUSTEINE: readonly Baustein[] = [
     id: "S01", bereich: 3, label: "Müll / Sperrmüll / Altholz",
     norm: "UPV § 4 Ziff. 1", art: "bew", frist: { tage: 21 }, befundPflicht: true,
     feststellung: "Auf der Parzelle wird Müll bzw. Sperrmüll gelagert: {befund}.",
-    aufforderung: "Räumen Sie Müll, Sperrmüll und Altholz vollständig aus der Parzelle und entsorgen Sie sie fachgerecht, z. B. über eine städtische Sammelstelle.",
+    aufforderung: "Entfernen Sie den Müll und Sperrmüll sowie das Altholz vollständig aus der Parzelle und entsorgen Sie ihn fachgerecht, z. B. über eine städtische Sammelstelle.",
   },
   {
     id: "S02", bereich: 3, label: "Kunststoff / Mikroplastik im Boden",

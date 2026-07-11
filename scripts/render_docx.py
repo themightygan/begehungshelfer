@@ -61,6 +61,10 @@ OPTIONAL = {
     "erlaeuterung": False,
     "hinweis_wiederholung": False,
     "fotos_beigefuegt": False,
+    "vorsitzender": "",
+    "verstoss_arten": "Mängel",
+    "vorjahre": False,
+    "gemuese_schluss": None,
 }
 
 

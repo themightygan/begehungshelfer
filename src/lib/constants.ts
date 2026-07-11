@@ -136,3 +136,10 @@ export const AENDERUNG_LABEL = Object.fromEntries(
 export const FOTO_MAX_KANTE = 1600; // px (längste Kante)
 export const FOTO_JPEG_QUALITAET = 75;
 export const FOTO_MAX_PRO_BEFUND = 24; // Treiber: bis 24 Fotos/Parzelle
+
+// Beet-Ampel (Gemüseanbaufläche IST/SOLL, Sascha 2026-07-11):
+//   < 2/3 vom Soll  -> rot,   gilt als "zu klein" (Mitteilung/Abmahnung mahnen es an)
+//   2/3 .. < 90 %   -> orange, gilt als ausreichend (kein Schreiben)
+//   >= 90 %         -> grün,  ausreichend
+export const BEET_AUSREICHEND = 2 / 3; // ab hier ausreichend (nicht mehr "zu klein")
+export const BEET_GUT = 0.9; // ab hier grün
