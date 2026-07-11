@@ -78,8 +78,16 @@ export default async function ParzelleVerwaltung({
         </Link>
       </div>
 
-      {/* Stammdaten bearbeiten */}
-      <form action={updateStammdaten.bind(null, parzelleId)} className={`${CARD} space-y-3`}>
+      {/* Stammdaten bearbeiten. key = persistierter Stand: React 19 setzt ein
+          Formular nach der Server-Action zurück (auf defaultValue); ohne Remount
+          zeigte z. B. der Status-Select nach dem Speichern wieder den Altwert.
+          Ändert sich der gespeicherte Stand, erzwingt der key einen Remount mit
+          den frischen defaultValues. */}
+      <form
+        key={`${p.nachname}|${p.vorname}|${p.anrede}|${p.anredeStil}|${p.email}|${p.telefon}|${p.strasse}|${p.plz}|${p.ort}|${p.eintritt}|${p.groesseM2}|${p.status}`}
+        action={updateStammdaten.bind(null, parzelleId)}
+        className={`${CARD} space-y-3`}
+      >
         <h2 className="text-base font-medium text-stone-600">Stammdaten</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Nachname<input name="nachname" defaultValue={p.nachname} className={`mt-1 block w-full ${INP}`} /></label>

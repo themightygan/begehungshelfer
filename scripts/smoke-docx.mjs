@@ -107,7 +107,8 @@ const faelle = [
       unterzeichner_name_bv: "Sabine Metzger",
       unterzeichner_funktion_bv: "Vorsitzende",
       beanstandungen: [
-        { text: "In der Parzelle befinden sich unzulässige Nadelgehölze. Roden Sie diese vollständig mit der Wurzel. (GO 1.2)", bilder: [FOTO] },
+        { text: "In der Parzelle befinden sich unzulässige Nadelgehölze. Roden Sie diese vollständig mit der Wurzel. (GO 1.2)" },
+        { text: "Auf der Parzelle wird Müll gelagert. Entsorgen Sie ihn fachgerecht. (§ 4 Ziff. 1 UPV)" },
       ],
     },
   },

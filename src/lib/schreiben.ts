@@ -155,6 +155,10 @@ export function baueSchreiben(e: SchreibenEingabe): {
     } else {
       const soll = Math.round(qm / 6);
       const ist = e.gemuese.istM2 === null ? null : Math.round(e.gemuese.istM2);
+      // Keine Beete erfasst (null) ODER Beet ohne Größe (0) -> Fläche unbekannt:
+      // kein "0 m²" ins Schreiben, sondern ein Platzhalter zum Nachtragen (Sascha).
+      const istUnklar = ist === null || ist === 0;
+      const PLATZHALTER = "(BEETGRÖSSE UNKLAR – noch zu ermitteln)";
       const folgejahr = e.begehungDatum.getFullYear() + 1;
       const frist2 = new Date(folgejahr, 3, 30); // 30.04. Folgejahr
       // Ab 2/3 vom Soll gilt die Fläche als ausreichend (Sascha 2026-07-11) —
@@ -171,11 +175,10 @@ export function baueSchreiben(e: SchreibenEingabe): {
         const basis = neuvertrag
           ? `Vertraglich ist vereinbart, dass mindestens ein Sechstel der Parzellenfläche für den Anbau einjähriger Gemüsekulturen genutzt wird`
           : `Nach dem Unterpachtvertrag ist die Parzelle kleingärtnerisch zu nutzen; dazu gehört der Anbau einjähriger Gemüsekulturen auf mindestens einem Sechstel der Parzellenfläche`;
-        const feststellung =
-          ist === null
-            ? `Zum Zeitpunkt der Begehung war keine für einjährige Gemüsekulturen bestellte Fläche erkennbar. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`
-            : `Die für einjährige Gemüsekulturen bestellte Fläche ist mit derzeit ca. ${ist} m² zu klein. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`;
-        if (ist === null) w.push("Gemüse: keine Beete erfasst — Variante 'nicht bestellt' verwendet, bitte bestätigen.");
+        const feststellung = istUnklar
+          ? `Die für einjährige Gemüsekulturen bestellte Fläche ist zu klein ${PLATZHALTER}. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`
+          : `Die für einjährige Gemüsekulturen bestellte Fläche ist mit derzeit ca. ${ist} m² zu klein. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`;
+        if (istUnklar) w.push("Gemüse: Beetgröße unbekannt — Platzhalter im Schreiben, bitte im Word-Dokument nachtragen.");
         const aufforderung = `Wir bitten Sie, die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² zu vergrößern und im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen zu bepflanzen.`;
         positionen.push({
           text: `${feststellung} ${aufforderung}`,
@@ -185,13 +188,11 @@ export function baueSchreiben(e: SchreibenEingabe): {
       } else {
         // ABMAHNUNG: Vorstands-Formulierung (§ 1, Obst UND Gemüse je 1/6;
         // Obstanbau gleicht fehlende Gemüsefläche nicht aus). Sascha 2026-07-11.
-        if (ist === null) w.push("Gemüse: keine Beete erfasst — Variante 'nicht bestellt' verwendet, bitte bestätigen.");
-        const istText = ist === null ? "keiner erkennbaren Anbaufläche" : `ca. ${ist} m²`;
-        const grad = ist !== null && ist < soll / 3 ? "viel zu klein" : "zu klein";
-        const feststellung =
-          ist === null
-            ? "Zum Zeitpunkt der Begehung war keine für einjährige Gemüsekulturen bestellte Fläche erkennbar."
-            : `Die Anbaufläche für einjährige Gemüsekulturen ist mit derzeit ${istText} ${grad}.`;
+        if (istUnklar) w.push("Gemüse: Beetgröße unbekannt — Platzhalter im Schreiben, bitte im Word-Dokument nachtragen.");
+        const grad = ist !== null && ist > 0 && ist < soll / 3 ? "viel zu klein" : "zu klein";
+        const feststellung = istUnklar
+          ? `Die Anbaufläche für einjährige Gemüsekulturen ist ${grad} ${PLATZHALTER}.`
+          : `Die Anbaufläche für einjährige Gemüsekulturen ist mit derzeit ca. ${ist} m² ${grad}.`;
         const erklaerung = `Laut § 1 des Unterpachtvertrages pachten Sie die Parzelle zur sog. kleingärtnerischen Nutzung. Dazu zählt zwingend der Anbau von Obst und Gemüse auf jeweils mindestens einem Sechstel der Parzellenfläche. Bei Ihrer Parzelle von ${qm} m² sind das für den Gemüseanbau rund ${soll} m².`;
         const obst = "Auf Grund der Art und Weise, wie Sie den Obstanbau im Garten betreiben, ist dieser nicht geeignet, fehlende Gemüseanbauflächen auszugleichen. Daher ist es erforderlich, dass Sie auf mindestens einem Sechstel der Parzellenfläche einjährige Gemüsekulturen anbauen.";
         // Bis Ende Juli ist die Fläche noch DIESE Saison herstellbar (zentrale
@@ -206,7 +207,9 @@ export function baueSchreiben(e: SchreibenEingabe): {
           _bereich: 0, _id: "G01", _datum: null, _eigen: true,
         };
         gemueseVollZentraleFrist = nochDiesesJahr;
-        gemueseKurz = `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen mit derzeit ${istText} zu klein ist. ${erklaerung} ${obst}`;
+        gemueseKurz = istUnklar
+          ? `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen zu klein ist ${PLATZHALTER}. ${erklaerung} ${obst}`
+          : `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen mit derzeit ca. ${ist} m² zu klein ist. ${erklaerung} ${obst}`;
         hatNutzung = true;
       }
     }

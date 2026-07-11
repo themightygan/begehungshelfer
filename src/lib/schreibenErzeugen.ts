@@ -123,9 +123,9 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
   const istM2 = befund.beete.length
     ? befund.beete.reduce((s, t) => s + t.flaecheM2, 0)
     : null;
-  // 1. Abmahnung geht OHNE Fotos raus (Sascha 2026-07-11) — reiner Text.
-  // Mitteilung + 2. Abmahnung (BV) betten die Fotos weiter ein.
-  const mitFotos = typ !== "abmahnung_1";
+  // Nur die Mitteilung bettet Fotos ein; beide Abmahnungen gehen ohne Fotos
+  // raus (reiner Text; Sascha 2026-07-11).
+  const mitFotos = typ === "mitteilung";
   const maengel = [];
   for (const m of befund.maengel) {
     if (m === gemueseMangel) continue;
