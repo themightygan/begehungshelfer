@@ -142,7 +142,7 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
 
   const logoPfad =
     typ === "abmahnung_2"
-      ? null // BV-Logo liegt uns nicht vor
+      ? join(WURZEL, "vorlagen/logo_bv.jpg") // offizielles BV-Logo (Briefkopf des Verpächters)
       : verein.logoPfad && existsSync(join(STORAGE_DIR, verein.logoPfad))
         ? join(STORAGE_DIR, verein.logoPfad)
         : join(WURZEL, "public/img/logo.png");

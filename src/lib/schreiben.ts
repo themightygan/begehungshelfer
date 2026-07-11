@@ -263,21 +263,27 @@ export function baueSchreiben(e: SchreibenEingabe): {
   const abmahnGrund = aufzaehlung(grundTeile, "sowie") || betreffGrund;
 
   // --- Empfänger/Anrede ---
+  // Adressfeld trägt nur den Namen (ohne "Herrn"/"Frau", Sascha 2026-07-10);
+  // die Anrede (herr/frau) wird weiterhin für den Gruß gebraucht.
   const p = e.parzelle;
-  const anredeZeile = p.anrede === "herr" ? "Herrn" : p.anrede === "frau" ? "Frau" : "";
-  if (!anredeZeile) w.push("Anrede (Herr/Frau) fehlt an der Parzelle — bitte in der Verwaltung setzen.");
+  if (p.anrede !== "herr" && p.anrede !== "frau") {
+    w.push("Anrede (Herr/Frau) fehlt an der Parzelle — bitte in der Verwaltung setzen.");
+  }
   const du = e.typ === "mitteilung" && p.anredeStil === "du";
   // "THEIßEN" -> "Theißen"; Titel ("Dr.") wandert aus dem Vornamen in die
   // förmliche Anrede, die Du-Form nutzt den Rufnamen ohne Titel.
+  // Mitteilungen grüßen freundlich ("Lieber Herr X"), Abmahnungen förmlich
+  // ("Sehr geehrter Herr X") — Sascha 2026-07-10.
   const nachnameSchoen = nameSchoen(p.nachname);
   const { titel, rufname } = vornameTitel(p.vorname);
   const titelTeil = titel ? `${titel} ` : "";
+  const lieb = e.typ === "mitteilung";
   const gruss = du
     ? `${p.anrede === "frau" ? "Liebe" : "Lieber"} ${rufname}`.trim()
     : p.anrede === "frau"
-      ? `Sehr geehrte Frau ${titelTeil}${nachnameSchoen}`
+      ? `${lieb ? "Liebe" : "Sehr geehrte"} Frau ${titelTeil}${nachnameSchoen}`
       : p.anrede === "herr"
-        ? `Sehr geehrter Herr ${titelTeil}${nachnameSchoen}`
+        ? `${lieb ? "Lieber" : "Sehr geehrter"} Herr ${titelTeil}${nachnameSchoen}`
         : "Sehr geehrte Damen und Herren";
   if (!p.strasse || !p.plz) w.push("Empfänger-Adresse unvollständig — bitte Stammdaten prüfen.");
 
@@ -298,7 +304,6 @@ export function baueSchreiben(e: SchreibenEingabe): {
     bv_email: e.verein.bezirksverbandEmail,
     ort: e.verein.ort,
     heute_datum: datumDe(new Date()),
-    empf_anrede_zeile: anredeZeile,
     empf_name: `${p.vorname} ${nachnameSchoen}`.trim(),
     empf_strasse: p.strasse,
     empf_plz_ort: `${p.plz} ${p.ort}`.trim(),
@@ -351,7 +356,9 @@ export function baueSchreiben(e: SchreibenEingabe): {
     vorlage: "abmahnung_bv",
     kontext: {
       ...basis,
-      logo: null, // BV-Logo liegt uns nicht vor — Kopf fällt auf den BV-Namen zurück
+      // Aufrufer liefert das BV-Logo (vorlagen/logo_bv.jpg); quadratisch,
+      // daher schmaler als das Vereins-Logo (48 mm Standard).
+      logo_mm: 35,
       betreff_grund: betreffGrund,
       abmahn_grund: abmahnGrund,
       historie: !!e.historie,

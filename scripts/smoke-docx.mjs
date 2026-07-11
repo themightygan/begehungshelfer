@@ -30,7 +30,6 @@ const org = {
   bv_email: "info@gartenfreunde-stuttgart.de",
   ort: "Stuttgart",
   heute_datum: "6. Juli 2026",
-  empf_anrede_zeile: "Frau",
   empf_name: "Erika Musterfrau",
   empf_strasse: "Musterweg 1",
   empf_plz_ort: "70619 Stuttgart",

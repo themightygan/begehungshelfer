@@ -123,7 +123,7 @@ for (const auftrag of auftraege) {
     plakette: b.gutGemacht,
     neupaechterLob: false, // App-Pfad leitet das aus Eintritt + Plakette ab
     verein,
-    logoPfad: auftrag.typ === "abmahnung_2" ? null : join(WURZEL, "public/img/logo.png"),
+    logoPfad: auftrag.typ === "abmahnung_2" ? join(WURZEL, "vorlagen/logo_bv.jpg") : join(WURZEL, "public/img/logo.png"),
     historie,
     wiederholung: auftrag.typ !== "mitteilung",
     ersatzvornahme: false,

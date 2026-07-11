@@ -46,6 +46,7 @@ FOTO_MAX_PX = 900
 # Alles andere, was die Vorlage referenziert, ist Pflicht.
 OPTIONAL = {
     "logo": None,
+    "logo_mm": None,  # optionale Logo-Breite (BV-Logo ist quadratisch -> schmaler)
     "verein_tel": "",
     "wiederholung": False,
     "historie": False,
@@ -103,8 +104,9 @@ def main() -> int:
         return 3
 
     # Bildpfade -> InlineImage (Logo + Fotos je Beanstandung)
+    logo_mm = fuer_render.pop("logo_mm", None) or LOGO_MM
     if fuer_render.get("logo"):
-        fuer_render["logo"] = bild(tpl, fuer_render["logo"], LOGO_MM)
+        fuer_render["logo"] = bild(tpl, fuer_render["logo"], logo_mm)
     for b in fuer_render.get("beanstandungen", []):
         b.setdefault("foto", None)
         b.setdefault("frist", None)
