@@ -202,9 +202,11 @@ export function baueSchreiben(e: SchreibenEingabe): {
           // MITTEILUNG: freundliche Aufforderung, KEINE Datums-Frist (Sascha
           // 2026-07-12: Mitteilungen werden im laufenden Jahr nicht kontrolliert;
           // Ziel ist die kommende Gartensaison).
+          // Keine Ziel-m²-Zahl in der Aufforderung (das SOLL steht schon in der
+          // Erläuterung; Sascha 2026-07-12): nur „vergrößern".
           const aufforderung = e.kompensation
-            ? `→ Bitte erhalten Sie die Gemüseanbaufläche mindestens im derzeitigen Umfang und bauen Sie sie möglichst bis zur kommenden Gartensaison (Frühjahr ${folgejahr}) auf rund ${soll} m² aus.`
-            : `→ Bitte vergrößern Sie die Gemüseanbaufläche bis zur kommenden Gartensaison (Frühjahr ${folgejahr}) auf mindestens ${soll} m², bepflanzen Sie sie dann mit einjährigen Gemüsekulturen und halten Sie sie in einem guten Kulturzustand.`;
+            ? `→ Bitte erhalten Sie die Gemüseanbaufläche mindestens im derzeitigen Umfang und bauen Sie sie bis zur kommenden Gartensaison (Frühjahr ${folgejahr}) weiter aus.`
+            : `→ Bitte vergrößern Sie die Gemüseanbaufläche bis zur kommenden Gartensaison (Frühjahr ${folgejahr}), bepflanzen Sie sie dann mit einjährigen Gemüsekulturen und halten Sie sie in einem guten Kulturzustand.`;
           positionen.push({
             text: `${feststellung} ${erklaerung} ${obst} ${aufforderung}`,
             frist: null, bilder: [], _bereich: 0, _id: "G01", _datum: null, _eigen: true,
