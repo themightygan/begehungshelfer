@@ -53,6 +53,9 @@ export function historieVorschlag(
 
 // Freitext-Mangel -> Baustein-ID via lokalem Ollama; null = kein Treffer.
 async function bausteinZuordnen(punkt: string, notiz: string): Promise<string | null> {
+  // Welleternit/Eternit (Asbest) hat einen festen Standardtext (S12) — nie über
+  // das LLM, immer deterministisch (Sascha 2026-07-12).
+  if (/eternit/i.test(`${punkt} ${notiz}`)) return "S12";
   const katalog = BAUSTEINE.map((b) => `${b.id} ${b.label}`).join("\n");
   const prompt = `Du ordnest einen Freitext-Mangel aus einer Kleingarten-Begehung GENAU EINEM Baustein zu.
 

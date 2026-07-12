@@ -262,12 +262,15 @@ export function baueSchreiben(e: SchreibenEingabe): {
     }
     // Abmahnung: Imperativ + Norm-Verweis (Klammerzusatz). Mitteilung: weicher
     // Bitte-Stil "→ Bitte …", keine Paragrafen (Sascha 2026-07-12). Abmahnungen
-    // bleiben ausdrücklich unverändert.
-    const auff = abmahnung
-      ? `${eff.aufforderung} (${eff.norm})`
-      : `→ Bitte ${eff.aufforderung.charAt(0).toLowerCase()}${eff.aufforderung.slice(1)}`;
+    // bleiben ausdrücklich unverändert. In der Mitteilung behält die Feststellung
+    // ihre eigene Endung (z. B. Doppelpunkt bei G04) und leitet direkt zum "→ Bitte".
+    const feststellungText = feststellungBauen(eff.feststellung, befund);
+    const bitte = `→ Bitte ${eff.aufforderung.charAt(0).toLowerCase()}${eff.aufforderung.slice(1)}`;
+    const text = abmahnung
+      ? `${satz(feststellungText)} ${eff.aufforderung} (${eff.norm})`
+      : `${feststellungText.replace(/\s+$/, "")} ${bitte}`;
     positionen.push({
-      text: `${satz(feststellungBauen(eff.feststellung, befund))} ${auff}`,
+      text,
       frist: null, bilder: m.fotoPfade,
       _bereich: eff.bereich, _id: eff.id, _datum: datum,
       _eigen: !!eff.einzelfrist || saisonal,

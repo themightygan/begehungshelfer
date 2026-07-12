@@ -51,8 +51,10 @@ export const BAUSTEINE: readonly Baustein[] = [
   {
     id: "G04", bereich: 1, label: "Zaunfreiheit (0,5 m) nicht eingehalten",
     norm: "UPV § 4 Ziff. 2 / GO 1 Abs. 2", art: "go", frist: { tage: 21 },
-    feststellung: "Der vereinseigene Zaun ist innen bzw. außen nicht im vorgeschriebenen Abstand von 0,5 m von Bewuchs freigehalten: {befund}.",
-    aufforderung: "Stellen Sie die vorgeschriebene Zaunfreiheit her, indem Sie den vereinseigenen Zaun innerhalb und außerhalb der Parzelle in einem Abstand von ca. 0,5 m von jeglichem Bewuchs frei halten, auch von Kletter- und Rankpflanzen.",
+    // Muster-Wortlaut K3/K4 (Sascha 2026-07-12): kurz, ohne {befund}. Feststellung
+    // endet mit Doppelpunkt -> in der Mitteilung leitet sie direkt zum "→ Bitte" über.
+    feststellung: "Der vereinseigene Zaun ist innen bzw. außen nicht im vorgeschriebenen Abstand von 0,5 m von Bewuchs freigehalten:",
+    aufforderung: "Stellen Sie die vorgeschriebene Zaunfreiheit her.",
   },
   {
     id: "G05", bereich: 1, label: "Anpflanzung entgegen der Gartenordnung",
@@ -264,6 +266,15 @@ export const BAUSTEINE: readonly Baustein[] = [
     norm: "UPV § 4 Ziff. 2 / GO 8.2", art: "go", frist: { tage: 42 },
     feststellung: "Auf der Parzelle werden mehr Honigbienenvölker gehalten, als genehmigt bzw. nach der Gartenordnung zulässig sind ({befund}).",
     aufforderung: "Reduzieren Sie die Zahl der Bienenvölker auf das genehmigte bzw. zulässige Maß und entfernen Sie die überzähligen Völker samt Beuten aus der Parzelle.",
+  },
+  {
+    // NEU 2026-07-12 (Sascha): Welleternit/Eternit (Asbest) als Beeteinfassung o. Ä.
+    // Fester Wortlaut aus dem Musterschreiben K4; kein {befund} (Standardtext gilt
+    // stets). Freitext-Mängel mit „Eternit" werden diesem Baustein zugeordnet.
+    id: "S12", bereich: 3, label: "Welleternit / Eternit (Asbest)",
+    norm: "UPV § 4 Ziff. 1/2 / GO 4.7", art: "go", frist: { tage: 28 }, einzelfrist: true,
+    feststellung: "Sie nutzen Welleternit als Beeteinfassung. Dies ist nicht erlaubt.",
+    aufforderung: "Entfernen Sie das Welleternit vollständig aus der Parzelle und verwenden Sie natürliche Materialien als Beeteinfassung, so wie es die Gartenordnung vorsieht.",
   },
 ] as const;
 

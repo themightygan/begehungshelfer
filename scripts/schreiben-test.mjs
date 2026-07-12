@@ -32,6 +32,7 @@ const prisma = new PrismaClient();
 const KATALOG_TEXT = BAUSTEINE.map((b) => `${b.id} ${b.label}`).join("\n");
 
 async function zuordnen(punkt, notiz) {
+  if (/eternit/i.test(`${punkt} ${notiz}`)) return "S12"; // fester Welleternit-Text
   const prompt = `Du ordnest einen Freitext-Mangel aus einer Kleingarten-Begehung GENAU EINEM Baustein zu.
 
 KATALOG:
