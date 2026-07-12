@@ -71,6 +71,19 @@ const datumDe = (d: Date) =>
 
 const plusTage = (d: Date, t: number) => new Date(d.getTime() + t * 86400000);
 
+// Sommerferien-Regel (Sascha 2026-07-12): In den Sommerferien enden keine
+// Fristen. Fällt eine automatisch berechnete Frist in den August oder die erste
+// Septemberhälfte (< 15.09.), wird sie auf den 15.09. desselben Jahres gesetzt.
+// Betrifft die Fristen der Abmahnungen (Mitteilungen nennen keine Fristen).
+// August = Monat 7, September = Monat 8 (0-basiert).
+function sommerVerschiebung(d: Date): Date {
+  const m = d.getMonth();
+  if (m === 7 || (m === 8 && d.getDate() < 15)) {
+    return new Date(d.getFullYear(), 8, 15); // 15.09.
+  }
+  return d;
+}
+
 // Immer als vollständiger Satz enden (Befunde/Freitexte kommen ohne Punkt).
 const satz = (s: string) => s.replace(/[\s.]+$/, "") + ".";
 
@@ -289,14 +302,14 @@ export function baueSchreiben(e: SchreibenEingabe): {
   // Beet-Neuanlage in der Abmahnung braucht mind. 4 Wochen (angemessene Frist).
   const standard = positionen.filter((p) => p._datum && !p._eigen).map((p) => p._datum!.getTime());
   if (gemueseZentraleFrist) standard.push(plusTage(fristBasis, 28).getTime());
-  const brieffrist = standard.length
-    ? new Date(Math.max(...standard))
-    : plusTage(fristBasis, 28);
+  const brieffrist = sommerVerschiebung(
+    standard.length ? new Date(Math.max(...standard)) : plusTage(fristBasis, 28)
+  );
   // Mitteilungen nennen KEINE Beseitigungsfristen (Sascha 2026-07-12: werden im
   // laufenden Jahr nicht kontrolliert). Nur Abmahnungen weisen Einzel-/Saison-
-  // fristen je Position aus.
+  // fristen je Position aus (ebenfalls mit Sommerferien-Regel).
   for (const p of positionen) {
-    if (p._datum && p._eigen && abmahnung) p.frist = datumDe(p._datum);
+    if (p._datum && p._eigen && abmahnung) p.frist = datumDe(sommerVerschiebung(p._datum));
   }
 
   // --- Betreff + Abmahn-Grund (deterministisch aus den Verstoß-Arten) ---
