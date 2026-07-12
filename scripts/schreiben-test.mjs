@@ -18,12 +18,13 @@ const LIB = "/tmp/schreiben-lib";
 mkdirSync(AUS, { recursive: true });
 
 // TS-Libs für Node kompilieren (CommonJS, nur für diesen Testlauf)
-execFileSync("npx", ["tsc", "src/lib/bausteine.ts", "src/lib/schreiben.ts",
+execFileSync("npx", ["tsc", "src/lib/bausteine.ts", "src/lib/schreiben.ts", "src/lib/paechter.ts",
   "--outDir", LIB, "--module", "commonjs", "--target", "es2022", "--skipLibCheck"],
   { cwd: WURZEL, timeout: 60000 });
 const require = createRequire(import.meta.url);
 const { baueSchreiben } = require(join(LIB, "schreiben.js"));
 const { KATALOG_ZU_BAUSTEIN, BAUSTEINE } = require(join(LIB, "bausteine.js"));
+const { istNeupaechter } = require(join(LIB, "paechter.js"));
 
 const prisma = new PrismaClient();
 
@@ -80,6 +81,7 @@ for (const auftrag of auftraege) {
   // Gemüse-Mangel abtrennen (wird deterministisch aus Beeten gebaut)
   const gemueseMangel = b.maengel.find((m) => m.katalog?.punkt.startsWith("Gemüseanbau"));
   const istM2 = b.beete.length ? b.beete.reduce((s, t) => s + t.flaecheM2, 0) : null;
+  const gemueseWertVorhanden = istM2 !== null && istM2 > 0;
 
   const maengel = [];
   for (const m of b.maengel) {
@@ -118,10 +120,12 @@ for (const auftrag of auftraege) {
       anrede: p.anrede, anredeStil: p.anredeStil, eintritt: p.eintritt,
       groesseM2: p.groesseM2,
     },
-    gemuese: gemueseMangel ? { vorhanden: true, istM2 } : null,
+    gemuese: gemueseMangel || gemueseWertVorhanden ? { vorhanden: true, istM2 } : null,
+    kompensation: b.kompensationAusreichend,
     maengel,
     plakette: b.gutGemacht,
-    neupaechterLob: false, // App-Pfad leitet das aus Eintritt + Plakette ab
+    neupaechter: istNeupaechter(p.eintritt, p.status),
+    neupaechterLob: istNeupaechter(p.eintritt, p.status) && (b.gutGemacht || b.plakettenNotiz.trim() !== ""),
     verein,
     logoPfad: auftrag.typ === "abmahnung_2" ? join(WURZEL, "vorlagen/logo_bv.jpg") : join(WURZEL, "public/img/logo.png"),
     historie,

@@ -55,6 +55,7 @@ const faelle = [
       plakette_jahr: "2026",
       hinweis_anzahl_text: "die folgenden Hinweise",
       neupaechter_lob: false,
+      neupaechter: false,
       unterzeichner_name: "Sascha Theißen",
       unterzeichner_funktion: "stv. Vorsitzender",
       beanstandungen: [

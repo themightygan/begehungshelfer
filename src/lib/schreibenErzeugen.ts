@@ -123,6 +123,10 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
   const istM2 = befund.beete.length
     ? befund.beete.reduce((s, t) => s + t.flaecheM2, 0)
     : null;
+  // Gemüse-Hinweis auch OHNE expliziten Gemüse-Mangel, sobald ein Beet-Wert
+  // vorliegt (Sascha 2026-07-12: bei Beet < 2/3 vom SOLL immer Hinweis;
+  // schreiben.ts überspringt >= 2/3 selbst). Nur wenn ein Wert vorhanden ist.
+  const gemueseWertVorhanden = istM2 !== null && istM2 > 0;
   // Nur die Mitteilung bettet Fotos ein; beide Abmahnungen gehen ohne Fotos
   // raus (reiner Text; Sascha 2026-07-11).
   const mitFotos = typ === "mitteilung";
@@ -168,9 +172,11 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
       eintritt: parzelle.eintritt,
       groesseM2: parzelle.groesseM2,
     },
-    gemuese: gemueseMangel ? { vorhanden: true, istM2 } : null,
+    gemuese: gemueseMangel || gemueseWertVorhanden ? { vorhanden: true, istM2 } : null,
+    kompensation: befund.kompensationAusreichend,
     maengel,
     plakette: befund.gutGemacht,
+    neupaechter: istNeupaechter(parzelle.eintritt, parzelle.status),
     neupaechterLob:
       istNeupaechter(parzelle.eintritt, parzelle.status) &&
       (befund.gutGemacht || befund.plakettenNotiz.trim() !== ""),

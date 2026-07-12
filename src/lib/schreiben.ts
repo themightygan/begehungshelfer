@@ -32,11 +32,17 @@ export type SchreibenEingabe = {
     anrede: string; anredeStil: string; eintritt: string;
     groesseM2: number | null;
   };
-  gemuese: { vorhanden: boolean; istM2: number | null } | null; // null = kein Gemüse-Mangel
+  gemuese: { vorhanden: boolean; istM2: number | null } | null; // null = kein Gemüse-Hinweis
+  // Kompensation der geringen Gemüsefläche durch Obst ausdrücklich vermerkt
+  // (Befund.kompensationAusreichend): dann Obst-Satz "wird ausgeglichen, darf
+  // aber nicht kleiner werden" statt "gleicht nicht aus" (Sascha 2026-07-12).
+  kompensation?: boolean;
   maengel: MangelEingabe[];
   // Nur Mitteilung: freundlicher Rahmen ("Gut gemacht"-Plakette, Neupächter-Lob)
   plakette?: boolean;
   neupaechterLob?: boolean;
+  // Neupächter: andere Einleitung in der Mitteilung (Aufbauphase-Rahmen).
+  neupaechter?: boolean;
   verein: {
     name: string; adresse: string; email: string; telefon: string; ort: string;
     vorsitzender: string;
@@ -151,7 +157,7 @@ export function baueSchreiben(e: SchreibenEingabe): {
   if (e.gemuese) {
     const qm = e.parzelle.groesseM2;
     if (!qm) {
-      w.push("Gemüse-Mangel, aber Parzellenfläche fehlt — Position übersprungen.");
+      w.push("Gemüse-Hinweis, aber Parzellenfläche fehlt — Position übersprungen.");
     } else {
       const soll = Math.round(qm / 6);
       const ist = e.gemuese.istM2 === null ? null : Math.round(e.gemuese.istM2);
@@ -166,51 +172,48 @@ export function baueSchreiben(e: SchreibenEingabe): {
       const ausreichend = Math.round(soll * BEET_AUSREICHEND);
       if (ist !== null && ist >= ausreichend) {
         w.push(`Gemüse: IST ${ist} m² >= 2/3 vom SOLL (${ausreichend} m²) — als ausreichend gewertet, Position übersprungen.`);
-      } else if (!abmahnung) {
-        // MITTEILUNG: bisherige Logik (§ 12-Weiche nach Vertragsdatum) unverändert.
-        const neuvertrag = e.parzelle.eintritt >= "2024-05-01";
-        const norm = neuvertrag
-          ? "§ 12 des Unterpachtvertrages"
-          : "§ 1 des Unterpachtvertrages – kleingärtnerische Nutzung";
-        const basis = neuvertrag
-          ? `Vertraglich ist vereinbart, dass mindestens ein Sechstel der Parzellenfläche für den Anbau einjähriger Gemüsekulturen genutzt wird`
-          : `Nach dem Unterpachtvertrag ist die Parzelle kleingärtnerisch zu nutzen; dazu gehört der Anbau einjähriger Gemüsekulturen auf mindestens einem Sechstel der Parzellenfläche`;
-        const feststellung = istUnklar
-          ? `Die für einjährige Gemüsekulturen bestellte Fläche ist zu klein ${PLATZHALTER}. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`
-          : `Die für einjährige Gemüsekulturen bestellte Fläche ist mit derzeit ca. ${ist} m² zu klein. ${basis} – bei Ihrer Parzelle von ${qm} m² sind das rund ${soll} m² (${norm}).`;
-        if (istUnklar) w.push("Gemüse: Beetgröße unbekannt — Platzhalter im Schreiben, bitte im Word-Dokument nachtragen.");
-        const aufforderung = `Wir bitten Sie, die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² zu vergrößern und im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen zu bepflanzen.`;
-        positionen.push({
-          text: `${feststellung} ${aufforderung}`,
-          frist: datumDe(frist2), bilder: [], _bereich: 0, _id: "G01", _datum: null, _eigen: true,
-        });
-        hatBew = true; hatNutzung = true;
       } else {
-        // ABMAHNUNG: Vorstands-Formulierung (§ 1, Obst UND Gemüse je 1/6;
-        // Obstanbau gleicht fehlende Gemüsefläche nicht aus). Sascha 2026-07-11.
         if (istUnklar) w.push("Gemüse: Beetgröße unbekannt — Platzhalter im Schreiben, bitte im Word-Dokument nachtragen.");
+        // Gemeinsamer Kern für Mitteilung UND Abmahnung (Vorstands-/Muster-
+        // Formulierung K3, § 1; Sascha 2026-07-12). Der Obst-Satz variiert je
+        // nachdem, ob ausdrücklich eine Kompensation durch Obst vermerkt ist.
         const grad = ist !== null && ist > 0 && ist < soll / 3 ? "viel zu klein" : "zu klein";
         const feststellung = istUnklar
           ? `Die Anbaufläche für einjährige Gemüsekulturen ist ${grad} ${PLATZHALTER}.`
           : `Die Anbaufläche für einjährige Gemüsekulturen ist mit derzeit ca. ${ist} m² ${grad}.`;
         const erklaerung = `Laut § 1 des Unterpachtvertrages pachten Sie die Parzelle zur sog. kleingärtnerischen Nutzung. Dazu zählt zwingend der Anbau von Obst und Gemüse auf jeweils mindestens einem Sechstel der Parzellenfläche. Bei Ihrer Parzelle von ${qm} m² sind das für den Gemüseanbau rund ${soll} m².`;
-        const obst = "Auf Grund der Art und Weise, wie Sie den Obstanbau im Garten betreiben, ist dieser nicht geeignet, fehlende Gemüseanbauflächen auszugleichen. Daher ist es erforderlich, dass Sie auf mindestens einem Sechstel der Parzellenfläche einjährige Gemüsekulturen anbauen.";
-        // Bis Ende Juli ist die Fläche noch DIESE Saison herstellbar (zentrale
-        // Frist, mind. 4 Wochen; Sofort-Ziel = 2/3 vom Soll). Ab August: 30.04. Folgejahr.
-        const nochDiesesJahr = fristBasis.getMonth() <= 6;
-        const sofort = nochDiesesJahr
-          ? `Bitte legen Sie innerhalb der genannten Frist eine Gemüseanbaufläche mit mindestens ${ausreichend} m² an und bepflanzen Sie sie noch in dieser Saison mit späten Kulturen (z. B. Buschbohnen, Herbstlauch) oder einer Gründüngung (z. B. Phacelia). Ab der Gartensaison ${folgejahr} ist die Fläche vollständig mit einjährigen Gemüsekulturen zu bestellen, in einem guten Kulturzustand zu halten und bedarfsgerecht zu bewirtschaften.`
-          : `Vergrößern Sie die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² und bepflanzen Sie sie im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen.`;
-        gemueseVoll = {
-          text: `${feststellung} ${erklaerung} ${obst} ${sofort}`,
-          frist: nochDiesesJahr ? null : datumDe(frist2), bilder: [],
-          _bereich: 0, _id: "G01", _datum: null, _eigen: true,
-        };
-        gemueseVollZentraleFrist = nochDiesesJahr;
-        gemueseKurz = istUnklar
-          ? `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen zu klein ist ${PLATZHALTER}. ${erklaerung} ${obst}`
-          : `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen mit derzeit ca. ${ist} m² zu klein ist. ${erklaerung} ${obst}`;
-        hatNutzung = true;
+        const obst = e.kompensation
+          ? `Die zu geringe Gemüsefläche wird derzeit noch durch den umfangreichen Anbau von Obst ausgeglichen; die Gemüseanbaufläche darf jedoch nicht weiter verkleinert werden.`
+          : `Auf Grund der Art und Weise, wie Sie den Obstanbau im Garten betreiben, ist dieser nicht geeignet, fehlende Gemüseanbauflächen auszugleichen.`;
+        if (!abmahnung) {
+          // MITTEILUNG: freundliche Aufforderung, KEINE Datums-Frist (Sascha
+          // 2026-07-12: Mitteilungen werden im laufenden Jahr nicht kontrolliert;
+          // Ziel ist die kommende Gartensaison).
+          const aufforderung = e.kompensation
+            ? `→ Bitte erhalten Sie die Gemüseanbaufläche mindestens im derzeitigen Umfang und bauen Sie sie möglichst bis zur kommenden Gartensaison (Frühjahr ${folgejahr}) auf rund ${soll} m² aus.`
+            : `→ Bitte vergrößern Sie die Gemüseanbaufläche bis zur kommenden Gartensaison (Frühjahr ${folgejahr}) auf mindestens ${soll} m², bepflanzen Sie sie dann mit einjährigen Gemüsekulturen und halten Sie sie in einem guten Kulturzustand.`;
+          positionen.push({
+            text: `${feststellung} ${erklaerung} ${obst} ${aufforderung}`,
+            frist: null, bilder: [], _bereich: 0, _id: "G01", _datum: null, _eigen: true,
+          });
+          hatNutzung = true;
+        } else {
+          // ABMAHNUNG: Sofort-/Frist-Logik unverändert.
+          // Bis Ende Juli ist die Fläche noch DIESE Saison herstellbar (zentrale
+          // Frist, mind. 4 Wochen; Sofort-Ziel = 2/3 vom Soll). Ab August: 30.04. Folgejahr.
+          const nochDiesesJahr = fristBasis.getMonth() <= 6;
+          const sofort = nochDiesesJahr
+            ? `Bitte legen Sie innerhalb der genannten Frist eine Gemüseanbaufläche mit mindestens ${ausreichend} m² an und bepflanzen Sie sie noch in dieser Saison mit späten Kulturen (z. B. Buschbohnen, Herbstlauch) oder einer Gründüngung (z. B. Phacelia). Ab der Gartensaison ${folgejahr} ist die Fläche vollständig mit einjährigen Gemüsekulturen zu bestellen, in einem guten Kulturzustand zu halten und bedarfsgerecht zu bewirtschaften.`
+            : `Vergrößern Sie die Gemüseanbaufläche bis zum ${datumDe(frist2)} auf mindestens ${soll} m² und bepflanzen Sie sie im Laufe der Vegetationsperiode mit einjährigen Gemüsekulturen.`;
+          gemueseVoll = {
+            text: `${feststellung} ${erklaerung} ${obst} ${sofort}`,
+            frist: nochDiesesJahr ? null : datumDe(frist2), bilder: [],
+            _bereich: 0, _id: "G01", _datum: null, _eigen: true,
+          };
+          gemueseVollZentraleFrist = nochDiesesJahr;
+          gemueseKurz = `Zudem weisen wir Sie darauf hin, dass die Anbaufläche für einjährige Gemüsekulturen ${istUnklar ? `zu klein ist ${PLATZHALTER}` : `mit derzeit ca. ${ist} m² zu klein ist`}. ${erklaerung} ${obst}`;
+          hatNutzung = true;
+        }
       }
     }
   }
@@ -244,8 +247,14 @@ export function baueSchreiben(e: SchreibenEingabe): {
       }
       saisonal = true;
     }
+    // Abmahnung: Imperativ + Norm-Verweis (Klammerzusatz). Mitteilung: weicher
+    // Bitte-Stil "→ Bitte …", keine Paragrafen (Sascha 2026-07-12). Abmahnungen
+    // bleiben ausdrücklich unverändert.
+    const auff = abmahnung
+      ? `${eff.aufforderung} (${eff.norm})`
+      : `→ Bitte ${eff.aufforderung.charAt(0).toLowerCase()}${eff.aufforderung.slice(1)}`;
     positionen.push({
-      text: `${satz(feststellungBauen(eff.feststellung, befund))} ${eff.aufforderung} (${eff.norm})`,
+      text: `${satz(feststellungBauen(eff.feststellung, befund))} ${auff}`,
       frist: null, bilder: m.fotoPfade,
       _bereich: eff.bereich, _id: eff.id, _datum: datum,
       _eigen: !!eff.einzelfrist || saisonal,
@@ -283,8 +292,11 @@ export function baueSchreiben(e: SchreibenEingabe): {
   const brieffrist = standard.length
     ? new Date(Math.max(...standard))
     : plusTage(fristBasis, 28);
+  // Mitteilungen nennen KEINE Beseitigungsfristen (Sascha 2026-07-12: werden im
+  // laufenden Jahr nicht kontrolliert). Nur Abmahnungen weisen Einzel-/Saison-
+  // fristen je Position aus.
   for (const p of positionen) {
-    if (p._datum && p._eigen) p.frist = datumDe(p._datum);
+    if (p._datum && p._eigen && abmahnung) p.frist = datumDe(p._datum);
   }
 
   // --- Betreff + Abmahn-Grund (deterministisch aus den Verstoß-Arten) ---
@@ -391,8 +403,11 @@ export function baueSchreiben(e: SchreibenEingabe): {
         anlage: p.anlageName,
         betreff_zusatz: null,
         anrede_form: du ? "Du" : "Sie",
-        erlaeuterung: true,
-        hinweis_wiederholung: true,
+        // Neupächter erhalten die Aufbau-Einleitung; der Verpflichtungs-Absatz
+        // ("Mit der Unterzeichnung …") entfällt dann (Sascha 2026-07-12).
+        erlaeuterung: !e.neupaechter,
+        // Neupächter: keine Abmahnungs-Androhung (Aufbauphase; Sascha 2026-07-12).
+        hinweis_wiederholung: !e.neupaechter,
         fotos_beigefuegt: false, // Fotos sind direkt eingebettet
         // Freundlicher Rahmen: Plakette-Lob + Neupächter-Ermutigung
         plakette: !!e.plakette,
@@ -400,6 +415,7 @@ export function baueSchreiben(e: SchreibenEingabe): {
         hinweis_anzahl_text:
           beanstandungen.length === 1 ? "den folgenden Hinweis" : "die folgenden Hinweise",
         neupaechter_lob: !!e.neupaechterLob && !e.plakette, // nicht doppelt loben
+        neupaechter: !!e.neupaechter, // andere Einleitung (Aufbauphase-Rahmen)
       },
       warnungen: w,
     };
