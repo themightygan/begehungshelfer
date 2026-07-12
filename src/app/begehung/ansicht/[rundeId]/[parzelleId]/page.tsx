@@ -199,6 +199,14 @@ export default async function AnsichtSeite({
           <span className="text-stone-600">Allgemeine Bemerkung</span>
           <textarea name="notiz" defaultValue={befund.notiz} rows={3} className={`mt-1 block w-full ${INP}`} />
         </label>
+        {!befund.bemerkungGeprueft && befund.notiz.trim() !== "" && (
+          <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Bemerkung noch nicht auf Mängel geprüft ·{" "}
+            <Link href={`/begehung/bemerkungen/${rundeId}`} className="font-medium underline">
+              zur Prüfung
+            </Link>
+          </p>
+        )}
         {befund.diktatNachgereicht.trim() !== "" && (
           <label className="block text-base">
             <span className="text-amber-800">Nachgereichte Diktate (korrigierbar)</span>

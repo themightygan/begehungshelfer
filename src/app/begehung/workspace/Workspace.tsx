@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { CircleCheck, Map, Pencil, Sparkles, WifiOff } from "lucide-react";
+import { CircleCheck, ClipboardCheck, Map, Pencil, Sparkles, WifiOff } from "lucide-react";
 import {
   subscribe,
   getZustand,
@@ -437,6 +437,13 @@ export function Workspace() {
         >
           <Sparkles className="h-4 w-4 shrink-0" aria-hidden /> KI-Textkorrektur (Diktatfehler) —
           vor dem Abschluss empfohlen
+        </Link>
+        <Link
+          href={`/begehung/bemerkungen/${sicht.runde.id}`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+        >
+          <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden /> Bemerkungs-Prüfung
+          (Mängel aus Bemerkungen)
         </Link>
         <details className="rounded-lg border border-amber-300 bg-amber-50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-amber-900">

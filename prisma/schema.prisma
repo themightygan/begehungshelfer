@@ -105,6 +105,9 @@ model Befund {
   //          abmahnung_bv | kuendigung_paechter | kuendigung_bv
   status     String         @default("offen")
   notiz      String         @default("") // allgemeine Bemerkung / Zustand
+  // Bemerkungs-Prüfung durchgeführt: die Freitext-Bemerkung wurde per HITL-Review
+  // auf enthaltene echte Mängel geprüft (angenommene wurden zu Mangel-Zeilen).
+  bemerkungGeprueft Boolean   @default(false)
   // Offline nachgereichte Diktate (transkribiert nach Sync): append-only, wird vom
   // Befund-Speichern NIE überschrieben (kein Clobber) -> read-only auf der Seite.
   diktatNachgereicht String  @default("")

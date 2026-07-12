@@ -21,6 +21,7 @@ function Zusammenfassung({ s }: { s: ReturnType<typeof summary> }) {
 type BefundInc = {
   stufe: string;
   notiz: string;
+  bemerkungGeprueft: boolean;
   gutGemacht: boolean;
   kompensationAusreichend: boolean;
   _count: { maengel: number; fotos: number };
@@ -55,6 +56,7 @@ function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
     stufeRang: stufeRang(b.stufe),
     plakette: b.gutGemacht,
     maengel: b._count.maengel,
+    bemerkungOffen: !b.bemerkungGeprueft && b.notiz.trim() !== "",
     ansichtHref: `/begehung/ansicht/${rundeId}/${p.parzelleId}${vonSuffix}`,
     pdfHref: `/api/parzelle/${p.parzelleId}/pdf?rundeId=${rundeId}`,
     schreibenErledigt: null,

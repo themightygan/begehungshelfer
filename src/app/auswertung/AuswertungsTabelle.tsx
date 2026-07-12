@@ -26,6 +26,8 @@ export type Zeile = {
   stufeRang: number;
   plakette: boolean;
   maengel: number;
+  // Bemerkung vorhanden, aber noch nicht auf Mängel geprüft (Bemerkungs-Prüfung)
+  bemerkungOffen: boolean;
   ansichtHref: string; // Zeilenziel (inkl. evtl. ?von=…)
   pdfHref: string;
   // "TT.MM.JJJJ" wenn seit dem Begehungstag ein Schreiben/eine E-Mail in der
@@ -328,7 +330,17 @@ export function AuswertungsTabelle({
                     "nein"
                   )}
                 </td>
-                <td className="py-2 pr-3">{z.maengel}</td>
+                <td className="py-2 pr-3">
+                  {z.maengel}
+                  {z.bemerkungOffen && (
+                    <span
+                      className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                      title="Bemerkung noch nicht auf Mängel geprüft"
+                    >
+                      Bem. ungeprüft
+                    </span>
+                  )}
+                </td>
                 <td className="py-2 pr-3">
                   <a
                     href={z.pdfHref}

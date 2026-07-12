@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, FileText, Sparkles, ThumbsUp } from "lucide-react";
+import { ClipboardCheck, Download, FileText, Sparkles, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
 import { hatDaten, stufeRang } from "@/lib/auswertung";
@@ -82,6 +82,12 @@ export default async function BerichteSeite({
           className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-base text-emerald-800 hover:bg-emerald-100"
         >
           <Sparkles className="h-4 w-4 shrink-0" aria-hidden /> KI-Textkorrektur
+        </Link>
+        <Link
+          href={`/begehung/bemerkungen/${runde.id}`}
+          className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-base text-emerald-800 hover:bg-emerald-100"
+        >
+          <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden /> Bemerkungs-Prüfung
         </Link>
         <span className="text-sm text-stone-600">
           {begutachtet.length} begutachtete Parzellen, kritische zuerst — Antippen öffnet die
