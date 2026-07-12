@@ -181,8 +181,11 @@ export async function entwurfInPostfach(nachricht: {
       // die nur abonnierte Ordner anzeigen.
       try { await client.mailboxSubscribe(ziel); } catch { /* Server ohne SUBSCRIBE */ }
     }
-    // \Seen dazu: sonst zählt der eigene Entwurf im Client als "ungelesen".
-    await client.append(ziel, gebaut.message as Buffer, ["\\Draft", "\\Seen"]);
+    // Bewusst OHNE \Seen: neu erzeugte Entwürfe sollen als UNGELESEN erscheinen,
+    // damit der Vorstand sofort sieht, welche neu und noch unbearbeitet sind
+    // (Wunsch Sascha 2026-07-12). Beim Öffnen/Bearbeiten markiert das Mail-
+    // Programm sie selbst als gelesen.
+    await client.append(ziel, gebaut.message as Buffer, ["\\Draft"]);
     await client.logout();
     return null;
   } catch (e) {
