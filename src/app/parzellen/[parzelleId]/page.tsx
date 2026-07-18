@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Camera } from "lucide-react";
+import { Camera, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
   PARZELLE_STATUS,
@@ -176,6 +176,18 @@ export default async function ParzelleVerwaltung({
       {/* Begehungs-Timeline */}
       <section className={CARD}>
         <h2 className="text-base font-medium text-stone-600">Begehungen (chronologisch)</h2>
+        {(() => {
+          const plaketteJahre = [
+            ...new Set(
+              p.befunde.filter((b) => b.gutGemacht).map((b) => new Date(b.runde.datum).getFullYear())
+            ),
+          ].sort((a, z) => z - a);
+          return plaketteJahre.length > 0 ? (
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-emerald-800">
+              <ThumbsUp className="h-4 w-4 shrink-0" aria-hidden /> Plakette: {plaketteJahre.join(", ")}
+            </p>
+          ) : null;
+        })()}
         {p.befunde.length === 0 ? (
           <p className="mt-1 text-sm text-stone-600">Noch keine Begehungsdaten.</p>
         ) : (

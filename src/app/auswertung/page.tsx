@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { istNeupaechter } from "@/lib/paechter";
 import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
@@ -7,6 +7,28 @@ import { sammelSchreiben } from "./actions";
 import { AuswertungsTabelle, type Zeile } from "./AuswertungsTabelle";
 
 export const dynamic = "force-dynamic";
+
+// Tab-Navigation der Auswertung: Übersicht (Begehungen) vs. Plaketten-Liste.
+function TabNav({ aktiv }: { aktiv: "uebersicht" | "plaketten" }) {
+  const T = ({ href, k, label }: { href: string; k: string; label: string }) => (
+    <Link
+      href={href}
+      className={`-mb-px border-b-2 px-3 py-2 text-base ${
+        aktiv === k
+          ? "border-emerald-700 font-medium text-emerald-800"
+          : "border-transparent text-stone-600 hover:text-stone-900"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+  return (
+    <div className="flex gap-1 border-b border-stone-200">
+      <T href="/auswertung" k="uebersicht" label="Übersicht" />
+      <T href="/auswertung?ansicht=plaketten" k="plaketten" label="Plaketten" />
+    </div>
+  );
+}
 
 function Zusammenfassung({ s }: { s: ReturnType<typeof summary> }) {
   return (
@@ -96,12 +118,81 @@ async function markiereSchreibenErledigt(zeilen: Zeile[], datumVonRunde: Map<num
 export default async function AuswertungSeite({
   searchParams,
 }: {
-  searchParams: Promise<{ rundeId?: string; jahr?: string; anlage?: string }>;
+  searchParams: Promise<{ rundeId?: string; jahr?: string; anlage?: string; ansicht?: string }>;
 }) {
   const sp = await searchParams;
   const rundeIdParam = Number(sp.rundeId) || null;
   const jahrParam = Number(sp.jahr) || null;
   const anlageParam = (sp.anlage ?? "").trim();
+  const ansichtParam = (sp.ansicht ?? "").trim();
+
+  // --- Plaketten-Liste: je Jahr (neueste zuerst) -> Anlage -> Gärten ---
+  if (ansichtParam === "plaketten") {
+    const befunde = await prisma.befund.findMany({
+      where: { gutGemacht: true },
+      include: {
+        runde: { select: { datum: true, anlage: { select: { kuerzel: true, name: true } } } },
+        parzelle: { select: { parzelleId: true, nummer: true, index: true } },
+      },
+    });
+    type Gart = { parzelleId: string; nummer: number; index: string };
+    const proJahr = new Map<number, Map<string, { name: string; gaerten: Gart[] }>>();
+    for (const b of befunde) {
+      const jahr = new Date(b.runde.datum).getFullYear();
+      let anl = proJahr.get(jahr);
+      if (!anl) proJahr.set(jahr, (anl = new Map()));
+      let a = anl.get(b.runde.anlage.kuerzel);
+      if (!a) anl.set(b.runde.anlage.kuerzel, (a = { name: b.runde.anlage.name, gaerten: [] }));
+      // Eine Parzelle kann in einem Jahr mehrere Runden haben -> nur einmal listen.
+      if (!a.gaerten.some((g) => g.parzelleId === b.parzelle.parzelleId)) a.gaerten.push(b.parzelle);
+    }
+    const jahre = [...proJahr.keys()].sort((x, z) => z - x);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-2xl font-semibold">Auswertung</h1>
+          <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">Start</Link>
+        </div>
+        <TabNav aktiv="plaketten" />
+        {jahre.map((jahr) => {
+          const anl = proJahr.get(jahr)!;
+          return (
+            <section key={jahr} className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="flex items-center gap-1.5 text-lg font-semibold">
+                <ThumbsUp className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden /> Plaketten {jahr}
+              </h2>
+              {[...anl.entries()]
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([kuerzel, a]) => {
+                  const g = [...a.gaerten].sort(
+                    (x, y) => x.nummer - y.nummer || x.index.localeCompare(y.index)
+                  );
+                  return (
+                    <div key={kuerzel} className="mt-3 border-t border-stone-100 pt-2">
+                      <p className="text-sm font-medium text-stone-700">
+                        {a.name} ({g.length})
+                      </p>
+                      <p className="mt-0.5 text-base leading-7">
+                        {g.map((x, i) => (
+                          <span key={x.parzelleId}>
+                            <Link href={`/parzellen/${x.parzelleId}`} className="text-emerald-700 hover:underline">
+                              {x.parzelleId}
+                            </Link>
+                            {i < g.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </p>
+                    </div>
+                  );
+                })}
+            </section>
+          );
+        })}
+        {jahre.length === 0 && <p className="text-base text-stone-600">Noch keine Plaketten vergeben.</p>}
+      </div>
+    );
+  }
 
   const inc = {
     parzelle: {
@@ -247,6 +338,7 @@ export default async function AuswertungSeite({
         <h1 className="text-2xl font-semibold">Auswertung</h1>
         <Link href="/" className="shrink-0 text-base text-emerald-700 hover:underline">Start</Link>
       </div>
+      <TabNav aktiv="uebersicht" />
 
       {[...jahre.entries()].map(([jahr, rs]) => {
         const alle = rs.flatMap((r) => r.befunde);
