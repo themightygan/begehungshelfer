@@ -3,6 +3,7 @@ import { Download, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { istNeupaechter } from "@/lib/paechter";
 import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
+import { nameSchoen } from "@/lib/schreiben";
 import { sammelSchreiben } from "./actions";
 import { AuswertungsTabelle, type Zeile } from "./AuswertungsTabelle";
 
@@ -132,10 +133,10 @@ export default async function AuswertungSeite({
       where: { gutGemacht: true },
       include: {
         runde: { select: { datum: true, anlage: { select: { kuerzel: true, name: true } } } },
-        parzelle: { select: { parzelleId: true, nummer: true, index: true } },
+        parzelle: { select: { parzelleId: true, nummer: true, index: true, nachname: true } },
       },
     });
-    type Gart = { parzelleId: string; nummer: number; index: string };
+    type Gart = { parzelleId: string; nummer: number; index: string; nachname: string };
     const proJahr = new Map<number, Map<string, { name: string; gaerten: Gart[] }>>();
     for (const b of befunde) {
       const jahr = new Date(b.runde.datum).getFullYear();
@@ -176,9 +177,10 @@ export default async function AuswertungSeite({
                       <p className="mt-0.5 text-base leading-7">
                         {g.map((x, i) => (
                           <span key={x.parzelleId}>
-                            <Link href={`/parzellen/${x.parzelleId}`} className="text-emerald-700 hover:underline">
+                            <Link href={`/parzellen/${x.parzelleId}`} className="font-medium text-emerald-700 hover:underline">
                               {x.parzelleId}
                             </Link>
+                            {x.nachname ? <span className="text-stone-600"> {nameSchoen(x.nachname)}</span> : null}
                             {i < g.length - 1 ? ", " : ""}
                           </span>
                         ))}
