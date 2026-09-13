@@ -43,6 +43,10 @@ export type SchreibenEingabe = {
   neupaechterLob?: boolean;
   // Neupächter: andere Einleitung in der Mitteilung (Aufbauphase-Rahmen).
   neupaechter?: boolean;
+  // Mitteilung: Abmahnungs-Androhung am Schluss ("… müssten eine Abmahnung
+  // aussprechen"). Standard AUS (Muster-Abgleich 2026-09-13: in fast allen
+  // versandten Mitteilungen gestrichen); für schwere Fälle im Dialog aktivierbar.
+  abmahnungAndrohung?: boolean;
   verein: {
     name: string; adresse: string; email: string; telefon: string; ort: string;
     vorsitzender: string;
@@ -413,6 +417,11 @@ export function baueSchreiben(e: SchreibenEingabe): {
   };
 
   if (e.typ === "mitteilung") {
+    // Einzelhinweis (genau EINE Beanstandung): der Vorstand schreibt solche
+    // Mitteilungen als Fließtext — ohne die Auflistungs-Einleitung ("Wir bitten
+    // Sie daher …") und ohne den Verpflichtungs-Absatz ("Mit der Unterzeichnung
+    // …"). Die Abmahnungs-Androhung am Schluss ist generell abschaltbar (s. u.).
+    const einzelhinweis = beanstandungen.length === 1;
     return {
       vorlage: "mitteilung",
       kontext: {
@@ -421,11 +430,16 @@ export function baueSchreiben(e: SchreibenEingabe): {
         anlage: p.anlageName,
         betreff_zusatz: null,
         anrede_form: du ? "Du" : "Sie",
+        // Auflistungs-Einleitung nur bei mehreren Punkten (Nicht-Neupächter).
+        auflistung: !e.neupaechter && !einzelhinweis,
+        einzelhinweis,
         // Neupächter erhalten die Aufbau-Einleitung; der Verpflichtungs-Absatz
-        // ("Mit der Unterzeichnung …") entfällt dann (Sascha 2026-07-12).
-        erlaeuterung: !e.neupaechter,
-        // Neupächter: keine Abmahnungs-Androhung (Aufbauphase; Sascha 2026-07-12).
-        hinweis_wiederholung: !e.neupaechter,
+        // ("Mit der Unterzeichnung …") entfällt dann (Sascha 2026-07-12) — und
+        // ebenso beim Einzelhinweis.
+        erlaeuterung: !e.neupaechter && !einzelhinweis,
+        // Abmahnungs-Androhung nur, wenn ausdrücklich gewünscht (Default aus) und
+        // nie bei Neupächtern (Aufbauphase).
+        hinweis_wiederholung: (e.abmahnungAndrohung ?? false) && !e.neupaechter,
         fotos_beigefuegt: false, // Fotos sind direkt eingebettet
         // Freundlicher Rahmen: Plakette-Lob + Neupächter-Ermutigung
         plakette: !!e.plakette,

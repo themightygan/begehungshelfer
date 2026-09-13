@@ -282,6 +282,7 @@ export async function schreibenErstellen(
     historie,
     wiederholung: formData.get("wiederholung") === "1",
     ersatzvornahme: formData.get("ersatzvornahme") === "1",
+    abmahnungAndrohung: formData.get("abmahnungAndrohung") === "1",
   });
   revalidatePath(`/begehung/ansicht/${rundeId}/${parzelleId}`);
   return ergebnis;

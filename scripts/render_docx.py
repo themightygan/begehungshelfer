@@ -60,6 +60,8 @@ OPTIONAL = {
     "anrede_form": "Sie",
     "erlaeuterung": False,
     "hinweis_wiederholung": False,
+    "auflistung": True,  # Auflistungs-Einleitung; False bei Einzelhinweis
+    "einzelhinweis": False,
     "fotos_beigefuegt": False,
     "vorsitzender": "",
     "verstoss_arten": "Mängel",

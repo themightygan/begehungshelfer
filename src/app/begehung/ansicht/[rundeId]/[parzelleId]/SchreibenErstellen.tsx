@@ -78,6 +78,13 @@ export function SchreibenErstellen({
         )}
       </div>
 
+      {typ === "mitteilung" && (
+        <label className="flex items-center gap-1.5 text-sm">
+          <input type="checkbox" name="abmahnungAndrohung" value="1" />
+          Abmahnung androhen (Schluss-Satz „… müssten eine Abmahnung aussprechen") — für gravierende Fälle
+        </label>
+      )}
+
       {typ !== "mitteilung" && (
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-1.5 text-sm">

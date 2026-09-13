@@ -93,6 +93,7 @@ export type SchreibenAuftrag = {
   historie?: { seit: string; hinweise: string; datum1Abmahnung: string } | null;
   wiederholung?: boolean;
   ersatzvornahme?: boolean;
+  abmahnungAndrohung?: boolean; // nur Mitteilung: Schluss-Androhung einblenden
 };
 
 export type SchreibenErgebnis = { ok?: string; fehler?: string; warnungen?: string[] };
@@ -187,6 +188,7 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
     logoPfad,
     historie: typ === "abmahnung_2" ? (a.historie ?? historieVorschlag(parzelle.dokumente)) : null,
     wiederholung: a.wiederholung ?? typ !== "mitteilung",
+    abmahnungAndrohung: a.abmahnungAndrohung ?? false,
     // "wie bereits in den Vorjahren" nur, wenn die Akte einen Beleg aus einem
     // früheren Jahr trägt (Mitteilung/Abmahnung/E-Mail). Sonst weglassen.
     vorjahre: parzelle.dokumente.some(
