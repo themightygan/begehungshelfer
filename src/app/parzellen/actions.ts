@@ -26,6 +26,7 @@ export async function updateStammdaten(parzelleId: string, formData: FormData) {
       anrede: ["herr", "frau"].includes(s("anrede")) ? s("anrede") : "",
       anredeStil: s("anredeStil") === "du" ? "du" : "sie",
       status: s("status") || "verpachtet",
+      neupaechterManuell: formData.get("neupaechterManuell") !== null,
       groesseM2: Number.isFinite(groesse) ? groesse : parzelle.groesseM2,
       groesseErmitteltM2: roh === "" ? null : Number.isFinite(ermittelt) ? ermittelt : parzelle.groesseErmitteltM2,
     },

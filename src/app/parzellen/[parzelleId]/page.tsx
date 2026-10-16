@@ -86,7 +86,7 @@ export default async function ParzelleVerwaltung({
           Ändert sich der gespeicherte Stand, erzwingt der key einen Remount mit
           den frischen defaultValues. */}
       <form
-        key={`${p.nachname}|${p.vorname}|${p.anrede}|${p.anredeStil}|${p.email}|${p.telefon}|${p.strasse}|${p.plz}|${p.ort}|${p.eintritt}|${p.groesseM2}|${p.status}`}
+        key={`${p.nachname}|${p.vorname}|${p.anrede}|${p.anredeStil}|${p.email}|${p.telefon}|${p.strasse}|${p.plz}|${p.ort}|${p.eintritt}|${p.groesseM2}|${p.groesseErmitteltM2}|${p.status}|${p.neupaechterManuell}`}
         action={updateStammdaten.bind(null, parzelleId)}
         className={`${CARD} space-y-3`}
       >
@@ -123,7 +123,19 @@ export default async function ParzelleVerwaltung({
           <label className="text-sm">Status
             <select name="status" defaultValue={p.status} className={`mt-1 block w-full ${INP}`}>
               {PARZELLE_STATUS.map((s) => <option key={s.wert} value={s.wert}>{s.label}</option>)}
+              {/* Altwert bleibt wählbar, solange er auf dieser Parzelle steht. */}
+              {p.status === "neupaechter" && <option value="neupaechter">Neupächter (Altwert)</option>}
             </select>
+          </label>
+          {/* Aufbauphase unabhängig vom Eintritt (z. B. keine Vollbegehung im Vorjahr) */}
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="neupaechterManuell"
+              defaultChecked={p.neupaechterManuell}
+              className="h-5 w-5"
+            />
+            als Neupächter behandeln (Hinweis trotz länger zurückliegendem Eintritt)
           </label>
         </div>
         <button className="rounded bg-emerald-700 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800">

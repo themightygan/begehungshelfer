@@ -47,8 +47,13 @@ model Parzelle {
   // Inoffiziell per Luftbild/Wasserschächte ermittelte Netto-Fläche (nur wo erhoben,
   // Stand: nur Kühwasen) — zweiter Indikator fürs Gemüse-SOLL, NICHT vertragsrelevant.
   groesseErmitteltM2 Int?
-  // erlaubt: verpachtet | neupaechter | gekuendigt | nicht_verpachtet
+  // erlaubt: verpachtet | gekuendigt | nicht_verpachtet
+  // (Altwert "neupaechter" wird noch toleriert, s. neupaechterManuell)
   status     String @default("verpachtet")
+  // „Als Neupächter behandeln" unabhängig vom Eintrittsdatum (Aufbauphase, z. B.
+  // wenn im Vorjahr keine Vollbegehung stattfand). Der Status beschreibt das
+  // Pachtverhältnis, dieses Flag nur den Neupächter-Hinweis.
+  neupaechterManuell Boolean @default(false)
 
   befunde     Befund[]
   dokumente   Dokument[]

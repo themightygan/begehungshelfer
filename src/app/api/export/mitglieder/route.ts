@@ -1,10 +1,9 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
-import { PARZELLE_STATUS } from "@/lib/constants";
+import { PARZELLE_STATUS_LABEL } from "@/lib/constants";
 
 // Mitglieder-/Gartenverzeichnis als xlsx (Format der Vereins-Mitgliederliste:
 // zwei Tabs — nach Parzelle und alphabetisch) inkl. Flächen aus der jüngsten Begehung.
-const STATUS = Object.fromEntries(PARZELLE_STATUS.map((s) => [s.wert, s.label]));
 const HEADERS = [
   "Anl.", "Ga-Nr", "Ind.", "Name", "Vorname", "Eintritt", "Straße", "PLZ",
   "Wohnort", "Telefon", "e-mail", "Status", "Fläche (m²)",
@@ -49,7 +48,7 @@ export async function GET() {
       z: [
         p.anlage.kuerzel, p.nummer, p.index, p.nachname, p.vorname, p.eintritt,
         p.strasse, p.plz, p.ort, p.telefon, p.email,
-        STATUS[p.status] ?? p.status, p.groesseM2 ?? "",
+        PARZELLE_STATUS_LABEL[p.status] ?? p.status, p.groesseM2 ?? "",
         b ? r1(beet) : "", b ? r1(obst) : "", b ? r1(beeren) : "", b ? r1(anbau) : "",
       ],
     };

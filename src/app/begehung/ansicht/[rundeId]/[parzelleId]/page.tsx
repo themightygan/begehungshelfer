@@ -161,7 +161,7 @@ export default async function AnsichtSeite({
           <h1 className="text-2xl font-semibold">Parzelle {parzelle.parzelleId}</h1>
           <p className="text-base text-stone-500">
             {parzelle.anlage.name} · {parzelle.nachname} {parzelle.vorname}
-            {istNeupaechter(parzelle.eintritt, parzelle.status) && (
+            {istNeupaechter(parzelle.eintritt, parzelle.status, parzelle.neupaechterManuell) && (
               <span className="ml-1.5"><NeupaechterTag /></span>
             )}
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}

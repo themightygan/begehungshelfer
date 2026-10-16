@@ -232,8 +232,8 @@ for (const b of befunde) {
       kompensation: b.kompensationAusreichend,
       maengel,
       plakette: b.gutGemacht,
-      neupaechter: istNeupaechter(p.eintritt, p.status),
-      neupaechterLob: istNeupaechter(p.eintritt, p.status) && (b.gutGemacht || b.plakettenNotiz.trim() !== ""),
+      neupaechter: istNeupaechter(p.eintritt, p.status, p.neupaechterManuell),
+      neupaechterLob: istNeupaechter(p.eintritt, p.status, p.neupaechterManuell) && (b.gutGemacht || b.plakettenNotiz.trim() !== ""),
       verein: {
         name: "Gartenfreunde Sillenbuch e.V.", adresse: "Isegrimweg 30, 70619 Stuttgart",
         email: "vorstand@gartenfreunde-sillenbuch.de", telefon: "0711/443161", ort: "Stuttgart",

@@ -111,12 +111,20 @@ export const KOMPENSATION_FAKTOREN = [
 ] as const;
 export type FotoKontext = (typeof FOTO_KONTEXT)[number]["wert"];
 
+// Parzellen-Status = Pachtverhältnis. Der frühere Wert "neupaechter" ist KEIN
+// Status mehr (Aufbauphase hängt am Eintrittsdatum bzw. am Flag
+// Parzelle.neupaechterManuell) — für Altdaten nur noch als Anzeige-Label unten.
 export const PARZELLE_STATUS = [
   { wert: "verpachtet", label: "verpachtet" },
-  { wert: "neupaechter", label: "Neupächter" },
   { wert: "gekuendigt", label: "gekündigt" },
   { wert: "nicht_verpachtet", label: "nicht verpachtet" },
 ] as const;
+
+// Anzeige-Labels inkl. Altwert "neupaechter" (nicht mehr auswählbar).
+export const PARZELLE_STATUS_LABEL: Record<string, string> = {
+  ...Object.fromEntries(PARZELLE_STATUS.map((s) => [s.wert, s.label])),
+  neupaechter: "Neupächter (Altwert)",
+};
 
 // Brief-Anrede des Pächters ("" = unbekannt -> vor Schreiben-Erstellung nachfragen)
 export const PARZELLE_ANREDE = [

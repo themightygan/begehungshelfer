@@ -181,9 +181,9 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
     kompensation: befund.kompensationAusreichend,
     maengel,
     plakette: befund.gutGemacht,
-    neupaechter: istNeupaechter(parzelle.eintritt, parzelle.status),
+    neupaechter: istNeupaechter(parzelle.eintritt, parzelle.status, parzelle.neupaechterManuell),
     neupaechterLob:
-      istNeupaechter(parzelle.eintritt, parzelle.status) &&
+      istNeupaechter(parzelle.eintritt, parzelle.status, parzelle.neupaechterManuell) &&
       (befund.gutGemacht || befund.plakettenNotiz.trim() !== ""),
     verein,
     logoPfad,

@@ -173,7 +173,7 @@ export async function GET() {
       id: p.id,
       parzelleId: p.parzelleId,
       paechter: [p.nachname, p.vorname].filter(Boolean).join(" "),
-      neupaechter: istNeupaechter(p.eintritt, p.status),
+      neupaechter: istNeupaechter(p.eintritt, p.status, p.neupaechterManuell),
       groesseM2: p.groesseM2,
       groesseErmitteltM2: p.groesseErmitteltM2,
       befund,

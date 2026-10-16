@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { PARZELLE_STATUS } from "@/lib/constants";
+import { PARZELLE_STATUS_LABEL } from "@/lib/constants";
 import { istNeupaechter } from "@/lib/paechter";
-import { NeupaechterTag } from "@/components/NeupaechterTag";
+import { ParzellenTabelle, type ParzellenZeile } from "./ParzellenTabelle";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL = Object.fromEntries(PARZELLE_STATUS.map((s) => [s.wert, s.label]));
 
 export default async function ParzellenSeite({
   searchParams,
@@ -30,6 +28,21 @@ export default async function ParzellenSeite({
           `${p.nachname} ${p.vorname}`.toLowerCase().includes(suche)
       )
     : alle;
+
+  const zeilen: ParzellenZeile[] = parzellen.map((p) => ({
+    parzelleId: p.parzelleId,
+    nummer: p.nummer,
+    index: p.index,
+    anlage: p.anlage.kuerzel,
+    nachname: p.nachname,
+    vorname: p.vorname,
+    neupaechter: istNeupaechter(p.eintritt, p.status, p.neupaechterManuell),
+    ort: p.ort,
+    groesseM2: p.groesseM2,
+    groesseErmitteltM2: p.groesseErmitteltM2,
+    status: p.status,
+    statusLabel: PARZELLE_STATUS_LABEL[p.status] ?? p.status,
+  }));
 
   const tab = (wert: string, label: string) => {
     const params = new URLSearchParams();
@@ -88,46 +101,7 @@ export default async function ParzellenSeite({
         </form>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-stone-300 text-left text-stone-500">
-              <th className="py-2 pr-3">Nr.</th>
-              <th className="py-2 pr-3">Anlage</th>
-              <th className="py-2 pr-3">Pächter</th>
-              <th className="py-2 pr-3">Ort</th>
-              <th className="py-2 pr-3">Fläche</th>
-              <th className="py-2 pr-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {parzellen.map((p) => (
-              <tr key={p.id} className="border-b border-stone-100 hover:bg-stone-50">
-                <td className="py-2 pr-3 font-medium">
-                  <Link href={`/parzellen/${p.parzelleId}`} className="text-emerald-700 hover:underline">
-                    {p.parzelleId}
-                  </Link>
-                </td>
-                <td className="py-2 pr-3">{p.anlage.kuerzel}</td>
-                <td className="py-2 pr-3">
-                  {`${p.nachname} ${p.vorname}`.trim() || "—"}
-                  {istNeupaechter(p.eintritt, p.status) && (
-                    <span className="ml-1.5"><NeupaechterTag /></span>
-                  )}
-                </td>
-                <td className="py-2 pr-3">{p.ort || "—"}</td>
-                <td className="py-2 pr-3">
-                  {p.groesseM2 ? `${p.groesseM2} m²` : "—"}
-                  {p.groesseErmitteltM2 ? (
-                    <span className="italic text-stone-500"> · {p.groesseErmitteltM2}</span>
-                  ) : null}
-                </td>
-                <td className="py-2 pr-3">{STATUS_LABEL[p.status] ?? p.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ParzellenTabelle zeilen={zeilen} />
     </div>
   );
 }

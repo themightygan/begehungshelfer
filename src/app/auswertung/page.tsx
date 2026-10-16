@@ -58,6 +58,7 @@ type BefundInc = {
     vorname: string;
     groesseM2: number | null;
     groesseErmitteltM2: number | null;
+    neupaechterManuell: boolean;
     eintritt: string;
     status: string;
   };
@@ -73,7 +74,7 @@ function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
     index: p.index,
     nachname: p.nachname,
     vorname: p.vorname,
-    neupaechter: istNeupaechter(p.eintritt, p.status),
+    neupaechter: istNeupaechter(p.eintritt, p.status, p.neupaechterManuell),
     beetIst: b.beete.reduce((x, y) => x + y.flaecheM2, 0),
     beetSoll: beetSoll(p.groesseM2),
     beetSollErmittelt: beetSoll(p.groesseErmitteltM2),
@@ -209,6 +210,7 @@ export default async function AuswertungSeite({
         vorname: true,
         groesseM2: true,
         groesseErmitteltM2: true,
+        neupaechterManuell: true,
         eintritt: true,
         status: true,
       },
