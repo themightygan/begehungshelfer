@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { CircleCheck, ClipboardCheck, Map, Pencil, Sparkles, WifiOff } from "lucide-react";
+import { CircleCheck, ClipboardCheck, Mail, Map, Pencil, Sparkles, WifiOff } from "lucide-react";
 import {
   subscribe,
   getZustand,
@@ -356,7 +356,8 @@ export function Workspace() {
             Nachbegehung: <span className="font-semibold text-red-700">dicker roter Rahmen</span> ={" "}
             Abmahnung/Kündigung ausgesprochen (Stufe + nächste Frist auf der Kachel),{" "}
             <span className="font-medium text-red-700">rot (!)</span> = überfällige Mängel,{" "}
-            <span className="font-medium text-amber-800">gelb</span> = offene Mängel.
+            <span className="font-medium text-amber-800">gelb</span> = offene Mängel,{" "}
+            <Mail className="inline h-3.5 w-3.5 align-text-bottom text-stone-500" aria-hidden /> = Schreiben versandt.
           </p>
         )}
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
@@ -390,18 +391,30 @@ export function Workspace() {
               ? `${ESKALATION_LABEL[esk.stufe] ?? esk.stufe} vom ${esk.datum}` +
                 (esk.fristen.length ? ` — Fristen: ${esk.fristen.map(fristKurz).join(", ")}` : "")
               : undefined;
+            // Tatsächlich versandtes Schreiben (nur Nachbegehung) — dezentes
+            // ✉-Icon, KEIN neuer Ampel-Farbzustand (Fakt, keine Stufe).
+            const versandt = istNach ? (p.versandteSchreiben ?? [])[0] : undefined;
+            const versandtTitel = versandt
+              ? `${versandt.art === "abmahnung" ? "Abmahnung" : "Mitteilung"} versandt ${versandt.datum}`
+              : undefined;
             return (
               <button
                 key={p.parzelleId}
                 onClick={() => navigiere(p.parzelleId)}
                 className={`rounded border px-2 py-3 text-center text-base font-medium ${farbe} hover:border-emerald-400`}
                 title={
-                  [eskTitel, istNach && offen.length ? `${offen.length} offen, ${ueberfaellig} überfällig` : null]
+                  [eskTitel, versandtTitel, istNach && offen.length ? `${offen.length} offen, ${ueberfaellig} überfällig` : null]
                     .filter(Boolean)
                     .join(" · ") || undefined
                 }
               >
                 {p.parzelleId}
+                {versandt && (
+                  <Mail
+                    className="ml-1 inline h-3.5 w-3.5 align-text-bottom text-stone-500"
+                    aria-label={versandtTitel}
+                  />
+                )}
                 {istNach && offen.length ? (
                   // "!" markiert Überfälliges zusätzlich zur Farbe (Ampel-Regel).
                   <span className={`ml-1 text-xs font-semibold ${ueberfaellig ? "text-red-700" : "text-amber-800"}`}>

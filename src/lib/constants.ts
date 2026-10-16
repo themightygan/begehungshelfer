@@ -63,6 +63,33 @@ export const BEFUND_STATUS_LABEL: Record<string, string> = Object.fromEntries(
   BEFUND_STATUS.map((s) => [s.wert, s.label])
 );
 
+// Rang der Nachbearbeitungs-Status — für den "nur hochstufen"-Guard beim
+// automatischen Setzen durch den Postfach-Abgleich (nie herabstufen, damit eine
+// manuelle Höherstufung nicht überschrieben wird).
+export const BEFUND_STATUS_RANG: Record<string, number> = {
+  offen: 0,
+  muendlich: 1,
+  hinweis_versendet: 2,
+  abmahnung_versendet: 3,
+  abmahnung_bv: 4,
+  kuendigung_paechter: 5,
+  kuendigung_bv: 5,
+};
+
+// Klassifiziert ein Akte-Dokument (aus Notiz/Betreff/Dateiname) als versandtes
+// Schreiben. Nur eindeutige Schlüsselwörter zählen -> beliebige Akte-Uploads
+// (z. B. „Pachtvertrag.pdf") lösen KEINEN „versandt"-Marker am Garten aus.
+// Kündigung wird optisch wie eine Abmahnung geführt (rot).
+export function schreibenArt(text: string): "mitteilung" | "abmahnung" | null {
+  if (/abmah|kündig|kuendig/i.test(text)) return "abmahnung";
+  if (/mitteilung/i.test(text)) return "mitteilung";
+  return null;
+}
+export const SCHREIBEN_ART_LABEL: Record<"mitteilung" | "abmahnung", string> = {
+  mitteilung: "Mitteilung versandt",
+  abmahnung: "Abmahnung versandt",
+};
+
 export const MANGEL_STATUS = [
   { wert: "offen", label: "offen" },
   { wert: "behoben", label: "behoben" },
@@ -143,3 +170,29 @@ export const FOTO_MAX_PRO_BEFUND = 24; // Treiber: bis 24 Fotos/Parzelle
 //   >= 90 %         -> grün,  ausreichend
 export const BEET_AUSREICHEND = 2 / 3; // ab hier ausreichend (nicht mehr "zu klein")
 export const BEET_GUT = 0.9; // ab hier grün
+
+// Gemüse-SOLL = 1/6 der Parzellenfläche (UPV § 1/§ 12).
+export const GEMUESE_ANTEIL = 1 / 6;
+export const beetSoll = (groesseM2: number | null | undefined) =>
+  groesseM2 ? groesseM2 * GEMUESE_ANTEIL : null;
+
+// Wertung einer Beetfläche gegen ein SOLL — EINE Quelle für alle Anzeigen
+// (Auswertung, Berichte, Workspace, Begehungsansicht).
+// komp = ausdrücklich dokumentierte Kompensation durch Obst/Beeren.
+// label = Anhang in der kompakten Zelle, kurz = Kurzform in Klammern,
+// wort = ausgeschriebene Wertung (Erfassung/Mängelliste).
+export type BeetWertung = { farbe: string; label: string; kurz: string; wort: string };
+export function beetWertung(
+  ist: number,
+  soll: number | null,
+  komp = false,
+): BeetWertung {
+  const ratio = soll ? ist / soll : null;
+  if (komp || (ratio !== null && ratio >= BEET_GUT))
+    return { farbe: "text-emerald-700", label: " ✓", kurz: "✓", wort: "erfüllt" };
+  if (ratio !== null && ratio >= BEET_AUSREICHEND)
+    return { farbe: "text-amber-800", label: " · ausreichend", kurz: "ausreichend", wort: "ausreichend" };
+  if (ratio !== null)
+    return { farbe: "text-red-700", label: " · zu klein", kurz: "zu klein", wort: "zu klein" };
+  return { farbe: "text-stone-700", label: "", kurz: "", wort: "" }; // keine Fläche -> keine Wertung
+}

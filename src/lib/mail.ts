@@ -13,6 +13,7 @@ import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/db";
 import { entschluesseln } from "@/lib/geheim";
+import { BEFUND_STATUS_RANG, schreibenArt } from "@/lib/constants";
 
 // contentType optional — Standard PDF; Schreiben-Entwürfe hängen docx an.
 export type MailAnhang = { dateiname: string; inhalt: Buffer; contentType?: string };
@@ -243,16 +244,111 @@ export async function mailSenden(
 // Message-ID + Part in der Dokument-Notiz.
 const GESENDET_NAMEN = ["sent", "sent items", "gesendet", "gesendete objekte", "gesendete elemente", "inbox.sent", "inbox.gesendet"];
 
-export type AbgleichTreffer = { parzelleId: string; rundeId: number | null; datei: string };
+// Parzellen-Token aus beliebigem Text (Dateiname/Betreff) ziehen. Ersetzt das
+// frühere `\b`-Muster, das vor `_` scheiterte (S80_WOLFF matchte nicht) und beim
+// case-insensitiven Index-Buchstaben Namensinitialen verschluckte
+// (K52 Ludwig -> "K52l"). Regeln:
+//  - Token muss an einer Nicht-Buchstaben-Grenze beginnen (kein "eS12").
+//  - führende Nullen schlucken (S09 -> S9).
+//  - Index-Buchstabe nur direkt an der Zahl (S59a), NICHT nach Leerzeichen.
+//  - danach kein Buchstabe/Ziffer/Unterstrich -> "K3 Kühwasen" bleibt K3.
+function parzelleToken(kuerzel: string[], text: string): string | null {
+  const re = new RegExp(`(?:^|[^A-Za-z])(${kuerzel.join("|")})\\s*0*(\\d{1,3})([a-z])?(?![A-Za-z0-9])`, "i");
+  const m = text.match(re);
+  return m ? `${m[1].toUpperCase()}${Number(m[2])}${(m[3] ?? "").toLowerCase()}` : null;
+}
+// Explizites "Parzelle <ID>" (App-Mitteilungen/BV-Weiterleitungen) — maßgeblich.
+function parzelleAusBetreff(kuerzel: string[], betreff: string): string | null {
+  const re = new RegExp(`Parzelle\\s+(${kuerzel.join("|")})\\s*0*(\\d{1,3})([a-z])?(?![A-Za-z0-9])`, "i");
+  const m = betreff.match(re);
+  return m ? `${m[1].toUpperCase()}${Number(m[2])}${(m[3] ?? "").toLowerCase()}` : null;
+}
+
+// Nachnamen-Fallback: manche Vorstands-Schreiben tragen im Dateinamen/Betreff
+// NUR den Pächter-Nachnamen, kein Parzellen-Kürzel („2. Abmahnung Morczinski",
+// „Abmahn Eitle"). Greift NUR, wenn genau EINE aktive Parzelle diesen Nachnamen
+// trägt (Namensgleichheit/Schreibvarianten -> kein Match, lieber der Mensch).
+// Nachname muss als ganzes Wort (Nicht-Buchstaben-Grenze) vorkommen, damit kurze
+// Namen nicht mitten in anderen Wörtern matchen. Rückgabe: PID + gematchter Name.
+type NachnameEintrag = { parzelleId: string; nachname: string };
+function parzelleAusNachname(
+  liste: NachnameEintrag[],
+  text: string
+): { pid: string; nachname: string } | null {
+  const low = text.toLowerCase();
+  const buchstabe = /\p{L}/u;
+  const treffer = new Set<string>();
+  let name = "";
+  for (const e of liste) {
+    const nn = e.nachname.trim().toLowerCase();
+    if (nn.length < 3) continue; // zu kurz -> zu unspezifisch
+    let von = low.indexOf(nn);
+    while (von !== -1) {
+      const davor = von > 0 ? low[von - 1] : "";
+      const danach = von + nn.length < low.length ? low[von + nn.length] : "";
+      if (!buchstabe.test(davor) && !buchstabe.test(danach)) {
+        treffer.add(e.parzelleId);
+        name = e.nachname;
+        break;
+      }
+      von = low.indexOf(nn, von + 1);
+    }
+  }
+  return treffer.size === 1 ? { pid: [...treffer][0], nachname: name } : null;
+}
+
+export type AbgleichTreffer = { parzelleId: string; rundeId: number | null; datei: string; art: "mitteilung" | "abmahnung" | "sonstiges" };
+
+// Nachbearbeitungs-Status des passenden Befunds automatisch mitsetzen (nur
+// hochstufen). Zielbefund = neuester Befund der Parzelle mit Begehungsdatum <=
+// Versanddatum (fällt sonst auf den neuesten Befund überhaupt zurück). Kein
+// Zielbefund -> nichts tun (Schreiben ohne zugehörige Begehung).
+async function statusAusSchreiben(
+  parzelleDbId: number,
+  versandDatum: Date,
+  zielStatus: string
+): Promise<void> {
+  const befund =
+    (await prisma.befund.findFirst({
+      where: { parzelleId: parzelleDbId, runde: { datum: { lte: versandDatum } } },
+      orderBy: { runde: { datum: "desc" } },
+      select: { id: true, status: true },
+    })) ??
+    (await prisma.befund.findFirst({
+      where: { parzelleId: parzelleDbId },
+      orderBy: { runde: { datum: "desc" } },
+      select: { id: true, status: true },
+    }));
+  if (!befund) return;
+  const neu = BEFUND_STATUS_RANG[zielStatus] ?? 0;
+  const alt = BEFUND_STATUS_RANG[befund.status] ?? 0;
+  if (neu > alt) {
+    await prisma.befund.update({ where: { id: befund.id }, data: { status: zielStatus } });
+  }
+}
+
+// In-Process-Lock: der Abgleich ist über zwei Wege auslösbar (stündlicher
+// Scheduler in instrumentation.ts UND der Knopf im Verein-Tab). Ohne Lock
+// könnten zwei überlappende Läufe dasselbe PDF doppelt ablegen und den Status
+// doppelt hochstufen (kein DB-Unique auf der Marke).
+let abgleichLaeuft = false;
 
 export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string; neue: AbgleichTreffer[] }> {
+  if (abgleichLaeuft) return { ok: true, bericht: "Abgleich läuft bereits — übersprungen.", neue: [] };
   const k = await mailKonfig();
   if (typeof k === "string") return { ok: false, bericht: k, neue: [] };
+  abgleichLaeuft = true;
   const { dokumentSpeichern } = await import("@/lib/storage");
 
   const kuerzel = (await prisma.anlage.findMany({ select: { kuerzel: true } })).map((a) => a.kuerzel);
-  const dateiRe = new RegExp(`^\\s*(${kuerzel.join("|")})\\s*(\\d+)\\s*([a-z])?\\b`, "i");
-  const betreffRe = new RegExp(`Parzelle\\s+(${kuerzel.join("|")})\\s*(\\d+)\\s*([a-z])?\\b`, "i");
+  // Nachnamen aller Parzellen für den Fallback (Schreiben ohne Parzellen-Kürzel).
+  const nachnamen: NachnameEintrag[] = (
+    await prisma.parzelle.findMany({ select: { parzelleId: true, nachname: true } })
+  ).filter((p) => p.nachname.trim() !== "");
+  const selbst = k.absender.toLowerCase(); // Vereinsadresse = "Selbst"
+  const bvAdr = (k.bezirksverband ?? "").toLowerCase();
+  const adressen = (arr?: { address?: string }[]) =>
+    (arr ?? []).map((a) => (a.address ?? "").toLowerCase()).filter(Boolean);
 
   const client = imapClient(k);
   const neue: AbgleichTreffer[] = [];
@@ -260,23 +356,40 @@ export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string
   try {
     await client.connect();
     const liste = await client.list();
-    const quellen = [
+    const gesendetPfad =
       liste.find((o) => o.specialUse === "\\Sent")?.path ??
-        liste.find((o) => GESENDET_NAMEN.includes(o.path.toLowerCase()))?.path,
-      "INBOX",
-    ].filter((q): q is string => !!q);
+      liste.find((o) => GESENDET_NAMEN.includes(o.path.toLowerCase()))?.path;
+    const quellen = [gesendetPfad, "INBOX"].filter((q): q is string => !!q);
 
     type Teil = { part?: string; type?: string; dispositionParameters?: Record<string, string>; parameters?: Record<string, string>; childNodes?: Teil[] };
     for (const quelle of quellen) {
+      const istGesendet = quelle === gesendetPfad;
       const lock = await client.getMailboxLock(quelle);
       try {
         const seit = new Date(Date.now() - 90 * 86400000);
         // Erst sammeln, dann laden — download() WÄHREND des fetch-Iterators
         // blockiert die IMAP-Pipeline (Socket-Timeout).
-        const jobs: { uid: number; part: string; name: string; betreff: string; messageId: string; datum: Date }[] = [];
+        const jobs: {
+          uid: number; part: string; name: string; betreff: string; messageId: string;
+          datum: Date; empfaenger: string[]; absender: string[];
+        }[] = [];
         for await (const msg of client.fetch({ since: seit }, { envelope: true, bodyStructure: true, uid: true })) {
           const betreff = msg.envelope?.subject ?? "";
           if (/^\s*(ENTWURF|Fwd?:\s*ENTWURF)/i.test(betreff)) continue; // App-Entwürfe
+          const empfaenger = [...adressen(msg.envelope?.to), ...adressen(msg.envelope?.cc)];
+          const absender = adressen(msg.envelope?.from);
+          // Nur ECHTER externer Vorgang zählt (Entscheidung 2026-07-20):
+          //  - Gesendet: mind. EIN externer Empfänger (Pächter/BV). Reine
+          //    Selbst-Mails (Berichte/Entwurfskopien an die Vereinsadresse)
+          //    werden NICHT übernommen.
+          //  - Posteingang: nur echte Eingänge VOM Bezirksverband (Abmahnung/
+          //    Kündigung/Zustimmung). Interne Vorstands-/Selbst-Mails (Berichte,
+          //    Protokolle, Entwürfe) haben hier nichts zu suchen.
+          if (istGesendet) {
+            if (!empfaenger.some((a) => a !== selbst)) continue;
+          } else {
+            if (!bvAdr || !absender.includes(bvAdr)) continue;
+          }
           const teile: Teil[] = [];
           const sammle = (t?: Teil) => {
             if (!t) return;
@@ -294,26 +407,48 @@ export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string
               betreff,
               messageId: msg.envelope?.messageId ?? `uid:${msg.uid}`,
               datum: msg.envelope?.date ?? new Date(),
+              empfaenger,
+              absender,
             });
           }
         }
 
         for (const j of jobs) {
-          const m = j.name.match(dateiRe) ?? j.betreff.match(betreffRe);
-          if (!m) continue;
-          const pid = `${m[1].toUpperCase()}${Number(m[2])}${(m[3] ?? "").toLowerCase()}`;
+          const klass = `${j.name} ${j.betreff}`;
+          const art = schreibenArt(klass); // mitteilung | abmahnung | null
+          // Zuordnung: explizites "Parzelle <ID>" im Betreff (App/BV) hat Vorrang,
+          // dann Dateiname-Token, dann allgemeines Betreff-Token. Der Dateiname
+          // ist unzuverlässig (Vorstand benennt um; Vorfall S76->S74 / S70->S78).
+          const betreffPid = parzelleAusBetreff(kuerzel, j.betreff);
+          const dateiPid = parzelleToken(kuerzel, j.name);
+          const tokenPid = betreffPid ?? dateiPid ?? parzelleToken(kuerzel, j.betreff);
+          // Fallback über den Nachnamen — NUR für erkannte Mitteilungen/Abmahnungen
+          // (kein Kürzel gefunden). Bei "sonstigen" PDFs (kein Marker) bewusst nicht,
+          // um Fehlzuordnungen beliebiger Anhänge zu vermeiden. Dateiname VOR Betreff:
+          // bei diesen manuellen Vorstands-Schreiben ist der Dateiname der bewusst
+          // gesetzte Identifier („2. Abmahnung BV Smykalova.pdf"), der Betreff oft
+          // beiläufig/fehlerhaft (Copy-Paste-Vorfall: Smykalova-Mail trug „Morczinski"
+          // im Betreff -> kombiniert nicht eindeutig).
+          const nameTreffer =
+            !tokenPid && art
+              ? parzelleAusNachname(nachnamen, j.name) ?? parzelleAusNachname(nachnamen, j.betreff)
+              : null;
+          const pid = tokenPid ?? nameTreffer?.pid ?? null;
+          if (!pid) continue;
           const parzelle = await prisma.parzelle.findUnique({ where: { parzelleId: pid } });
           if (!parzelle) continue;
+          const konflikt = betreffPid && dateiPid && betreffPid !== dateiPid ? dateiPid : null;
           const marke = `[Mail ${j.messageId}#${j.part}]`;
-          // Dedupe: gleicher Anhang derselben Mail ODER gleicher Dateiname
-          // bereits übernommen (dieselbe Datei steckt oft in mehreren Mails —
-          // gesendet + Eingang; Vorfall K49 doppelt, 2026-07-06).
+          // Dedupe GLOBAL über die eindeutige Message-ID+Part — unabhängig von der
+          // Parzelle. (Wichtig, seit der Betreff Vorrang hat: die aufgelöste
+          // Parzelle eines Dokuments kann sich sonst ändern und ein Re-Import
+          // unter anderer Parzelle entstehen.) Zusätzlich Dateiname-Fallback für
+          // Alt-Dokumente (dieselbe Datei steckt oft in mehreren Mails).
           const schonDa = await prisma.dokument.findFirst({
             where: {
-              parzelleId: parzelle.id,
               OR: [
                 { notiz: { contains: marke } },
-                { notiz: { startsWith: `${j.name} — aus Postfach übernommen` } },
+                { parzelleId: parzelle.id, notiz: { startsWith: `${j.name} — aus Postfach übernommen` } },
               ],
             },
           });
@@ -322,27 +457,43 @@ export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string
           const dl = await client.download(String(j.uid), j.part, { uid: true });
           const stuecke: Buffer[] = [];
           for await (const chunk of dl.content) stuecke.push(chunk as Buffer);
-          const typ = /abmah/i.test(j.name) || /abmah/i.test(j.betreff)
+          const typ = art === "abmahnung"
             ? "schreiben"
-            : /endstand|wertermittl/i.test(j.name)
+            : /endstand|wertermittl/i.test(klass)
               ? "wertermittlung"
               : "email";
+          const gegenpartei = istGesendet ? j.empfaenger : j.absender;
+          const istBv = !!bvAdr && (gegenpartei.includes(bvAdr) || j.empfaenger.includes(bvAdr));
           const pfad = await dokumentSpeichern(pid, Buffer.concat(stuecke), j.name);
+          const konfliktNote = konflikt
+            ? ` (Dateiname nannte ${konflikt})`
+            : nameTreffer
+              ? ` (per Nachname „${nameTreffer.nachname}" zugeordnet)`
+              : "";
+          const richtung = istGesendet ? `an: ${j.empfaenger[0] ?? "?"}` : `von: ${j.absender[0] ?? "?"}`;
           await prisma.dokument.create({
             data: {
               parzelleId: parzelle.id,
               typ,
               dateipfad: pfad,
               datum: j.datum,
-              notiz: `${j.name} — aus Postfach übernommen („${kopfzeile(j.betreff)}") ${marke}`,
+              notiz: `${j.name} — aus Postfach übernommen („${kopfzeile(j.betreff)}"${konfliktNote}) [${richtung}] ${marke}`,
             },
           });
+          // Befund-Status automatisch hochstufen (nur bei erkannter Mitteilung/
+          // Abmahnung). Kündigung bleibt bewusst manuell (kuendigung_paechter vs
+          // kuendigung_bv ist eine rechtliche Einordnung).
+          if (art === "mitteilung") {
+            await statusAusSchreiben(parzelle.id, j.datum, "hinweis_versendet");
+          } else if (art === "abmahnung") {
+            await statusAusSchreiben(parzelle.id, j.datum, istBv ? "abmahnung_bv" : "abmahnung_versendet");
+          }
           const befund = await prisma.befund.findFirst({
             where: { parzelleId: parzelle.id },
             orderBy: { runde: { datum: "desc" } },
             select: { rundeId: true },
           });
-          neue.push({ parzelleId: pid, rundeId: befund?.rundeId ?? null, datei: j.name });
+          neue.push({ parzelleId: pid, rundeId: befund?.rundeId ?? null, datei: j.name, art: art ?? "sonstiges" });
         }
       } finally {
         lock.release();
@@ -357,5 +508,7 @@ export async function gesendetAbgleich(): Promise<{ ok: boolean; bericht: string
   } catch (e) {
     try { await client.logout(); } catch { /* Verbindung eh tot */ }
     return { ok: false, bericht: `Abgleich fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`, neue };
+  } finally {
+    abgleichLaeuft = false;
   }
 }

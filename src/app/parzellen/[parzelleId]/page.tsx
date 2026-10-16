@@ -11,6 +11,7 @@ import {
   AENDERUNG_LABEL,
   AENDERUNG_ART,
   DOKUMENT_TYP,
+  beetSoll,
 } from "@/lib/constants";
 import {
   updateStammdaten,
@@ -52,7 +53,8 @@ export default async function ParzelleVerwaltung({
     },
   });
   if (!p) notFound();
-  const soll = p.groesseM2 ? p.groesseM2 / 6 : null;
+  const soll = beetSoll(p.groesseM2);
+  const sollErm = beetSoll(p.groesseErmitteltM2);
   // Archiv-Fotos früherer Begehungen, gruppiert nach Datum (neueste zuerst).
   const archivFotos = await prisma.archivFoto.findMany({
     where: { parzelleId: p.id },
@@ -112,7 +114,12 @@ export default async function ParzelleVerwaltung({
             <label className="text-sm">Ort<input name="ort" defaultValue={p.ort} className={`mt-1 block w-full ${INP}`} /></label>
           </div>
           <label className="text-sm">Eintritt<input name="eintritt" defaultValue={p.eintritt} placeholder="z. B. 2018-04-01" className={`mt-1 block w-full ${INP}`} /></label>
-          <label className="text-sm">Fläche (m²)<input name="groesseM2" type="number" defaultValue={p.groesseM2 ?? ""} className={`mt-1 block w-full ${INP}`} /></label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm">Fläche (m²)<input name="groesseM2" type="number" defaultValue={p.groesseM2 ?? ""} className={`mt-1 block w-full ${INP}`} /></label>
+            {/* Inoffiziell per Luftbild/Wasserschächte ermittelte Netto-Fläche —
+                zweiter Indikator fürs Gemüse-SOLL, nicht vertragsrelevant. */}
+            <label className="text-sm">ermittelt (Luftbild, m²)<input name="groesseErmitteltM2" type="number" defaultValue={p.groesseErmitteltM2 ?? ""} className={`mt-1 block w-full ${INP}`} /></label>
+          </div>
           <label className="text-sm">Status
             <select name="status" defaultValue={p.status} className={`mt-1 block w-full ${INP}`}>
               {PARZELLE_STATUS.map((s) => <option key={s.wert} value={s.wert}>{s.label}</option>)}
@@ -202,6 +209,9 @@ export default async function ParzelleVerwaltung({
                       {STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}
                       {b.gutGemacht ? " · Plakette" : ""}
                       {` · Beet ${m2(ist)}${soll !== null ? `/${m2(soll)}` : ""} m²`}
+                      {sollErm !== null && (
+                        <span className="italic">{` (erm. ${m2(sollErm)})`}</span>
+                      )}
                       {b.kompensationAusreichend ? " · kompensiert" : ""}
                       {b._count.maengel > 0 ? ` · ${b._count.maengel} ${b._count.maengel === 1 ? "Mangel" : "Mängel"}` : ""}
                       {b._count.fotos > 0 ? ` · ${b._count.fotos} ${b._count.fotos === 1 ? "Foto" : "Fotos"}` : ""}

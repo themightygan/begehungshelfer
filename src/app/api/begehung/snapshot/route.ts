@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getAktiveRunde } from "@/lib/runde";
 import { istNeupaechter } from "@/lib/paechter";
+import { schreibenArt } from "@/lib/constants";
 import type {
   SnapBefund,
   SnapFoto,
@@ -27,7 +28,7 @@ export async function GET() {
     return Response.json({ error: "Keine aktive Begehung" }, { status: 409 });
   }
 
-  const [anlage, parzellen, katalog, befunde, altBefunde] = await Promise.all([
+  const [anlage, parzellen, katalog, befunde, altBefunde, akteDoks] = await Promise.all([
     prisma.anlage.findUniqueOrThrow({ where: { id: runde.anlageId } }),
     prisma.parzelle.findMany({
       where: { anlageId: runde.anlageId },
@@ -53,6 +54,16 @@ export async function GET() {
       },
       orderBy: { runde: { datum: "desc" } },
     }),
+    // Versandte Schreiben (Mitteilung/Abmahnung) aus der Akte — EINE Batch-Query
+    // für alle Parzellen der Anlage (kein Per-Parzelle-Fetch).
+    prisma.dokument.findMany({
+      where: {
+        typ: { in: ["schreiben", "email"] },
+        parzelle: { anlageId: runde.anlageId },
+      },
+      select: { parzelleId: true, typ: true, datum: true, dateipfad: true, notiz: true },
+      orderBy: { datum: "desc" },
+    }),
   ]);
 
   const befundByParzelle = new Map(befunde.map((b) => [b.parzelleId, b]));
@@ -61,6 +72,22 @@ export async function GET() {
     const liste = altByParzelle.get(b.parzelleId) ?? [];
     liste.push(b);
     altByParzelle.set(b.parzelleId, liste);
+  }
+  // Nur eindeutig als Mitteilung/Abmahnung erkennbare Schreiben werden zum
+  // Marker (kein Falsch-Marker bei beliebigen Akte-Uploads). Neueste zuerst,
+  // max 3 je Parzelle. Dateiname aus dem Notiz-Präfix bzw. Basename.
+  const versandtByParzelle = new Map<
+    number,
+    { art: "mitteilung" | "abmahnung"; datum: string; pfad: string; dateiname: string }[]
+  >();
+  for (const d of akteDoks) {
+    const art = schreibenArt(d.notiz);
+    if (!art) continue;
+    const liste = versandtByParzelle.get(d.parzelleId) ?? [];
+    if (liste.length >= 3) continue;
+    const dateiname = d.notiz.split(" — ")[0] || d.dateipfad.split("/").pop() || "Schreiben";
+    liste.push({ art, datum: datumStr(d.datum), pfad: d.dateipfad, dateiname });
+    versandtByParzelle.set(d.parzelleId, liste);
   }
 
   const snapParzellen: SnapParzelle[] = parzellen.map((p) => {
@@ -148,23 +175,34 @@ export async function GET() {
       paechter: [p.nachname, p.vorname].filter(Boolean).join(" "),
       neupaechter: istNeupaechter(p.eintritt, p.status),
       groesseM2: p.groesseM2,
+      groesseErmitteltM2: p.groesseErmitteltM2,
       befund,
       vorjahr,
       eskalation,
+      versandteSchreiben: versandtByParzelle.get(p.id) ?? [],
       plakettenJahre: [
         ...new Set(
           alt.filter((x) => x.gutGemacht).map((x) => new Date(x.runde.datum).getFullYear())
         ),
       ],
+      // Offen ODER in DIESER (Nach-)Begehung abgehakt (behobenAm ab Rundenstart):
+      // Ein versehentlich als „behoben" markierter Mangel bliebe sonst nach dem
+      // nächsten Snapshot-Laden aus der Liste gefiltert (status != "offen") und
+      // wäre nicht mehr per „rückgängig" umkehrbar. Ältere, früher behobene
+      // Mängel bleiben ausgeblendet (kein Verlauf-Ballast).
       offeneFruehere: alt.flatMap((x) =>
         x.maengel
-          .filter((m) => m.status === "offen")
+          .filter(
+            (m) =>
+              m.status === "offen" ||
+              (m.behobenAm != null && m.behobenAm >= runde.erstelltAm)
+          )
           .map((m) => ({
             uid: m.uid!,
             punkt: m.punkt,
             notiz: m.notiz,
             frist: fristStr(m.frist),
-            behoben: false,
+            behoben: m.status === "behoben",
             rundeDatum: datumStr(x.runde.datum),
             // Fotos der damaligen Begehung — für den Abgleich vor Ort
             fotos: m.fotos.map(foto),

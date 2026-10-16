@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, FolderOpen, History, ThumbsUp, TriangleAlert } from "lucide-react";
+import { ChevronRight, FileWarning, FolderOpen, History, Mail, ThumbsUp, TriangleAlert } from "lucide-react";
 import { Thumb } from "@/components/Thumb";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
-import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, normalisiereStufe } from "@/lib/constants";
+import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, normalisiereStufe, beetSoll, beetWertung, BEET_GUT } from "@/lib/constants";
 import type { SnapKatalog, SnapParzelle, SnapVorMangel } from "@/lib/workspaceTypes";
 import {
   speichereBefund,
@@ -93,19 +93,18 @@ export function ParzelleAnsicht({
   const beete = b?.beete ?? [];
   const maengel = b?.maengel ?? [];
   const beetIst = beete.reduce((s, x) => s + x.flaecheM2, 0);
-  const beetSoll = p.groesseM2 ? p.groesseM2 / 6 : null;
-  const beetRatio = beetSoll ? beetIst / beetSoll : null;
-  const beetFarbe =
-    beetRatio === null
-      ? "text-stone-500"
-      : beetRatio > 0.8
-        ? "text-emerald-700"
-        : beetRatio >= 0.6
-          ? "text-amber-800"
-          : "text-red-700";
-  const beetStatus =
-    beetRatio === null ? "" : beetRatio > 0.8 ? "erfüllt" : beetRatio >= 0.6 ? "knapp" : "zu wenig";
-  const beetUnterSoll = beetRatio !== null && beetRatio <= 0.8;
+  const beetSollM2 = beetSoll(p.groesseM2);
+  // Zweites SOLL aus der inoffiziell ermittelten Netto-Fläche (Luftbild/
+  // Wasserschächte, nur wo erhoben) — zeigt, wo es netto gar nicht zu wenig ist.
+  const beetSollErm = beetSoll(p.groesseErmitteltM2);
+  const beetRatio = beetSollM2 ? beetIst / beetSollM2 : null;
+  // Schwellen/Wertung zentral (constants.ts) — identisch zur Beet-Ampel in
+  // Auswertung/Berichten und zur 2/3-Grenze im Schreiben-Generator.
+  const beetW = beetWertung(beetIst, beetSollM2);
+  const beetErmW = beetSollErm !== null ? beetWertung(beetIst, beetSollErm) : null;
+  const beetFarbe = beetRatio === null ? "text-stone-500" : beetW.farbe;
+  const beetStatus = beetRatio === null ? "" : beetW.wort;
+  const beetUnterSoll = beetRatio !== null && beetRatio < BEET_GUT;
   const kompAktiv = (b?.kompensationAusreichend ?? false) && beetUnterSoll;
   const kompFlaeche = (b?.kompObstFlaecheM2 ?? 0) + (b?.kompBeerenFlaecheM2 ?? 0);
   const anbauGesamt = beetIst + kompFlaeche;
@@ -143,6 +142,9 @@ export function ParzelleAnsicht({
             <span className="ml-1.5"><NeupaechterTag /></span>
           )}
           {p.groesseM2 ? ` · ${p.groesseM2} m²` : ""}
+          {p.groesseErmitteltM2 ? (
+            <span className="italic"> · erm. {p.groesseErmitteltM2} m²</span>
+          ) : null}
           <span className="ml-2 text-sm text-stone-500">
             · speichert automatisch
           </span>
@@ -191,6 +193,39 @@ export function ParzelleAnsicht({
         </section>
       )}
 
+      {/* Tatsächlich versandte Schreiben (Mitteilung/Abmahnung) aus der Akte */}
+      {p.versandteSchreiben && p.versandteSchreiben.length > 0 && (
+        <section className="space-y-1.5">
+          {p.versandteSchreiben.map((s, i) => {
+            const abm = s.art === "abmahnung";
+            return (
+              <div
+                key={i}
+                className={`flex items-center justify-between gap-2 rounded-lg border p-3 text-base ${
+                  abm ? "border-2 border-red-600 bg-red-50" : "border-stone-200 bg-white"
+                }`}
+              >
+                <span className={`flex items-center gap-1.5 font-medium ${abm ? "text-red-700" : "text-stone-900"}`}>
+                  {abm ? (
+                    <FileWarning className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Mail className="h-4 w-4 shrink-0 text-stone-600" aria-hidden />
+                  )}
+                  {abm ? "Abmahnung" : "Mitteilung"} versandt am {s.datum}
+                </span>
+                <Link
+                  href={`/api/datei/${s.pfad}`}
+                  target="_blank"
+                  className={`shrink-0 underline ${abm ? "text-red-700" : "text-stone-600"}`}
+                >
+                  PDF
+                </Link>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
       {/* Details der letzten Begehung */}
       {p.vorjahr &&
         (p.vorjahr.notiz.trim() !== "" ||
@@ -224,9 +259,17 @@ export function ParzelleAnsicht({
       {/* Offene Mängel aus früheren Begehungen — abhaken (Nachverfolgung) */}
       {p.offeneFruehere.length > 0 && (
         <section className="rounded-lg border border-amber-300 bg-amber-50/60 p-4">
-          <h2 className="text-base font-medium text-amber-900">
-            Offene Mängel aus früheren Begehungen ({p.offeneFruehere.filter((m) => !m.behoben).length})
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-base font-medium text-amber-900">
+              Offene Mängel aus früheren Begehungen ({p.offeneFruehere.filter((m) => !m.behoben).length})
+            </h2>
+            <a href="#mangel-hinzufuegen" className="text-sm font-medium text-emerald-700 hover:underline">
+              + Neuen Mangel erfassen
+            </a>
+          </div>
+          <p className="mt-0.5 text-sm text-stone-600">
+            Zeile antippen zeigt Fotos &amp; Text der damaligen Feststellung; „✓ behoben" hakt ab.
+          </p>
           <ul className="mt-2 space-y-2">
             {p.offeneFruehere.map((m) => {
               const ueb = m.frist && new Date(m.frist + "T00:00:00") < heute;
@@ -311,13 +354,19 @@ export function ParzelleAnsicht({
             <h2 className="text-base font-medium text-stone-600">Gemüsebeete</h2>
             <span className={`text-base font-semibold ${kompAktiv ? "text-emerald-700" : beetFarbe}`}>
               IST {m2(beetIst)} m²
-              {beetSoll !== null && (
+              {beetSollM2 !== null && (
                 <>
                   {" / SOLL "}
-                  {m2(beetSoll)} m²
+                  {m2(beetSollM2)} m²
                   {(kompAktiv ? "kompensiert (dokumentiert)" : beetStatus) &&
                     ` · ${kompAktiv ? "kompensiert (dokumentiert)" : beetStatus}`}
                 </>
+              )}
+              {beetErmW && beetSollErm !== null && !kompAktiv && beetIst > 0 && (
+                <span className={`ml-1.5 text-sm font-normal italic ${beetErmW.farbe}`}>
+                  (erm. SOLL {m2(beetSollErm)} m²
+                  {beetErmW.kurz ? ` · ${beetErmW.kurz}` : ""})
+                </span>
               )}
             </span>
           </div>
@@ -514,7 +563,7 @@ export function ParzelleAnsicht({
       </div>
 
       {/* Mängel-Menü */}
-      <section className={CARD}>
+      <section id="mangel-hinzufuegen" className={`scroll-mt-4 ${CARD}`}>
         <h2 className="text-base font-medium text-stone-600">Mangel hinzufügen</h2>
         <p className="text-sm text-stone-600">
           Antippen wählt den Punkt aus.

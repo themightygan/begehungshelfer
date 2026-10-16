@@ -21,6 +21,7 @@ export type Zeile = {
   neupaechter: boolean;
   beetIst: number;
   beetSoll: number | null;
+  beetSollErmittelt: number | null;
   komp: boolean;
   stufe: string;
   stufeRang: number;
@@ -42,7 +43,8 @@ type SortKey =
   | "beetIst"
   | "stufeRang"
   | "plakette"
-  | "maengel";
+  | "maengel"
+  | "handlung";
 
 // Stabiler Grund-Sort (= Server-Reihenfolge): Parzellennummer, dann Index.
 const stamm = (a: Zeile, b: Zeile) =>
@@ -62,6 +64,11 @@ function vergleich(a: Zeile, b: Zeile, key: SortKey): number {
       return Number(a.plakette) - Number(b.plakette);
     case "maengel":
       return a.maengel - b.maengel;
+    case "handlung": {
+      // offen zuerst (To-do), dann erledigt, dann ohne Schreiben.
+      const rang = (z: Zeile) => (handlung(z) === "offen" ? 0 : handlung(z) === "erledigt" ? 1 : 2);
+      return rang(a) - rang(b);
+    }
     default:
       return stamm(a, b);
   }
@@ -73,6 +80,16 @@ const TH = "sticky top-0 z-10 border-b border-stone-300 bg-white py-2 pr-3";
 
 // Stufen, für die ein Schreiben vorgesehen ist (voller Prozess je Typ).
 const SCHREIBEN_STUFEN = new Set(["mitteilung", "abmahnung_1", "abmahnung_2"]);
+// Stufen, bei denen ein Schreiben an den Pächter/BV ANSTEHT — inkl. Kündigung
+// (die nicht per Sammel-Erstellung erzeugt wird, aber auf der To-do-Liste steht).
+const HANDLUNG_STUFEN = new Set(["mitteilung", "abmahnung_1", "abmahnung_2", "kuendigung"]);
+// To-do-Status je Zeile: "offen" = Schreiben steht an, aber noch keins in der
+// Akte; "erledigt" = seit dem Begehungstag versandt/abgelegt; null = kein
+// Schreiben vorgesehen.
+function handlung(z: Zeile): "offen" | "erledigt" | null {
+  if (!HANDLUNG_STUFEN.has(z.stufe)) return null;
+  return z.schreibenErledigt ? "erledigt" : "offen";
+}
 type SchreibenStatus = { sym: "läuft" | "ok" | "warn" | "fehler"; text: string };
 
 export function AuswertungsTabelle({
@@ -92,18 +109,19 @@ export function AuswertungsTabelle({
     dir: 1,
   });
   const [filter, setFilter] = useState("");
+  const [handlungFilter, setHandlungFilter] = useState<"alle" | "offen" | "erledigt">("alle");
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<Map<string, SchreibenStatus>>(new Map());
   const [laufend, setLaufend] = useState(false);
 
   const f = filter.trim().toLowerCase();
-  const gefiltert = f
-    ? zeilen.filter(
-        (z) =>
-          z.parzelleId.toLowerCase().includes(f) ||
-          `${z.nachname} ${z.vorname}`.toLowerCase().includes(f)
-      )
-    : zeilen;
+  const gefiltert = zeilen.filter((z) => {
+    if (f && !(z.parzelleId.toLowerCase().includes(f) || `${z.nachname} ${z.vorname}`.toLowerCase().includes(f)))
+      return false;
+    if (handlungFilter !== "alle" && handlung(z) !== handlungFilter) return false;
+    return true;
+  });
+  const aktivFilter = f !== "" || handlungFilter !== "alle";
   const sortiert = [...gefiltert].sort(
     (a, b) => sort.dir * vergleich(a, b, sort.key) || stamm(a, b)
   );
@@ -186,7 +204,20 @@ export function AuswertungsTabelle({
           aria-label="Tabelle filtern nach Garten oder Pächter"
           className="w-full max-w-xs rounded border border-stone-300 px-3 py-2 text-base"
         />
-        {f && (
+        <label className="flex items-center gap-1.5 text-sm text-stone-600">
+          Schreiben:
+          <select
+            value={handlungFilter}
+            onChange={(e) => setHandlungFilter(e.target.value as "alle" | "offen" | "erledigt")}
+            aria-label="Nach Schreiben-Status filtern"
+            className="min-h-11 rounded border border-stone-300 px-2 py-2 text-base"
+          >
+            <option value="alle">alle</option>
+            <option value="offen">zu erledigen (ausstehend)</option>
+            <option value="erledigt">erledigt (versandt)</option>
+          </select>
+        </label>
+        {aktivFilter && (
           <span className="text-sm text-stone-600" aria-live="polite">
             {gefiltert.length} von {zeilen.length} Zeilen
           </span>
@@ -247,6 +278,9 @@ export function AuswertungsTabelle({
               </th>
               <th scope="col" aria-sort={ariaSort("maengel")} className={TH}>
                 <SortKnopf k="maengel">Mängel</SortKnopf>
+              </th>
+              <th scope="col" aria-sort={ariaSort("handlung")} className={TH}>
+                <SortKnopf k="handlung">Schreiben</SortKnopf>
               </th>
               <th scope="col" className={TH}>
                 Bericht
@@ -316,7 +350,12 @@ export function AuswertungsTabelle({
                   )}
                 </td>
                 <td className="py-2 pr-3">
-                  <BeetZelle ist={z.beetIst} soll={z.beetSoll} komp={z.komp} />
+                  <BeetZelle
+                    ist={z.beetIst}
+                    soll={z.beetSoll}
+                    komp={z.komp}
+                    sollErmittelt={z.beetSollErmittelt}
+                  />
                 </td>
                 <td className={`py-2 pr-3 font-medium ${STUFE_TEXTFARBE[z.stufe] ?? "text-stone-600"}`}>
                   {STUFE_SYMBOL[z.stufe]} {STUFE_LABEL[z.stufe] ?? z.stufe}
@@ -342,6 +381,24 @@ export function AuswertungsTabelle({
                   )}
                 </td>
                 <td className="py-2 pr-3">
+                  {(() => {
+                    const h = handlung(z);
+                    if (h === "offen")
+                      return (
+                        <span className="inline-flex items-center gap-1 font-medium text-amber-800" title="Schreiben steht an, noch nicht versandt">
+                          <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden /> ausstehend
+                        </span>
+                      );
+                    if (h === "erledigt")
+                      return (
+                        <span className="inline-flex items-center gap-1 text-emerald-700" title={`versandt/abgelegt seit ${z.schreibenErledigt}`}>
+                          ✓✉ {z.schreibenErledigt}
+                        </span>
+                      );
+                    return <span className="text-stone-500">—</span>;
+                  })()}
+                </td>
+                <td className="py-2 pr-3">
                   <a
                     href={z.pdfHref}
                     target="_blank"
@@ -358,10 +415,18 @@ export function AuswertungsTabelle({
         </table>
         {sortiert.length === 0 && (
           <p className="py-4 text-sm text-stone-600">
-            {f ? "Keine Zeile passt zum Filter." : "Keine Befunde mit Daten in dieser Auswahl."}
+            {aktivFilter ? "Keine Zeile passt zum Filter." : "Keine Befunde mit Daten in dieser Auswahl."}
           </p>
         )}
       </div>
+      {/* Legende: nur zeigen, wenn irgendwo eine ermittelte Fläche vorliegt. */}
+      {zeilen.some((z) => z.beetSollErmittelt !== null) && (
+        <p className="text-sm text-stone-600">
+          <span className="italic">erm.</span> = SOLL nach der inoffiziell ermittelten
+          Parzellengröße (Luftbild/Wasserschächte, ohne Gemeinschaftsflächen) — nur Indikator,
+          Schreiben rechnen mit der offiziellen Fläche.
+        </p>
+      )}
     </div>
   );
 }

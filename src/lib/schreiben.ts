@@ -31,6 +31,10 @@ export type SchreibenEingabe = {
     strasse: string; plz: string; ort: string;
     anrede: string; anredeStil: string; eintritt: string;
     groesseM2: number | null;
+    // Inoffiziell ermittelte Netto-Fläche (Luftbild/Wasserschächte), falls
+    // erhoben — NICHT vertragsrelevant: das Schreiben rechnet immer mit der
+    // offiziellen Fläche. Weicht die 2/3-Wertung ab, gibt es nur eine Warnung.
+    groesseErmitteltM2?: number | null;
   };
   gemuese: { vorhanden: boolean; istM2: number | null } | null; // null = kein Gemüse-Hinweis
   // Kompensation der geringen Gemüsefläche durch Obst ausdrücklich vermerkt
@@ -187,6 +191,23 @@ export function baueSchreiben(e: SchreibenEingabe): {
       // Ab 2/3 vom Soll gilt die Fläche als ausreichend (Sascha 2026-07-11) —
       // dann wird sie NICHT angemahnt (deckt sich mit der orangen Beet-Ampel).
       const ausreichend = Math.round(soll * BEET_AUSREICHEND);
+      // Gegenprobe mit der inoffiziell ermittelten Netto-Fläche: dieselbe
+      // 2/3-Regel, nur andere Bezugsfläche. Das Schreiben bleibt bei der
+      // offiziellen Fläche — abweichende Wertungen werden nur gemeldet.
+      const qmErm = e.parzelle.groesseErmitteltM2;
+      if (qmErm && ist !== null) {
+        const sollErm = Math.round(qmErm / 6);
+        const ausreichendErm = Math.round(sollErm * BEET_AUSREICHEND);
+        const offiziellReicht = ist >= Math.round(soll * BEET_AUSREICHEND);
+        const ermReicht = ist >= ausreichendErm;
+        if (offiziellReicht !== ermReicht) {
+          w.push(
+            ermReicht
+              ? `Gemüse: nach ermittelter Fläche (${qmErm} m², SOLL ${sollErm} m²) wären ${ist} m² ausreichend — nach offizieller Fläche wird angemahnt. Bitte prüfen.`
+              : `Gemüse: nach offizieller Fläche ausreichend, nach ermittelter Fläche (${qmErm} m², SOLL ${sollErm} m²) nicht — nicht angemahnt. Bitte prüfen.`
+          );
+        }
+      }
       if (ist !== null && ist >= ausreichend) {
         w.push(`Gemüse: IST ${ist} m² >= 2/3 vom SOLL (${ausreichend} m²) — als ausreichend gewertet, Position übersprungen.`);
       } else {

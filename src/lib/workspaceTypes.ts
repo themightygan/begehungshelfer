@@ -72,6 +72,9 @@ export type SnapParzelle = {
   paechter: string;
   neupaechter: boolean; // Eintritt < 18 Monate -> bei der Begehung anzeigen
   groesseM2: number | null;
+  // Inoffiziell per Luftbild/Wasserschächte ermittelte Netto-Fläche (nur wo
+  // erhoben). Optional: alte IndexedDB-Snapshots kennen das Feld noch nicht.
+  groesseErmitteltM2?: number | null;
   befund: SnapBefund | null;
   vorjahr: {
     datum: string; // "DD.MM.YYYY"
@@ -86,6 +89,15 @@ export type SnapParzelle = {
     datum: string; // "DD.MM.YYYY"
     fristen: string[]; // ISO-Daten der gesetzten Mangel-Fristen
   } | null;
+  // Tatsächlich versandte Schreiben (Mitteilung/Abmahnung) aus der Akte —
+  // vom Postfach-Abgleich abgeleitet. Neueste zuerst. Optional wg. alter
+  // IndexedDB-Snapshots (Feld fehlt dort einfach).
+  versandteSchreiben?: {
+    art: "mitteilung" | "abmahnung";
+    datum: string; // "DD.MM.YYYY"
+    pfad: string; // relativ -> /api/datei/<pfad>
+    dateiname: string;
+  }[];
   plakettenJahre: number[];
   offeneFruehere: SnapOffenerMangel[];
   messHistorie: {

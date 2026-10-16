@@ -116,7 +116,12 @@ export default async function ParzellenSeite({
                   )}
                 </td>
                 <td className="py-2 pr-3">{p.ort || "—"}</td>
-                <td className="py-2 pr-3">{p.groesseM2 ? `${p.groesseM2} m²` : "—"}</td>
+                <td className="py-2 pr-3">
+                  {p.groesseM2 ? `${p.groesseM2} m²` : "—"}
+                  {p.groesseErmitteltM2 ? (
+                    <span className="italic text-stone-500"> · {p.groesseErmitteltM2}</span>
+                  ) : null}
+                </td>
                 <td className="py-2 pr-3">{STATUS_LABEL[p.status] ?? p.status}</td>
               </tr>
             ))}

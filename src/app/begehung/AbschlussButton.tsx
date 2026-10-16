@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { Hourglass } from "lucide-react";
-import { subscribe, getItems, loadQueue, type QueueItem } from "@/lib/uploadQueue";
+import { Hourglass, TriangleAlert } from "lucide-react";
+import { subscribe, getItems, loadQueue, MAX_ATTEMPTS, type QueueItem } from "@/lib/uploadQueue";
 import { ConfirmButton } from "./ConfirmButton";
 
 const EMPTY: QueueItem[] = [];
@@ -16,14 +16,31 @@ export function AbschlussButton({ rundeId }: { rundeId: number }) {
     loadQueue();
   }, []);
 
-  const offen = items.filter((it) => it.rundeId === rundeId).length;
-  if (offen > 0) {
+  const meine = items.filter((it) => it.rundeId === rundeId);
+  // Hängende Items (MAX_ATTEMPTS erreicht) gehen NICHT mehr von selbst raus —
+  // der Sync überspringt sie. Ohne Unterscheidung wäre der Abschluss dauerhaft
+  // blockiert („warten, bis der Zähler verschwindet" = Sackgasse). Deshalb hier
+  // eine handlungsleitende Meldung, die auf das ⏳-Menü verweist.
+  const haengend = meine.filter((it) => it.attempts >= MAX_ATTEMPTS).length;
+  const laufend = meine.length - haengend;
+  if (laufend > 0) {
     return (
       <p className="rounded bg-red-50 p-2 text-sm font-medium text-red-700">
         <Hourglass className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
-        Noch {offen} {offen === 1 ? "Upload" : "Uploads"} dieser Begehung auf
+        Noch {laufend} {laufend === 1 ? "Upload" : "Uploads"} dieser Begehung auf
         diesem Gerät — bitte warten, bis der Zähler oben verschwindet, dann
         abschließen.
+      </p>
+    );
+  }
+  if (haengend > 0) {
+    return (
+      <p className="rounded bg-red-50 p-2 text-sm font-medium text-red-700">
+        <TriangleAlert className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
+        {haengend} {haengend === 1 ? "hängender Upload" : "hängende Uploads"} dieser
+        Begehung gehen nicht mehr von selbst raus. Öffne oben das{" "}
+        <Hourglass className="inline h-3.5 w-3.5 align-text-bottom" aria-hidden />-Menü
+        und „sichern" bzw. „verwerfen" — danach lässt sich abschließen.
       </p>
     );
   }

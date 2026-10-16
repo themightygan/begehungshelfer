@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Download, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { istNeupaechter } from "@/lib/paechter";
+import { beetSoll } from "@/lib/constants";
 import { hatDaten, summary, stufeRang, neuesteBefundeJeParzelle } from "@/lib/auswertung";
 import { nameSchoen } from "@/lib/schreiben";
 import { sammelSchreiben } from "./actions";
@@ -56,6 +57,7 @@ type BefundInc = {
     nachname: string;
     vorname: string;
     groesseM2: number | null;
+    groesseErmitteltM2: number | null;
     eintritt: string;
     status: string;
   };
@@ -73,7 +75,8 @@ function zeileAusBefund(b: BefundInc, rundeId: number, von?: string): Zeile {
     vorname: p.vorname,
     neupaechter: istNeupaechter(p.eintritt, p.status),
     beetIst: b.beete.reduce((x, y) => x + y.flaecheM2, 0),
-    beetSoll: p.groesseM2 ? p.groesseM2 / 6 : null,
+    beetSoll: beetSoll(p.groesseM2),
+    beetSollErmittelt: beetSoll(p.groesseErmitteltM2),
     komp: b.kompensationAusreichend,
     stufe: b.stufe,
     stufeRang: stufeRang(b.stufe),
@@ -205,6 +208,7 @@ export default async function AuswertungSeite({
         nachname: true,
         vorname: true,
         groesseM2: true,
+        groesseErmitteltM2: true,
         eintritt: true,
         status: true,
       },

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClipboardCheck, Download, FileText, Sparkles, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE } from "@/lib/constants";
+import { STUFE_LABEL, STUFE_SYMBOL, STUFE_TEXTFARBE, beetSoll } from "@/lib/constants";
 import { hatDaten, stufeRang } from "@/lib/auswertung";
 import { BeetZelle } from "@/components/BeetZelle";
 
@@ -111,7 +111,8 @@ export default async function BerichteSeite({
         <ul className="space-y-2">
           {begutachtet.map((b) => {
             const beetIst = b.beete.reduce((s, x) => s + x.flaecheM2, 0);
-            const beetSoll = b.parzelle.groesseM2 ? b.parzelle.groesseM2 / 6 : null;
+            const soll = beetSoll(b.parzelle.groesseM2);
+            const sollErm = beetSoll(b.parzelle.groesseErmitteltM2);
             return (
               // Ganzer Balken -> editierbare Begehungsansicht; der PDF-Knopf
               // liegt absolut ÜBER dem Balken (Geschwister, kein <a> im <a>).
@@ -141,7 +142,12 @@ export default async function BerichteSeite({
                       </>
                     )}
                     {"Beet "}
-                    <BeetZelle ist={beetIst} soll={beetSoll} komp={b.kompensationAusreichend} />
+                    <BeetZelle
+                      ist={beetIst}
+                      soll={soll}
+                      komp={b.kompensationAusreichend}
+                      sollErmittelt={sollErm}
+                    />
                     {b._count.maengel > 0
                       ? ` · ${b._count.maengel} ${b._count.maengel === 1 ? "Mangel" : "Mängel"}`
                       : ""}

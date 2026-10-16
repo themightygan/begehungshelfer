@@ -43,7 +43,10 @@ model Parzelle {
   // Anrede-Stil für Mitteilungen (erlaubt: sie | du). Abmahnungen immer "Sie".
   anrede     String @default("")
   anredeStil String @default("sie")
-  groesseM2  Int? // Parzellenfläche
+  groesseM2  Int? // offizielle Parzellenfläche (Vertrag/Kostenumlage, inkl. zugeschlagener Gemeinschaftsflächen)
+  // Inoffiziell per Luftbild/Wasserschächte ermittelte Netto-Fläche (nur wo erhoben,
+  // Stand: nur Kühwasen) — zweiter Indikator fürs Gemüse-SOLL, NICHT vertragsrelevant.
+  groesseErmitteltM2 Int?
   // erlaubt: verpachtet | neupaechter | gekuendigt | nicht_verpachtet
   status     String @default("verpachtet")
 

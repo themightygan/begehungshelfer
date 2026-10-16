@@ -9,6 +9,9 @@ export async function updateStammdaten(parzelleId: string, formData: FormData) {
   const parzelle = await prisma.parzelle.findUniqueOrThrow({ where: { parzelleId } });
   const s = (k: string) => String(formData.get(k) ?? "").trim();
   const groesse = parseInt(s("groesseM2"), 10);
+  // Inoffiziell ermittelte Fläche: leeres Feld = löschen (null), sonst Zahl.
+  const roh = s("groesseErmitteltM2");
+  const ermittelt = parseInt(roh, 10);
   await prisma.parzelle.update({
     where: { id: parzelle.id },
     data: {
@@ -24,6 +27,7 @@ export async function updateStammdaten(parzelleId: string, formData: FormData) {
       anredeStil: s("anredeStil") === "du" ? "du" : "sie",
       status: s("status") || "verpachtet",
       groesseM2: Number.isFinite(groesse) ? groesse : parzelle.groesseM2,
+      groesseErmitteltM2: roh === "" ? null : Number.isFinite(ermittelt) ? ermittelt : parzelle.groesseErmitteltM2,
     },
   });
   await prisma.parzelleAenderung.create({

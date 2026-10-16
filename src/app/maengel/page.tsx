@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mic } from "lucide-react";
 import { prisma } from "@/lib/db";
+import { beetSoll, beetWertung } from "@/lib/constants";
 import { toggleBehoben } from "./actions";
 import { Thumb } from "@/components/Thumb";
 import { FotoWaehlenKnopf } from "@/components/FotoWaehlenKnopf";
@@ -45,17 +46,15 @@ export default async function MaengelSeite({
         })
       : null;
     const beetIst = beetBefund?.beete.reduce((s, b) => s + b.flaecheM2, 0) ?? 0;
-    const beetSoll = parzelle?.groesseM2 ? parzelle.groesseM2 / 6 : null;
-    const beetRatio = beetBefund && beetSoll ? beetIst / beetSoll : null;
+    const beetSollM2 = beetSoll(parzelle?.groesseM2);
+    const beetSollErm = beetSoll(parzelle?.groesseErmitteltM2);
+    const beetRatio = beetBefund && beetSollM2 ? beetIst / beetSollM2 : null;
     const komp = beetBefund?.kompensationAusreichend ?? false;
+    // Schwellen/Wertung zentral (constants.ts) — identisch zur Beet-Ampel.
     const beetFarbe =
-      beetRatio === null
-        ? "text-stone-500"
-        : komp || beetRatio > 0.8
-          ? "text-emerald-700"
-          : beetRatio >= 0.6
-            ? "text-amber-800"
-            : "text-red-700";
+      beetRatio === null ? "text-stone-500" : beetWertung(beetIst, beetSollM2, komp).farbe;
+    const beetErmW =
+      beetBefund && beetSollErm !== null && !komp ? beetWertung(beetIst, beetSollErm) : null;
     const m2 = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 1 });
     const pfadHier = "/maengel";
 
@@ -120,7 +119,13 @@ export default async function MaengelSeite({
                 ) : (
                   <>IST {m2(beetIst)} m²{komp ? " · kompensiert" : ""}</>
                 )}
-                {beetSoll !== null ? ` / SOLL ${m2(beetSoll)} m²` : ""}
+                {beetSollM2 !== null ? ` / SOLL ${m2(beetSollM2)} m²` : ""}
+                {beetErmW && beetSollErm !== null && beetIst > 0 && (
+                  <span className={`ml-1.5 text-sm font-normal italic ${beetErmW.farbe}`}>
+                    (erm. SOLL {m2(beetSollErm)} m²
+                    {beetErmW.kurz ? ` · ${beetErmW.kurz}` : ""})
+                  </span>
+                )}
               </span>
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">

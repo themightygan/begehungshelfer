@@ -175,6 +175,7 @@ export async function erzeugeUndSendeSchreiben(a: SchreibenAuftrag): Promise<Sch
       anredeStil: parzelle.anredeStil,
       eintritt: parzelle.eintritt,
       groesseM2: parzelle.groesseM2,
+      groesseErmitteltM2: parzelle.groesseErmitteltM2,
     },
     gemuese: gemueseMangel || gemueseWertVorhanden ? { vorhanden: true, istM2 } : null,
     kompensation: befund.kompensationAusreichend,

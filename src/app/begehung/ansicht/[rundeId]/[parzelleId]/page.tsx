@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, ThumbsUp } from "lucide-react";
+import { FileText, FileWarning, Mail, ThumbsUp } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, BEFUND_STATUS, BEFUND_STATUS_LABEL } from "@/lib/constants";
+import { STUFEN, STUFE_LABEL, STUFE_SYMBOL, BEFUND_STATUS, BEFUND_STATUS_LABEL, schreibenArt, beetSoll, beetWertung } from "@/lib/constants";
 import { hatDaten } from "@/lib/auswertung";
 import { istNeupaechter } from "@/lib/paechter";
 import { NeupaechterTag } from "@/components/NeupaechterTag";
@@ -101,8 +101,17 @@ export default async function AnsichtSeite({
   const dokumente = await prisma.dokument.findMany({
     where: { parzelleId: parzelle.id },
     orderBy: { datum: "asc" },
-    select: { typ: true, datum: true, notiz: true },
+    select: { typ: true, datum: true, notiz: true, dateipfad: true },
   });
+  // Tatsächlich versandte Schreiben (Mitteilung/Abmahnung) — neueste zuerst, mit
+  // direktem PDF-Link. Nur Schreiben/E-Mail-Dokumente, nur eindeutig
+  // klassifizierbare (kein Falsch-Marker; konsistent mit dem Workspace-Snapshot).
+  const versandteSchreiben = [...dokumente]
+    .reverse()
+    .filter((d) => d.typ === "schreiben" || d.typ === "email")
+    .map((d) => ({ ...d, art: schreibenArt(d.notiz) }))
+    .filter((d): d is typeof d & { art: "mitteilung" | "abmahnung" } => d.art !== null)
+    .slice(0, 5);
   // Schreiben zu DIESER Begehung schon in der Akte? (Gesendet-Abgleich bzw.
   // manueller Upload ab dem Begehungstag) -> Hinweis statt Doppelversand.
   const begehungsTag = new Date(runde.datum);
@@ -140,7 +149,9 @@ export default async function AnsichtSeite({
   const zustandFotos = befund.fotos.filter((f) => f.kontext === "zustand");
   const kompFotos = befund.fotos.filter((f) => f.kontext === "kompensation");
   const ist = befund.beete.reduce((s, b) => s + b.flaecheM2, 0);
-  const soll = parzelle.groesseM2 ? parzelle.groesseM2 / 6 : null;
+  const soll = beetSoll(parzelle.groesseM2);
+  // Zweites SOLL aus der inoffiziell ermittelten Netto-Fläche (nur wo erhoben).
+  const sollErm = beetSoll(parzelle.groesseErmitteltM2);
   const fristWert = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
   return (
@@ -154,6 +165,9 @@ export default async function AnsichtSeite({
               <span className="ml-1.5"><NeupaechterTag /></span>
             )}
             {parzelle.groesseM2 ? ` · ${parzelle.groesseM2} m²` : ""}
+            {parzelle.groesseErmitteltM2 ? (
+              <span className="italic"> · erm. {parzelle.groesseErmitteltM2} m²</span>
+            ) : null}
           </p>
           <p className="text-sm text-stone-600">
             {runde.bezeichnung} · {new Date(runde.datum).toLocaleDateString("de-DE")} ·
@@ -169,6 +183,41 @@ export default async function AnsichtSeite({
           </Link>
         </div>
       </div>
+
+      {/* Tatsächlich versandte Schreiben (aus der Akte / Postfach-Abgleich) */}
+      {versandteSchreiben.length > 0 && (
+        <section className="space-y-1.5">
+          {versandteSchreiben.map((s, i) => {
+            const abm = s.art === "abmahnung";
+            const zuDieser = s.datum >= begehungsTag;
+            return (
+              <div
+                key={i}
+                className={`flex items-center justify-between gap-2 rounded-lg border p-3 text-base ${
+                  abm ? "border-2 border-red-600 bg-red-50" : "border-stone-200 bg-white"
+                }`}
+              >
+                <span className={`flex items-center gap-1.5 font-medium ${abm ? "text-red-700" : "text-stone-900"}`}>
+                  {abm ? (
+                    <FileWarning className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Mail className="h-4 w-4 shrink-0 text-stone-600" aria-hidden />
+                  )}
+                  {abm ? "Abmahnung" : "Mitteilung"} versandt am {s.datum.toLocaleDateString("de-DE")}
+                  {zuDieser && <span className="text-stone-500">· zu dieser Begehung</span>}
+                </span>
+                <Link
+                  href={`/api/datei/${s.dateipfad}`}
+                  target="_blank"
+                  className={`shrink-0 underline ${abm ? "text-red-700" : "text-stone-600"}`}
+                >
+                  PDF öffnen
+                </Link>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       {/* Befund (editierbar, Auto-Save) */}
       <AutoSaveForm action={aktualisiereBefund.bind(null, befund.id, pfad)} className={`${CARD} space-y-3`}>
@@ -248,6 +297,19 @@ export default async function AnsichtSeite({
         <h2 className="text-base font-medium text-stone-600">Gemüsebeete</h2>
         <p className="text-base">
           IST {m2(ist)} m²{soll !== null ? ` · SOLL (1/6) ${m2(soll)} m²` : ""}
+          {soll !== null && ist > 0 && (
+            <span className={beetWertung(ist, soll, befund.kompensationAusreichend).farbe}>
+              {befund.kompensationAusreichend
+                ? " · kompensiert"
+                : beetWertung(ist, soll).label}
+            </span>
+          )}
+          {sollErm !== null && ist > 0 && !befund.kompensationAusreichend && (
+            <span className={`italic ${beetWertung(ist, sollErm).farbe}`}>
+              {" "}
+              (erm. SOLL {m2(sollErm)} m² · {beetWertung(ist, sollErm).kurz})
+            </span>
+          )}
         </p>
         {befund.beete.map((b) => (
           <div key={b.id} className="mt-2 rounded border border-stone-100 p-2">
@@ -397,14 +459,36 @@ export default async function AnsichtSeite({
         </form>
       </section>
 
-      <a
-        href={`/api/parzelle/${parzelle.parzelleId}/pdf?rundeId=${rundeId}`}
-        target="_blank"
-        rel="noopener"
-        className="inline-flex items-center gap-1.5 rounded border border-emerald-700 px-4 py-2 text-base font-medium text-emerald-700 hover:bg-emerald-50"
-      >
-        <FileText className="h-4 w-4 shrink-0" aria-hidden /> Bericht-PDF
-      </a>
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={`/api/parzelle/${parzelle.parzelleId}/pdf?rundeId=${rundeId}`}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-1.5 rounded border border-emerald-700 px-4 py-2 text-base font-medium text-emerald-700 hover:bg-emerald-50"
+        >
+          <FileText className="h-4 w-4 shrink-0" aria-hidden /> Bericht-PDF
+        </a>
+        {/* Direkt daneben: das tatsächlich versandte Schreiben aus der Akte —
+            so ist sofort ersichtlich, was aus den Mängeln wurde. */}
+        {versandteSchreiben.map((s, i) => {
+          const abm = s.art === "abmahnung";
+          return (
+            <a
+              key={i}
+              href={`/api/datei/${s.dateipfad}`}
+              target="_blank"
+              rel="noopener"
+              title={`${abm ? "Abmahnung" : "Mitteilung"} versandt am ${s.datum.toLocaleDateString("de-DE")} — in der Akte`}
+              className={`inline-flex items-center gap-1.5 rounded border px-4 py-2 text-base font-medium ${
+                abm ? "border-red-700 text-red-700 hover:bg-red-50" : "border-stone-300 text-stone-600 hover:bg-stone-50"
+              }`}
+            >
+              {abm ? <FileWarning className="h-4 w-4 shrink-0" aria-hidden /> : <Mail className="h-4 w-4 shrink-0" aria-hidden />}
+              {abm ? "Abmahnung" : "Mitteilung"} ({s.datum.toLocaleDateString("de-DE")})
+            </a>
+          );
+        })}
+      </div>
 
       {/* Schreiben erstellen: voller Prozess (docx aus Vorlagen + Bausteinen,
           Versand als Entwurf) — Typ aus der Befund-Stufe vorbelegt. */}
@@ -451,6 +535,7 @@ export default async function AnsichtSeite({
                       ist={b.beete.reduce((s, x) => s + x.flaecheM2, 0)}
                       soll={soll}
                       komp={b.kompensationAusreichend}
+                      sollErmittelt={sollErm}
                     />
                   </span>
                   <span>{STUFE_SYMBOL[b.stufe]} {STUFE_LABEL[b.stufe] ?? b.stufe}</span>

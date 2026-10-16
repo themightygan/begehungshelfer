@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
     "Parzelle", "Anlage", "Begehung_Datum", "Teilnehmer", "Paechter", "Adresse",
     "Flaeche_m2", "Stufe", "Bemerkung", "Bereich", "Mangel", "Mangel_Notiz",
     "Frist", "Status", "BehobenAm", "Fotos", "Gemuese_IST_m2", "Gemuese_SOLL_m2",
+    "Flaeche_ermittelt_m2", "Gemuese_SOLL_ermittelt_m2",
   ];
   const zeilen: string[] = [kopf.join(";")];
 
@@ -72,6 +73,8 @@ export async function GET(req: NextRequest) {
       .join(", ");
     const ist = b.beete.reduce((s, x) => s + x.flaecheM2, 0);
     const soll = p.groesseM2 ? p.groesseM2 / 6 : null;
+    // Inoffiziell ermittelte Netto-Fläche (Luftbild) + daraus abgeleitetes SOLL.
+    const sollErm = p.groesseErmitteltM2 ? p.groesseErmitteltM2 / 6 : null;
     const basis = [
       p.parzelleId, p.anlage.name, iso(b.runde.datum), b.runde.teilnehmende,
       `${p.nachname} ${p.vorname}`.trim(), adresse,
@@ -80,6 +83,8 @@ export async function GET(req: NextRequest) {
     const gemuese = [
       ist ? ist.toFixed(1) : "0",
       soll !== null ? soll.toFixed(1) : "",
+      p.groesseErmitteltM2 ?? "",
+      sollErm !== null ? sollErm.toFixed(1) : "",
     ];
 
     if (b.maengel.length === 0) {
